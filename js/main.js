@@ -11,6 +11,8 @@ import { generateProblem } from './math.js';
 import { createContest } from './contest.js';
 import { createDelivery } from './delivery.js';
 import { createPhoto } from './photo.js';
+import { buildForest } from './forest_area.js';
+import { buildLake } from './lake_area.js';
 
 const nowMs = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
@@ -42,11 +44,31 @@ UI.init({
   onDelivery: () => Mini.delivery.start(),
   onContest: () => Mini.contest.open(),
   onPhoto: () => Mini.photo.take(),
+  onMap: () => UI.openMap(AREAS, currentArea, travelToArea),
   getGame: () => Game
 });
 
 // אזור המכלאה — בו חיות המשק משוטטות
 const PADDOCK = { x: 0, z: -7, r: 5 };
+
+// --- עולם פתוח: אזורים שאפשר לנסוע אליהם ---
+const AREAS = [
+  { id: 'farm',   name: 'החווה', emoji: '🏡', x: 0,  z: 0,   unlock: 1 },
+  { id: 'forest', name: 'היער',  emoji: '🌲', x: 0,  z: -70, unlock: 1 },
+  { id: 'lake',   name: 'האגם',  emoji: '🏖️', x: 70, z: 6,   unlock: 2 }
+];
+let currentArea = 'farm';
+function travelToArea(id) {
+  const a = AREAS.find(x => x.id === id);
+  if (!a) return;
+  if (Game.level < a.unlock) { UI.toast('🔒 ' + a.name + ' נפתח ברמה ' + a.unlock, true); Audio.wrong(); return; }
+  currentArea = id;
+  World.travelTo(a.x, a.z);
+  UI.setTip(a.emoji + ' ' + a.name);
+  Audio.speak('נוסעים ל' + a.name);
+}
+// רושם sprite כפעילות שאפשר ללחוץ עליה (באזורים)
+function registerActivity(sprite, fn) { sprite.userData.activity = fn; World.registerPickable(sprite); }
 
 // פריטים שנקנו והוצבו בחווה
 let placedItems = [];          // נתוני שמירה {id,x,z}
@@ -75,6 +97,10 @@ function buildFarm(saved) {
   Object.keys(ups).forEach(id => { if (ups[id]) applyUpgrade(id); });
   spawnRares();       // חיות נדירות שכבר נפתחו
   initMagicTree();    // עץ הקסם
+  // אזורי העולם הפתוח (יער, אגם)
+  const areaDeps = { THREE, World, decor, activity: registerActivity, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio };
+  buildForest(Object.assign({ center: { x: 0, z: -70 } }, areaDeps));
+  buildLake(Object.assign({ center: { x: 70, z: 6 } }, areaDeps));
 }
 
 // החלת שדרוג נראה על העולם
@@ -625,6 +651,7 @@ canvas.addEventListener('pointerup', (e) => {
     else if (ud.plot) { Audio.pop(); handlePlot(ud.plot); }
     else if (ud.animal) { Audio.animalSound(ud.animal.type); ud.animal.celebrate(); handleAnimal(ud.animal); }
     else if (ud.magictree) { Audio.pop(); harvestTree(); }
+    else if (ud.activity) { Audio.pop(); ud.activity(); }
   }
 });
 

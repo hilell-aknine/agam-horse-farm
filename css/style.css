@@ -284,6 +284,19 @@ canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-a
 .acc-opt.none{color:#d34a4a;}
 .acc-opt:active{transform:translateY(2px);}
 
+/* ---- מפת העולם הפתוח ---- */
+.map-card{width:min(440px,94vw);}
+.map-card h2{font-family:'Fredoka';text-align:center;color:var(--petrol);margin:6px 0 16px;}
+.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.map-area{background:linear-gradient(160deg,#bfe9c9,#8fd6a8);border-radius:22px;padding:18px 8px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 5px 0 #5fa877;}
+.map-area:active{transform:translateY(3px);box-shadow:0 2px 0 #5fa877;}
+.map-area.here{background:linear-gradient(160deg,#ffe6a0,#ffce5e);box-shadow:0 5px 0 #d9a82a;}
+.map-area.locked{filter:grayscale(.6);opacity:.7;}
+.map-emoji{font-size:46px;}
+.map-name{font-size:20px;font-weight:900;color:var(--petrol);}
+.map-tag{font-size:13px;font-weight:700;color:#0a4d57;background:rgba(255,255,255,.6);padding:3px 12px;border-radius:12px;}
+
 @media (max-width:420px){
   .game-title{font-size:38px;}
   .question{font-size:28px;}

@@ -26,7 +26,7 @@ const World = {
     this.texLoader = new THREE.TextureLoader();
 
     // מצלמה
-    this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+    this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 12, 22);
 
     // בקרת מצלמה ידידותית לילד
@@ -68,12 +68,12 @@ const World = {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(90, 32, 16),
+      new THREE.SphereGeometry(200, 32, 16),
       new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false })
     );
     this.scene.add(sky);
     this.skyMesh = sky;
-    this.scene.fog = new THREE.Fog(0xcfeaff, 45, 90);
+    this.scene.fog = new THREE.Fog(0xcfeaff, 75, 185);
     this.dayNight = true;
     this.tod = 0.35;          // התחלה בבוקר
   },
@@ -96,8 +96,8 @@ const World = {
   },
 
   _ground() {
-    // קרקע עגולה ירוקה גדולה עם גבעות עדינות
-    const geo = new THREE.CircleGeometry(58, 140);
+    // קרקע עגולה ירוקה ענקית (עולם פתוח) עם גבעות עדינות
+    const geo = new THREE.CircleGeometry(120, 200);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
@@ -204,7 +204,7 @@ const World = {
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2 + 0.4;
       const mt = new THREE.Mesh(new THREE.ConeGeometry(13 + (i % 3) * 4, 20 + (i % 4) * 6, 5), mtMat);
-      mt.position.set(Math.cos(a) * 52, 4, Math.sin(a) * 52);
+      mt.position.set(Math.cos(a) * 100, 6, Math.sin(a) * 100);
       this.scene.add(mt);
     }
     // ציפורים שמרחפות (נסחפות כמו עננים)
@@ -441,8 +441,23 @@ const World = {
     this.rainbow.visible = rm.opacity > 0.01;
   },
 
+  // נסיעה חלקה למרכז אזור (עולם פתוח)
+  travelTo(cx, cz) {
+    this._travel = { x: cx, z: cz };
+    this.controls.autoRotate = false;
+  },
+  _updateTravel(dt) {
+    if (!this._travel) return;
+    const T = this._travel, k = Math.min(1, dt * 2.0);
+    const tgt = this.controls.target;
+    tgt.x += (T.x - tgt.x) * k;
+    tgt.z += (T.z - tgt.z) * k;
+    if (Math.hypot(tgt.x - T.x, tgt.z - T.z) < 0.5) { this._travel = null; this.controls.autoRotate = true; }
+  },
+
   update() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    this._updateTravel(dt);
     this.controls.update();
     this._updateDayNight(dt);
     this._updateWeather(dt);

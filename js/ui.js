@@ -68,6 +68,7 @@ const UI = {
         </div>
         <div class="stat streak hidden" id="streakBox"><span class="ic">🔥</span><span id="streakVal">0</span></div>
         <div class="left-tools">
+          <button class="gear" id="mapBtn" title="מפה">🗺️</button>
           <button class="gear" id="fsBtn" title="מסך מלא">⛶</button>
           <button class="gear" id="gameSettings">⚙️</button>
         </div>
@@ -89,6 +90,7 @@ const UI = {
     h.querySelector('#gameSettings').onclick = () => { Audio.click(); this.openSettings(); };
     h.querySelector('#fsBtn').onclick = () => { Audio.click(); this._toggleFs(); };
     h.querySelector('#funBtn').onclick = () => { Audio.click(); this.openFun(); };
+    h.querySelector('#mapBtn').onclick = () => { Audio.click(); this.handlers.onMap && this.handlers.onMap(); };
   },
 
   updateHUD(g) {
@@ -378,6 +380,29 @@ const UI = {
   },
   raceEnd(prize) { this.raceClear(); this.toast('🏆 ניצחת במירוץ! +' + prize + ' 🪙', true); },
   raceClear() { const b = document.getElementById('raceBar'); if (b) b.remove(); },
+
+  // מפת העולם הפתוח
+  openMap(areas, currentId, onTravel) {
+    const g = this.handlers.getGame && this.handlers.getGame();
+    const ov = el('div', 'overlay light'); ov.id = 'mapOv';
+    const cards = areas.map(a => {
+      const locked = g && g.level < a.unlock;
+      const tag = a.id === currentId ? '📍 כאן' : (locked ? '🔒 רמה ' + a.unlock : '➜ סעי');
+      return `<button class="map-area ${a.id === currentId ? 'here' : ''} ${locked ? 'locked' : ''}" data-id="${a.id}">
+        <span class="map-emoji">${a.emoji}</span><span class="map-name">${a.name}</span><span class="map-tag">${tag}</span></button>`;
+    }).join('');
+    ov.innerHTML = `<div class="card map-card"><button class="close" id="mapClose">✖</button>
+      <h2>🗺️ העולם של אגם</h2><div class="map-grid">${cards}</div></div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#mapClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.querySelectorAll('.map-area').forEach(b => b.onclick = () => {
+      const a = areas.find(x => x.id === b.dataset.id);
+      if (g && g.level < a.unlock) { Audio.wrong(); Audio.speak('האזור עוד נעול'); return; }
+      Audio.click(); ov.remove(); onTravel(b.dataset.id);
+    });
+    Audio.speak('לאן נוסעים?');
+  },
 
   // ---------- חלון תרגיל חשבון ----------
   askMath(problem, actionType, onDone) {
