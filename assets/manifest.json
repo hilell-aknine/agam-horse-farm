@@ -1,0 +1,93 @@
+{
+  "assets": {
+    "foal_brown": {
+      "file": "foal_brown.png",
+      "cutout": true
+    },
+    "foal_white": {
+      "file": "foal_white.png",
+      "cutout": true
+    },
+    "foal_golden": {
+      "file": "foal_golden.png",
+      "cutout": true
+    },
+    "foal_gray": {
+      "file": "foal_gray.png",
+      "cutout": true
+    },
+    "horse_brown": {
+      "file": "horse_brown.png",
+      "cutout": true
+    },
+    "horse_white": {
+      "file": "horse_white.png",
+      "cutout": true
+    },
+    "horse_golden": {
+      "file": "horse_golden.png",
+      "cutout": true
+    },
+    "horse_gray": {
+      "file": "horse_gray.png",
+      "cutout": true
+    },
+    "apple": {
+      "file": "apple.png",
+      "cutout": true
+    },
+    "carrot": {
+      "file": "carrot.png",
+      "cutout": true
+    },
+    "hay_bale": {
+      "file": "hay_bale.png",
+      "cutout": true
+    },
+    "water_bucket": {
+      "file": "water_bucket.png",
+      "cutout": true
+    },
+    "brush": {
+      "file": "brush.png",
+      "cutout": true
+    },
+    "coin": {
+      "file": "coin.png",
+      "cutout": true
+    },
+    "trophy": {
+      "file": "trophy.png",
+      "cutout": true
+    },
+    "feed_sack": {
+      "file": "feed_sack.png",
+      "cutout": true
+    },
+    "tree": {
+      "file": "tree.png",
+      "cutout": true
+    },
+    "barn": {
+      "file": "barn.png",
+      "cutout": true
+    },
+    "flower_bush": {
+      "file": "flower_bush.png",
+      "cutout": true
+    },
+    "cloud": {
+      "file": "cloud.png",
+      "cutout": true
+    },
+    "signpost": {
+      "file": "signpost.png",
+      "cutout": true
+    },
+    "title_farm": {
+      "file": "title_farm.png",
+      "skipped": true
+    }
+  },
+  "total_cost_usd": 0.567
+}
