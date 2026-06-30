@@ -174,21 +174,28 @@ const UI = {
     ov.innerHTML = `
       <div class="card shop-card">
         <button class="close" id="shopClose">✖</button>
-        <h2 class="shop-title">🛒 החנות</h2>
+        <div class="shop-keeper">
+          <img src="assets/shopkeeper.png" alt="">
+          <div class="keeper-bubble" id="keeperBubble">שלום אגם! מה תרצי לקנות היום? 😊</div>
+        </div>
         <div class="coin-pill">🪙 <span id="shopCoins">${game.coins}</span></div>
         <div class="shop-tabs">
           <button class="shop-tab on" data-tab="decor">🌳 קישוטים</button>
           <button class="shop-tab" data-tab="equipment">🚜 ציוד</button>
           <button class="shop-tab" data-tab="animals">🐔 חיות</button>
           <button class="shop-tab" data-tab="horses">🐴 סוסים</button>
+          <button class="shop-tab" data-tab="upgrades">🏠 שדרוגים</button>
           <button class="shop-tab" data-tab="fields">🟫 שדה</button>
         </div>
-        <div class="shop-grid" id="shopGrid"></div>
+        <div class="shop-grid shelf" id="shopGrid"></div>
       </div>`;
     this.root.appendChild(ov);
     ov.querySelector('#shopClose').onclick = () => { Audio.click(); this.closeShop(); };
     ov.onclick = (e) => { if (e.target === ov) this.closeShop(); };
     const grid = ov.querySelector('#shopGrid');
+    const bubble = ov.querySelector('#keeperBubble');
+    const lines = { decor: 'קישוטים יפים לחווה! 🌳', equipment: 'הציוד הכי טוב! 🚜', animals: 'חיות חמודות 🐔', horses: 'סוסים נהדרים! 🐴', upgrades: 'שדרוגים לאסם! 🏠', fields: 'עוד שדה לגדל בו 🟫' };
+    const keeperSay = (t) => { if (bubble) bubble.textContent = t; Audio.speak(t); };
     const tabs = ov.querySelectorAll('.shop-tab');
     const render = (tab) => {
       grid.innerHTML = '';
@@ -204,6 +211,12 @@ const UI = {
         const cost = game.horseCost(counts.horses);
         grid.appendChild(this._shopCard('assets/horse_brown.png', 'סוס חדש', cost, game.coins >= cost,
           () => { this.closeShop(); this.handlers.onBuyHorse && this.handlers.onBuyHorse(); }));
+      } else if (tab === 'upgrades') {
+        SHOP.upgrades.forEach(it => {
+          const owned = (game.upgrades || {})[it.id];
+          grid.appendChild(this._shopCard('assets/' + it.asset, it.name + (owned ? ' ✅' : ''), it.cost, !owned && game.coins >= it.cost,
+            () => { this.closeShop(); this.handlers.onBuyUpgrade && this.handlers.onBuyUpgrade(it); }));
+        });
       } else if (tab === 'fields') {
         if (counts.fields >= counts.maxFields) {
           grid.innerHTML = '<div class="shop-empty">🎉 יש לך את כל השדות!</div>';
@@ -218,9 +231,10 @@ const UI = {
       Audio.click();
       tabs.forEach(x => x.classList.remove('on')); t.classList.add('on');
       render(t.dataset.tab);
+      if (lines[t.dataset.tab]) keeperSay(lines[t.dataset.tab]);
     });
     render('decor');
-    Audio.speak('החנות. מה נקנה?');
+    Audio.speak('שלום אגם! מה תרצי לקנות היום?');
   },
 
   _shopCard(img, name, cost, affordable, onBuy, fallbackIcon) {

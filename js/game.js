@@ -43,6 +43,12 @@ const SHOP = {
     { id: 'sheep',   name: 'כבשה',    asset: 'sheep.png',   cost: 60, scale: 1.9, produce: { emoji: '🧶', intervalMs: 50000, sell: 18 } },
     { id: 'cow',     name: 'פרה',     asset: 'cow.png',     cost: 90, scale: 2.3, produce: { emoji: '🥛', intervalMs: 60000, sell: 26 } },
   ],
+  // שדרוגים שמשנים את האסם/החווה באופן נראה (פעם אחת כל אחד)
+  upgrades: [
+    { id: 'barn_big',    name: 'אסם גדול',  asset: 'barn_big.png',    cost: 120 },
+    { id: 'silo',        name: 'סילו',      asset: 'silo.png',        cost: 80 },
+    { id: 'weathervane', name: 'שבשבת',     asset: 'weathervane.png', cost: 35 },
+  ],
 };
 
 // מאגר משימות יומיות
@@ -68,6 +74,7 @@ const Game = {
   quests: [],        // משימות היום
   questDate: '',
   spinDate: '',      // תאריך הסיבוב האחרון בגלגל
+  upgrades: {},      // שדרוגי אסם/חווה שנקנו {id:true}
   _firstRun: true,
 
   // קושי גדל עם הגיל שנבחר ועם ההתקדמות במשחק
@@ -171,7 +178,7 @@ const Game = {
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
         typeStats: this.typeStats, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
-        savedAt: Date.now(),
+        upgrades: this.upgrades, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
       this._lastData = data;     // לשימוש שמירת-הענן
@@ -195,6 +202,7 @@ const Game = {
     this.quests = d.quests || [];
     this.questDate = d.questDate || '';
     this.spinDate = d.spinDate || '';
+    this.upgrades = d.upgrades || {};
     this._snap = { horses: d.horses || [], fields: d.fields || [], placed: d.placed || [], animals: d.animals || [] };
   },
 
@@ -214,7 +222,7 @@ const Game = {
     this.coins = 40; this.xp = 0; this.level = 1; this.stars = 0;
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
     this.settings = { age: 6, sound: true, voice: true, music: true, daynight: true };
-    this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = '';
+    this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {};
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }
 };

@@ -49,6 +49,7 @@ const World = {
     this._fence();
     this._sun();
     this._environment();
+    this._initWeather();
 
     window.addEventListener('resize', () => this.resize());
     return this;
@@ -337,7 +338,10 @@ const World = {
   },
 
   spawnParticles(worldPos, kind = 'heart', count = 12) {
-    const map = { heart: '❤️', star: '⭐', confetti: '🎉', sparkle: '✨', coin: '🪙' };
+    const map = {
+      heart: '❤️', star: '⭐', confetti: '🎉', sparkle: '✨', coin: '🪙',
+      apple: '🍎', bubble: '🫧', ball: '🎾', water: '💧', grass: '🌿', music: '🎵', leaf: '🍂'
+    };
     const emoji = map[kind] || '⭐';
     const tex = this._emoji(emoji);
     for (let i = 0; i < count; i++) {
@@ -391,10 +395,57 @@ const World = {
     this.sunMesh.visible = sunUp; this.sunHalo.visible = sunUp;
   },
 
+  _initWeather() {
+    // גשם — נקודות נופלות
+    const N = 350, arr = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      arr[i * 3] = (Math.random() - 0.5) * 44;
+      arr[i * 3 + 1] = Math.random() * 34 + 1;
+      arr[i * 3 + 2] = (Math.random() - 0.5) * 44;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+    this.rain = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xbcd6f0, size: 0.28, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+    this.rain.visible = false;
+    this.scene.add(this.rain);
+    // קשת בענן בשמיים
+    this.rainbow = this.makeBillboard('assets/rainbow.png', 34, true);
+    this.rainbow.center.set(0.5, 0.5);
+    this.rainbow.position.set(-6, 24, -34);
+    this.rainbow.material.opacity = 0;
+    this.rainbow.visible = false;
+    this.scene.add(this.rainbow);
+    this._wState = 'clear'; this._wt = 0; this._wNext = 30 + Math.random() * 40;
+  },
+
+  _updateWeather(dt) {
+    this._wt += dt;
+    if (this._wt > this._wNext) {
+      this._wt = 0;
+      if (this._wState === 'clear') { this._wState = 'rain'; this._wNext = 12 + Math.random() * 8; }
+      else if (this._wState === 'rain') { this._wState = 'rainbow'; this._wNext = 10; }
+      else { this._wState = 'clear'; this._wNext = 45 + Math.random() * 50; }
+    }
+    const rainTarget = this._wState === 'rain' ? 0.55 : 0;
+    const m = this.rain.material;
+    m.opacity += (rainTarget - m.opacity) * Math.min(1, dt * 2);
+    if (m.opacity > 0.01) {
+      this.rain.visible = true;
+      const p = this.rain.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) { let y = p.getY(i) - 24 * dt; if (y < 0.5) y = 34; p.setY(i, y); }
+      p.needsUpdate = true;
+    } else this.rain.visible = false;
+    const rbTarget = this._wState === 'rainbow' ? 0.92 : 0;
+    const rm = this.rainbow.material;
+    rm.opacity += (rbTarget - rm.opacity) * Math.min(1, dt * 1.4);
+    this.rainbow.visible = rm.opacity > 0.01;
+  },
+
   update() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     this.controls.update();
     this._updateDayNight(dt);
+    this._updateWeather(dt);
 
     // עננים נעים
     for (const cl of this.clouds) {

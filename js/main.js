@@ -25,6 +25,7 @@ UI.init({
   onShopBuy: shopBuy,
   onBuyField: buyField,
   onBuyAnimal: buyAnimal,
+  onBuyUpgrade: buyUpgrade,
   onSettings: applySettings,
   onReset: resetGame,
   onSpin: () => {
@@ -43,6 +44,7 @@ const PADDOCK = { x: 0, z: -7, r: 5 };
 // פריטים שנקנו והוצבו בחווה
 let placedItems = [];          // נתוני שמירה {id,x,z}
 const placedMeshes = [];       // אובייקטי תלת-ממד להסרה ב-reset
+let barnSprite = null;         // רפרנס לאסם (להחלפה בשדרוג)
 
 // בניית החווה מתוך נתוני שמירה (מקומי או ענן)
 function buildFarm(saved) {
@@ -61,6 +63,23 @@ function buildFarm(saved) {
     if (def) Animals.add({ id: a.id, type: a.type, asset: def.asset, scale: def.scale, produce: def.produce, region: PADDOCK, name: a.name, lastProduced: a.lastProduced });
   });
   spawnCritters();   // חיות נוף (לא נשמרות — תמיד מופיעות)
+  // החלת שדרוגי אסם/חווה שנקנו
+  const ups = Game.upgrades || {};
+  Object.keys(ups).forEach(id => { if (ups[id]) applyUpgrade(id); });
+}
+
+// החלת שדרוג נראה על העולם
+function applyUpgrade(id) {
+  if (id === 'barn_big') {
+    if (barnSprite) { World.scene.remove(barnSprite); barnSprite.material.dispose(); }
+    barnSprite = decor('assets/barn_big.png', 0, -14, 11);
+  } else if (id === 'silo') {
+    decor('assets/silo.png', -9.5, -13.5, 7);
+  } else if (id === 'weathervane') {
+    const v = World.makeBillboard('assets/weathervane.png', 3, true);
+    v.center.set(0.5, 0.0); v.position.set(0, 7.2, -13.8);
+    World.scene.add(v);
+  }
 }
 
 const withTimeout = (p, ms, fallback) => Promise.race([p, new Promise(r => setTimeout(() => r(fallback), ms))]);
@@ -181,7 +200,7 @@ function placeZones() {
 
 function placeDecor() {
   // נוף חתימה סביב הפסטורה
-  decor('assets/barn.png', 0, -13.8, 9);
+  barnSprite = decor('assets/barn.png', 0, -13.8, 9);
   decor('assets/pond.png', -17, 7, 3, false);
   decor('assets/windmill.png', 18, -7, 6.5);
   decor('assets/fountain.png', 15, 11, 3.6);
@@ -296,6 +315,8 @@ function handleAction(type, horse) {
       if (horse.grow()) { UI.toast('🎉 ' + horse.name + ' גדל/ה!', true); Audio.fanfare(); }
     }
     horse.celebrate();
+    const fx = { feed: 'apple', brush: 'bubble', play: 'ball', grow: 'sparkle' }[type] || 'heart';
+    World.spawnParticles(horse.group.position.clone(), fx, 12);
     questBump(type);
     const got = grantReward(horse.group.position.clone(), res);
     UI.toast('+' + got + ' 🪙', false);
@@ -389,6 +410,22 @@ function collectProduce(a) {
     Audio.coin(); Audio.fanfare();
     UI.toast('🥚 אספת! +' + gain + ' 🪙', true);
     grantReward({ x: a.group.position.x, y: 1, z: a.group.position.z }, res);
+    saveAll();
+  });
+}
+
+function buyUpgrade(item) {
+  if (Game.upgrades[item.id]) { UI.toast('כבר יש לך את זה! ✅', false); return; }
+  if (!Game.canAfford(item.cost)) { notEnough(item.cost); return; }
+  askProblem('buy', (res) => {
+    if (Game.upgrades[item.id]) return;
+    if (!Game.spend(item.cost)) return;
+    Game.upgrades[item.id] = true;
+    applyUpgrade(item.id);
+    spawnAt(0, -12, 'star', 16);
+    Audio.fanfare(); Audio.speak('שדרגת את החווה! ' + item.name);
+    UI.toast('🏠 ' + item.name + ' נבנה!', true);
+    grantReward({ x: 0, y: 3, z: -12 }, res);
     saveAll();
   });
 }
