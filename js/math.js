@@ -270,7 +270,7 @@ function generateProblem(difficulty = 1, focusType = null) {
     push(() => genCompare(d), 1);
     push(() => genNeighbor(d), 1);
   }
-  return pick(pool)();
+  return _mark(pick(pool)());
 }
 
 export { generateProblem };

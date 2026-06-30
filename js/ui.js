@@ -18,7 +18,8 @@ const ACTIONS = {
   plant:   { icon: '🌱', label: 'לשתול' },
   harvest: { icon: '🌾', label: 'לקצור' },
   buy:     { icon: '🛒', label: 'לקנות' },
-  field:   { icon: '🟫', label: 'שדה חדש' }
+  field:   { icon: '🟫', label: 'שדה חדש' },
+  race:    { icon: '🏁', label: 'מירוץ' }
 };
 
 const UI = {
@@ -72,6 +73,7 @@ const UI = {
         </div>
       </div>
       <div class="bottombar">
+        <button class="btn-fun" id="funBtn">🎯</button>
         <div class="tip" id="tip">👆 געי בסוס או בשדה</div>
         <button class="btn-buy" id="shopBtn">🛒 חנות</button>
       </div>`;
@@ -86,6 +88,7 @@ const UI = {
     h.querySelector('#shopBtn').onclick = () => { Audio.click(); this.handlers.onOpenShop && this.handlers.onOpenShop(); };
     h.querySelector('#gameSettings').onclick = () => { Audio.click(); this.openSettings(); };
     h.querySelector('#fsBtn').onclick = () => { Audio.click(); this._toggleFs(); };
+    h.querySelector('#funBtn').onclick = () => { Audio.click(); this.openFun(); };
   },
 
   updateHUD(g) {
@@ -267,6 +270,73 @@ const UI = {
     });
     Audio.speak('מה נשתול?');
   },
+
+  // ---------- תפריט כיף: משימות / גלגל / מירוץ ----------
+  openFun() {
+    const g = this.handlers.getGame && this.handlers.getGame();
+    const ov = el('div', 'overlay light'); ov.id = 'funOv';
+    ov.innerHTML = `<div class="card fun-card"><button class="close" id="funClose">✖</button>
+      <h2>🎯 כיף ופרסים</h2>
+      <button class="fun-opt" id="optQuests">📋 משימות היום</button>
+      <button class="fun-opt" id="optSpin">🎡 גלגל המזל</button>
+      <button class="fun-opt" id="optRace">🏁 מירוץ סוסים</button></div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#funClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.querySelector('#optQuests').onclick = () => { Audio.click(); ov.remove(); this.openQuests(g); };
+    ov.querySelector('#optSpin').onclick = () => { Audio.click(); ov.remove(); this.openSpin(); };
+    ov.querySelector('#optRace').onclick = () => { Audio.click(); ov.remove(); this.handlers.onRace && this.handlers.onRace(); };
+  },
+
+  openQuests(g) {
+    const ov = el('div', 'overlay light'); ov.id = 'questOv';
+    const rows = (g.quests || []).map(q => {
+      const pct = Math.min(100, Math.round(q.progress / q.target * 100));
+      return `<div class="quest ${q.done ? 'done' : ''}">
+        <div class="quest-top"><span>${q.emoji} ${q.text}</span><span class="qnum">${q.done ? '✅' : q.progress + '/' + q.target}</span></div>
+        <div class="qbar"><div class="qfill" style="width:${pct}%"></div></div>
+        <div class="quest-reward">🎁 ${q.reward} 🪙</div></div>`;
+    }).join('') || '<div class="shop-empty">אין משימות היום</div>';
+    ov.innerHTML = `<div class="card quests-card"><button class="close" id="qClose">✖</button>
+      <h2>📋 משימות היום</h2>${rows}</div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#qClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    Audio.speak('המשימות של היום');
+  },
+
+  openSpin() {
+    const ov = el('div', 'overlay'); ov.id = 'spinOv';
+    ov.innerHTML = `<div class="card spin-card"><button class="close" id="spClose">✖</button>
+      <h2>🎡 גלגל המזל</h2>
+      <div class="wheel-wrap"><div class="wheel" id="wheel">🎁</div></div>
+      <div class="spin-msg" id="spinMsg">סובבי פעם ביום וקבלי מטבעות!</div>
+      <button class="btn-big" id="spinBtn">סובבי! 🎡</button></div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#spClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    const btn = ov.querySelector('#spinBtn'), wheel = ov.querySelector('#wheel'), msg = ov.querySelector('#spinMsg');
+    btn.onclick = () => {
+      const r = this.handlers.onSpin && this.handlers.onSpin();
+      btn.disabled = true; btn.classList.add('cant');
+      if (!r || !r.ok) { msg.textContent = 'כבר סובבת היום! נסי שוב מחר 😊'; Audio.wrong(); return; }
+      Audio.coin(); wheel.style.animation = 'spinwheel 1.3s ease-out';
+      setTimeout(() => { wheel.textContent = '🪙'; msg.innerHTML = `זכית ב-<b>${r.prize}</b> מטבעות! 🎉`; Audio.fanfare(); Audio.speak('זכית ב' + r.prize + ' מטבעות'); }, 1300);
+    };
+  },
+
+  // פס מירוץ עליון
+  raceBar(step, total) {
+    let bar = document.getElementById('raceBar');
+    if (!bar) {
+      bar = el('div', 'race-bar'); bar.id = 'raceBar';
+      bar.innerHTML = `<div class="race-track"><span class="race-flag">🏁</span><div class="race-horse" id="raceHorse">🐎</div></div>`;
+      this.root.appendChild(bar);
+    }
+    bar.querySelector('#raceHorse').style.left = Math.min(88, (step / total) * 88) + '%';
+  },
+  raceEnd(prize) { this.raceClear(); this.toast('🏆 ניצחת במירוץ! +' + prize + ' 🪙', true); },
+  raceClear() { const b = document.getElementById('raceBar'); if (b) b.remove(); },
 
   // ---------- חלון תרגיל חשבון ----------
   askMath(problem, actionType, onDone) {

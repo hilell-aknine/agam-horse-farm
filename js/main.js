@@ -10,6 +10,7 @@ import { Audio } from './audio.js';
 import { generateProblem } from './math.js';
 
 const nowMs = () => Date.now();
+const today = () => new Date().toISOString().slice(0, 10);
 
 // ---------- אתחול ----------
 Audio.init();
@@ -26,6 +27,13 @@ UI.init({
   onBuyAnimal: buyAnimal,
   onSettings: applySettings,
   onReset: resetGame,
+  onSpin: () => {
+    if (!Game.canSpin(today())) return { ok: false };
+    const prize = Game.doSpin(today());
+    UI.updateHUD(Game); saveAll();
+    return { ok: true, prize };
+  },
+  onRace: () => startRace(),
   getGame: () => Game
 });
 
@@ -230,10 +238,18 @@ function placeBought(id, x, z, record) {
 
 // ---------- מסכים / הגדרות ----------
 function startGame() {
+  Game.ensureQuests(today());
   UI.showGame();
   UI.updateHUD(Game);
   if (Game.settings.music) { Audio.musicOn = true; Audio.startMusic(); }
   UI.setTip('👆 געי בסוס או בשדה · 🛒 לחנות');
+}
+
+// מעדכן התקדמות משימה ומתריע על השלמה
+function questBump(action) {
+  const done = Game.bumpQuest(action);
+  done.forEach(q => { UI.toast('✅ משימה הושלמה! +' + q.reward + ' 🪙', true); Audio.fanfare(); Audio.speak('משימה הושלמה! כל הכבוד'); });
+  if (done.length) UI.updateHUD(Game);
 }
 
 function applySettings() {
@@ -264,7 +280,7 @@ function askProblem(actionType, onCorrect, harder) {
   const focus = Math.random() < 0.35 ? Game.weakType() : null;
   const problem = generateProblem(Game.difficulty() + (harder ? 1 : 0), focus);
   UI.askMath(problem, actionType, (res) => {
-    if (res.correct) { Game.recordResult(problem.type, res.firstTry); onCorrect(res); }
+    if (res.correct) { Game.recordResult(problem.type, res.firstTry); questBump('solve'); onCorrect(res); }
     else if (!res.cancelled) Game.onWrong();
   });
 }
@@ -280,7 +296,7 @@ function handleAction(type, horse) {
       if (horse.grow()) { UI.toast('🎉 ' + horse.name + ' גדל/ה!', true); Audio.fanfare(); }
     }
     horse.celebrate();
-    Game.bumpQuest(type);
+    questBump(type);
     const got = grantReward(horse.group.position.clone(), res);
     UI.toast('+' + got + ' 🪙', false);
     saveAll();
@@ -367,7 +383,7 @@ function collectProduce(a) {
   askProblem('harvest', (res) => {
     const gain = a.collect(nowMs());
     Game.addCoins(gain);
-    Game.bumpQuest('collect');
+    questBump('collect');
     a.celebrate();
     spawnAt(a.group.position.x, a.group.position.z, 'coin', 12);
     Audio.coin(); Audio.fanfare();
@@ -380,6 +396,32 @@ function collectProduce(a) {
 function notEnough(cost) {
   UI.toast('צריך עוד ' + (cost - Game.coins) + ' 🪙', true);
   Audio.wrong(); Audio.speak('צריך עוד מטבעות. פתרי עוד תרגילים!');
+}
+
+// מיני-משחק מירוץ סוסים — עונים מהר על תרגילים והסוס מתקדם לקו הסיום
+function startRace() {
+  let step = 0; const total = 6;
+  UI.raceBar(step, total);
+  Audio.speak('מירוץ! פתרי מהר כדי להגיע ראשונה');
+  const next = () => {
+    if (step >= total) {
+      UI.raceBar(total, total);
+      const prize = 25 + Game.level * 2;
+      Game.coins += prize; Game.stars += 1; Game.save();
+      Audio.fanfare();
+      setTimeout(() => { UI.raceEnd(prize); UI.updateHUD(Game); saveAll(); }, 500);
+      return;
+    }
+    const p = generateProblem(Game.difficulty());
+    UI.askMath(p, 'race', (res) => {
+      if (res.correct) {
+        Game.recordResult(p.type, res.firstTry); questBump('solve');
+        step++; UI.raceBar(step, total);
+        setTimeout(next, 250);
+      } else { UI.raceClear(); }   // ביטול → סיום שקט
+    });
+  };
+  next();
 }
 
 // עזר ליצירת חלקיקים בנקודת קרקע
@@ -405,7 +447,7 @@ function startPlant(plot, cropKey) {
   askProblem('plant', (res) => {
     if (!Game.spend(def.seedCost)) return;
     plot.plant(Object.assign({ key: cropKey }, def), nowMs());
-    Game.bumpQuest('plant');
+    questBump('plant');
     spawnAt(plot.pos.x, plot.pos.z, 'sparkle', 10);
     Audio.pop(); Audio.speak('שתלת ' + def.name + '. עכשיו צריך לחכות שיגדל');
     UI.toast('🌱 שתלת ' + def.name + '!', false);
@@ -418,7 +460,7 @@ function startHarvest(plot) {
   askProblem('harvest', (res) => {
     const key = plot.harvest();
     const gain = Game.sellCrop(key);
-    Game.bumpQuest('harvest');
+    questBump('harvest');
     spawnAt(plot.pos.x, plot.pos.z, 'coin', 14);
     Audio.coin(); Audio.fanfare();
     UI.toast('🌾 קצרת! +' + gain + ' 🪙', true);
