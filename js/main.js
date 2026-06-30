@@ -73,6 +73,9 @@ function travelToArea(id) {
 }
 // רושם sprite כפעילות שאפשר ללחוץ עליה (באזורים)
 function registerActivity(sprite, fn) { sprite.userData.activity = fn; World.registerPickable(sprite); }
+// אנימציות-אזור (נקראות בכל פריים) — לתנועה חיה בעולם
+const areaUpdaters = [];
+function registerUpdater(fn) { areaUpdaters.push(fn); }
 
 // פריטים שנקנו והוצבו בחווה
 let placedItems = [];          // נתוני שמירה {id,x,z}
@@ -102,7 +105,7 @@ function buildFarm(saved) {
   spawnRares();       // חיות נדירות שכבר נפתחו
   initMagicTree();    // עץ הקסם
   // אזורי העולם הפתוח (יער, אגם)
-  const areaDeps = { THREE, World, decor, activity: registerActivity, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio };
+  const areaDeps = { THREE, World, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio };
   buildForest(Object.assign({ center: { x: 0, z: -70 } }, areaDeps));
   buildLake(Object.assign({ center: { x: 70, z: 6 } }, areaDeps));
   buildVillage(Object.assign({ center: { x: -72, z: 0 } }, areaDeps));
@@ -703,6 +706,8 @@ function loop() {
   Fields.update(nowMs(), dt);
   Animals.update(nowMs(), dt);
   updateMagicTree();
+  const t = performance.now() / 1000;
+  for (let i = 0; i < areaUpdaters.length; i++) areaUpdaters[i](t, dt);
   World.render();
   requestAnimationFrame(loop);
 }
