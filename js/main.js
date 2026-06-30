@@ -239,6 +239,7 @@ function startGame() {
 function applySettings() {
   Audio.sfxOn = Game.settings.sound;
   Audio.voiceOn = Game.settings.voice;
+  World.setDayNight(Game.settings.daynight !== false);
   const inGame = document.getElementById('titleScreen').classList.contains('hidden');
   if (Game.settings.music && inGame) { Audio.musicOn = true; Audio.startMusic(); }
   else Audio.stopMusic();

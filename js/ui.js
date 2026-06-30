@@ -66,7 +66,10 @@ const UI = {
           <div class="xpbar"><div class="xpfill" id="xpFill"></div></div>
         </div>
         <div class="stat streak hidden" id="streakBox"><span class="ic">🔥</span><span id="streakVal">0</span></div>
-        <button class="gear" id="gameSettings">⚙️</button>
+        <div class="left-tools">
+          <button class="gear" id="fsBtn" title="מסך מלא">⛶</button>
+          <button class="gear" id="gameSettings">⚙️</button>
+        </div>
       </div>
       <div class="bottombar">
         <div class="tip" id="tip">👆 געי בסוס או בשדה</div>
@@ -82,6 +85,7 @@ const UI = {
     this.els.tip = h.querySelector('#tip');
     h.querySelector('#shopBtn').onclick = () => { Audio.click(); this.handlers.onOpenShop && this.handlers.onOpenShop(); };
     h.querySelector('#gameSettings').onclick = () => { Audio.click(); this.openSettings(); };
+    h.querySelector('#fsBtn').onclick = () => { Audio.click(); this._toggleFs(); };
   },
 
   updateHUD(g) {
@@ -93,6 +97,17 @@ const UI = {
   },
 
   setTip(t) { if (this.els.tip) this.els.tip.textContent = t; },
+
+  _toggleFs() {
+    const d = document, el2 = d.documentElement;
+    try {
+      if (!d.fullscreenElement && !d.webkitFullscreenElement) {
+        (el2.requestFullscreen || el2.webkitRequestFullscreen || function () {}).call(el2);
+      } else {
+        (d.exitFullscreen || d.webkitExitFullscreen || function () {}).call(d);
+      }
+    } catch (e) { /* ignore */ }
+  },
 
   // ---------- כרטיס סוס ----------
   showHorseCard(horse, g) {
@@ -393,6 +408,7 @@ const UI = {
         <div class="set-row"><span>🔊 צלילים</span><button class="toggle" data-key="sound">פעיל</button></div>
         <div class="set-row"><span>🗣️ קול מקריא</span><button class="toggle" data-key="voice">פעיל</button></div>
         <div class="set-row"><span>🎵 מוזיקה</span><button class="toggle" data-key="music">פעיל</button></div>
+        <div class="set-row"><span>🌙 יום ולילה</span><button class="toggle" data-key="daynight">פעיל</button></div>
         <div class="auth-block" id="authBlock"></div>
         <button class="btn-reset" id="resetBtn">🔄 להתחיל מחדש</button>
       </div>`;

@@ -71,12 +71,16 @@ const World = {
       new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false })
     );
     this.scene.add(sky);
+    this.skyMesh = sky;
     this.scene.fog = new THREE.Fog(0xcfeaff, 45, 90);
+    this.dayNight = true;
+    this.tod = 0.35;          // התחלה בבוקר
   },
 
   _lights() {
     const hemi = new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.85);
     this.scene.add(hemi);
+    this.hemi = hemi;
     const sun = new THREE.DirectionalLight(0xfff2cc, 1.05);
     sun.position.set(14, 24, 10);
     sun.castShadow = true;
@@ -149,6 +153,7 @@ const World = {
     );
     sun.position.set(-22, 30, -30);
     this.scene.add(sun);
+    this.sunMesh = sun;
     // הילה
     const halo = new THREE.Mesh(
       new THREE.SphereGeometry(4.4, 24, 24),
@@ -156,6 +161,26 @@ const World = {
     );
     halo.position.copy(sun.position);
     this.scene.add(halo);
+    this.sunHalo = halo;
+
+    // ירח + כוכבים (מופיעים בלילה)
+    const moon = new THREE.Mesh(
+      new THREE.SphereGeometry(2.6, 24, 24),
+      new THREE.MeshBasicMaterial({ color: 0xfdf6d0, fog: false, transparent: true, opacity: 0 })
+    );
+    moon.position.set(22, 30, -30);
+    this.scene.add(moon);
+    this.moonMesh = moon;
+
+    const starGeo = new THREE.BufferGeometry();
+    const sp = [];
+    for (let i = 0; i < 160; i++) {
+      const a = Math.random() * Math.PI * 2, b = Math.random() * 0.5 + 0.1;
+      sp.push(Math.cos(a) * 80 * Math.cos(b), 30 + Math.random() * 45, Math.sin(a) * 80 * Math.cos(b));
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+    this.stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0, fog: false }));
+    this.scene.add(this.stars);
   },
 
   _environment() {
@@ -341,9 +366,35 @@ const World = {
 
   addCloud(sprite) { this.clouds.push(sprite); this.scene.add(sprite); },
 
+  _updateDayNight(dt) {
+    if (!this.dayNight) return;
+    this.tod = (this.tod + dt / 240) % 1;                 // מחזור מלא ~4 דקות
+    const t = this.tod;
+    const light = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 - Math.PI / 2);  // 0=חצות, 1=צהריים
+    this.hemi.intensity = 0.22 + 0.7 * light;
+    this.sunLight.intensity = 0.1 + 0.95 * light;
+    // צבע שמיים: לילה כהה → יום בהיר, עם נגיעת זריחה/שקיעה
+    const c = new THREE.Color(0x24305c).lerp(new THREE.Color(0xffffff), Math.min(1, light * 1.3));
+    const duskAmt = Math.max(0, 1 - Math.abs(light - 0.4) * 4) * 0.45;
+    c.lerp(new THREE.Color(0xff9d6e), duskAmt);
+    this.skyMesh.material.color.copy(c);
+    this.scene.fog.color.setHex(0x2b3a63).lerp(new THREE.Color(0xcfeaff), Math.min(1, light * 1.3));
+    // מסלול שמש/ירח
+    const a = t * Math.PI * 2 - Math.PI / 2;
+    this.sunMesh.position.set(Math.cos(a) * 42, Math.sin(a) * 38, -30);
+    this.sunHalo.position.copy(this.sunMesh.position);
+    this.moonMesh.position.set(Math.cos(a + Math.PI) * 42, Math.sin(a + Math.PI) * 38, -30);
+    const nightF = 1 - Math.min(1, light * 1.5);
+    this.moonMesh.material.opacity = nightF;
+    this.stars.material.opacity = nightF * 0.9;
+    const sunUp = this.sunMesh.position.y > -2;
+    this.sunMesh.visible = sunUp; this.sunHalo.visible = sunUp;
+  },
+
   update() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     this.controls.update();
+    this._updateDayNight(dt);
 
     // עננים נעים
     for (const cl of this.clouds) {
@@ -371,6 +422,19 @@ const World = {
   },
 
   render() { this.renderer.render(this.scene, this.camera); },
+
+  setDayNight(on) {
+    this.dayNight = on;
+    if (!on) {     // קיבוע ליום בהיר
+      this.tod = 0.35;
+      this.skyMesh.material.color.setHex(0xffffff);
+      this.scene.fog.color.setHex(0xcfeaff);
+      this.hemi.intensity = 0.85; this.sunLight.intensity = 1.05;
+      this.moonMesh.material.opacity = 0; this.stars.material.opacity = 0;
+      this.sunMesh.position.set(-22, 30, -30); this.sunHalo.position.copy(this.sunMesh.position);
+      this.sunMesh.visible = true; this.sunHalo.visible = true;
+    }
+  },
 
   resize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;

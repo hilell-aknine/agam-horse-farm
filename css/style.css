@@ -57,7 +57,8 @@ canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-a
 .xpbar{height:10px;width:70px;background:#e6e0cf;border-radius:6px;overflow:hidden;}
 .xpfill{height:100%;width:0;background:linear-gradient(90deg,#ffd24a,#ff9d3d);transition:width .4s;}
 .streak{background:linear-gradient(160deg,#ffd0a0,#ff9e6b);color:#7a2e00;}
-.gear{pointer-events:auto;margin-right:auto;background:rgba(255,255,255,.92);width:48px;height:48px;
+.left-tools{margin-right:auto;display:flex;gap:8px;pointer-events:none;}
+.gear{pointer-events:auto;background:rgba(255,255,255,.92);width:48px;height:48px;
   border-radius:50%;font-size:24px;box-shadow:var(--shadow);border:3px solid #fff;}
 .gear:active{transform:scale(.92);}
 

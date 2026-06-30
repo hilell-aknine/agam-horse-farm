@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#7ec8e3">
   <title>החווה של אגם 🐴</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="החווה של אגם">
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
@@ -35,6 +41,10 @@
     window.addEventListener('load', () => setTimeout(hideLoader, 500));
     // גיבוי: גם אם load מתעכב, נסיר אחרי 3.5 שניות
     setTimeout(hideLoader, 3500);
+    // Service Worker — עבודה גם בלי אינטרנט
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
   </script>
   <script type="module" src="js/main.js"></script>
 </body>
