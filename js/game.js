@@ -78,6 +78,7 @@ const Game = {
   ribbons: 0,        // סרטים מתחרויות יופי
   rares: {},         // חיות נדירות שנפתחו {id:true}
   tree: null,        // עץ הקסם {planted, plantedAt, lastFruit}
+  worldStats: { visited: {}, activities: {} },   // גילוי עולם: אילו אזורים בוקרו וכמה פעילויות בכל אחד
   _firstRun: true,
 
   // קושי גדל עם הגיל שנבחר ועם ההתקדמות במשחק
@@ -156,6 +157,21 @@ const Game = {
     return win;
   },
 
+  // --- גילוי עולם ---
+  visitArea(id) {
+    if (!this.worldStats.visited[id]) { this.worldStats.visited[id] = true; this.save(); }
+  },
+  recordActivity(id) {
+    const a = this.worldStats.activities;
+    a[id] = (a[id] || 0) + 1;
+    let bonus = false;
+    if (a[id] % 3 === 0) { this.stars += 1; bonus = true; }
+    this.save();
+    return bonus;
+  },
+  areaVisited(id) { return !!this.worldStats.visited[id]; },
+  areaCount(id) { return this.worldStats.activities[id] || 0; },
+
   addCoins(n) { this.coins += n; this.save(); },
   canAfford(n) { return this.coins >= n; },
   spend(n) { if (this.coins < n) return false; this.coins -= n; this.save(); return true; },
@@ -181,7 +197,7 @@ const Game = {
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
         typeStats: this.typeStats, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
-        upgrades: this.upgrades, ribbons: this.ribbons, rares: this.rares, tree: this.tree, savedAt: Date.now(),
+        upgrades: this.upgrades, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
       this._lastData = data;     // לשימוש שמירת-הענן
@@ -209,6 +225,7 @@ const Game = {
     this.ribbons = d.ribbons || 0;
     this.rares = d.rares || {};
     this.tree = d.tree || null;
+    this.worldStats = d.worldStats || { visited: {}, activities: {} };
     this._snap = { horses: d.horses || [], fields: d.fields || [], placed: d.placed || [], animals: d.animals || [] };
   },
 
@@ -229,7 +246,7 @@ const Game = {
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
     this.settings = { age: 6, sound: true, voice: true, music: true, daynight: true };
     this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {};
-    this.ribbons = 0; this.rares = {}; this.tree = null;
+    this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }
 };

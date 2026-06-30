@@ -73,6 +73,7 @@ const UI = {
           <button class="gear" id="gameSettings">⚙️</button>
         </div>
       </div>
+      <div class="loc-chip" id="locChip">🏡 החווה</div>
       <div class="bottombar">
         <button class="btn-fun" id="funBtn">🎯</button>
         <div class="tip" id="tip">👆 געי בסוס או בשדה</div>
@@ -86,6 +87,7 @@ const UI = {
     this.els.streakBox = h.querySelector('#streakBox');
     this.els.streak = h.querySelector('#streakVal');
     this.els.tip = h.querySelector('#tip');
+    this.els.loc = h.querySelector('#locChip');
     h.querySelector('#shopBtn').onclick = () => { Audio.click(); this.handlers.onOpenShop && this.handlers.onOpenShop(); };
     h.querySelector('#gameSettings').onclick = () => { Audio.click(); this.openSettings(); };
     h.querySelector('#fsBtn').onclick = () => { Audio.click(); this._toggleFs(); };
@@ -102,6 +104,7 @@ const UI = {
   },
 
   setTip(t) { if (this.els.tip) this.els.tip.textContent = t; },
+  setLocation(emoji, name) { if (this.els.loc) this.els.loc.textContent = emoji + ' ' + name; },
 
   _toggleFs() {
     const d = document, el2 = d.documentElement;
@@ -318,7 +321,8 @@ const UI = {
       <button class="fun-opt" id="optRace">🏁 מירוץ סוסים</button>
       <button class="fun-opt" id="optDeliver">🚚 משלוח לשוק</button>
       <button class="fun-opt" id="optContest">🏆 תחרות יופי</button>
-      <button class="fun-opt" id="optPhoto">📸 צילום החווה</button></div>`;
+      <button class="fun-opt" id="optPhoto">📸 צילום החווה</button>
+      <button class="fun-opt" id="optJournal">📖 יומן הרפתקאות</button></div>`;
     this.root.appendChild(ov);
     ov.querySelector('#funClose').onclick = () => { Audio.click(); ov.remove(); };
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
@@ -329,6 +333,32 @@ const UI = {
     ov.querySelector('#optDeliver').onclick = () => { Audio.click(); close(); this.handlers.onDelivery && this.handlers.onDelivery(); };
     ov.querySelector('#optContest').onclick = () => { Audio.click(); close(); this.handlers.onContest && this.handlers.onContest(); };
     ov.querySelector('#optPhoto').onclick = () => { Audio.click(); close(); this.handlers.onPhoto && this.handlers.onPhoto(); };
+    ov.querySelector('#optJournal').onclick = () => { Audio.click(); close(); this.handlers.onJournal && this.handlers.onJournal(); };
+  },
+
+  // יומן הרפתקאות — גילוי אזורים ופעילויות
+  openJournal(areas, game) {
+    const ov = el('div', 'overlay light'); ov.id = 'journalOv';
+    const total = areas.length;
+    const visited = areas.filter(a => game.areaVisited(a.id)).length;
+    const rows = areas.map(a => {
+      const v = game.areaVisited(a.id);
+      const n = game.areaCount(a.id);
+      const next = 3 - (n % 3);
+      return `<div class="jrow ${v ? '' : 'unseen'}">
+        <span class="jemoji">${v ? a.emoji : '❓'}</span>
+        <span class="jname">${v ? a.name : 'אזור נסתר'}</span>
+        <span class="jcount">${v ? '✔ ' + n + ' פעילויות' : '🔒 רמה ' + a.unlock}</span>
+        ${v ? `<span class="jnext">עוד ${next} לכוכב ⭐</span>` : ''}</div>`;
+    }).join('');
+    ov.innerHTML = `<div class="card journal-card"><button class="close" id="jClose">✖</button>
+      <h2>📖 יומן ההרפתקאות</h2>
+      <div class="jprogress">גילית ${visited} מתוך ${total} אזורים · ⭐ ${game.stars}</div>
+      ${rows}</div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#jClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    Audio.speak('יומן ההרפתקאות');
   },
 
   openQuests(g) {

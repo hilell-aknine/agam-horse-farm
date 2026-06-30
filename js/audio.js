@@ -84,6 +84,19 @@ const Audio = {
     P.forEach(([w, f, d, delay]) => this._tone(f, d, w, 0.16, delay));
   },
 
+  // צליל-רקע קצר ייחודי לכל אזור (בכניסה)
+  areaAmbient(id) {
+    if (!this.ctx || !this.sfxOn) return;
+    const cues = {
+      farm:     [['sine', 523, 0.15, 0], ['sine', 659, 0.16, 0.12]],
+      forest:   [['sine', 900, 0.07, 0], ['sine', 1150, 0.06, 0.1], ['sine', 990, 0.08, 0.22]],  // ציוץ ציפורים
+      lake:     [['sine', 420, 0.12, 0], ['sine', 300, 0.18, 0.14]],                              // בלבול מים
+      village:  [['triangle', 660, 0.12, 0], ['triangle', 880, 0.15, 0.14]],                      // פעמון כפר
+      mountain: [['sine', 196, 0.3, 0.0], ['sine', 165, 0.38, 0.18]]                              // רוח הרים
+    }[id] || [['sine', 523, 0.15, 0]];
+    cues.forEach(([w, f, d, delay]) => this._tone(f, d, w, 0.14, delay));
+  },
+
   speak(text) {
     if (!this.voiceOn || !window.speechSynthesis || !text) return;
     try {

@@ -47,6 +47,7 @@ UI.init({
   onContest: () => Mini.contest.open(),
   onPhoto: () => Mini.photo.take(),
   onMap: () => UI.openMap(AREAS, currentArea, travelToArea),
+  onJournal: () => UI.openJournal(AREAS, Game),
   getGame: () => Game
 });
 
@@ -68,8 +69,23 @@ function travelToArea(id) {
   if (Game.level < a.unlock) { UI.toast('🔒 ' + a.name + ' נפתח ברמה ' + a.unlock, true); Audio.wrong(); return; }
   currentArea = id;
   World.travelTo(a.x, a.z);
+  Game.visitArea(id);
+  UI.setLocation(a.emoji, a.name);
   UI.setTip(a.emoji + ' ' + a.name);
+  Audio.areaAmbient(id);
   Audio.speak('נוסעים ל' + a.name);
+}
+// תגמול עוטף פר-אזור — סופר פעילויות ונותן כוכב בונוס כל 3
+function areaReward(id) {
+  return (pos, res) => {
+    grantReward(pos, res);
+    if (Game.recordActivity(id)) {
+      World.spawnParticles(pos, 'star', 14);
+      UI.toast('⭐ משימת אזור הושלמה! כוכב בונוס', true);
+      Audio.fanfare();
+    }
+    UI.updateHUD(Game);
+  };
 }
 // רושם sprite כפעילות שאפשר ללחוץ עליה (באזורים)
 function registerActivity(sprite, fn) { sprite.userData.activity = fn; World.registerPickable(sprite); }
@@ -106,10 +122,10 @@ function buildFarm(saved) {
   initMagicTree();    // עץ הקסם
   // אזורי העולם הפתוח (יער, אגם)
   const areaDeps = { THREE, World, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio };
-  buildForest(Object.assign({ center: { x: 0, z: -70 } }, areaDeps));
-  buildLake(Object.assign({ center: { x: 70, z: 6 } }, areaDeps));
-  buildVillage(Object.assign({ center: { x: -72, z: 0 } }, areaDeps));
-  buildMountain(Object.assign({ center: { x: 0, z: 72 } }, areaDeps));
+  buildForest(Object.assign({}, areaDeps, { center: { x: 0, z: -70 }, grantReward: areaReward('forest') }));
+  buildLake(Object.assign({}, areaDeps, { center: { x: 70, z: 6 }, grantReward: areaReward('lake') }));
+  buildVillage(Object.assign({}, areaDeps, { center: { x: -72, z: 0 }, grantReward: areaReward('village') }));
+  buildMountain(Object.assign({}, areaDeps, { center: { x: 0, z: 72 }, grantReward: areaReward('mountain') }));
   forestDensify();
   buildPaths();
 }
@@ -321,8 +337,10 @@ function placeBought(id, x, z, record) {
 // ---------- מסכים / הגדרות ----------
 function startGame() {
   Game.ensureQuests(today());
+  Game.visitArea('farm');
   UI.showGame();
   UI.updateHUD(Game);
+  UI.setLocation('🏡', 'החווה');
   if (Game.settings.music) { Audio.musicOn = true; Audio.startMusic(); }
   UI.setTip('👆 געי בסוס או בשדה · 🛒 לחנות');
 }

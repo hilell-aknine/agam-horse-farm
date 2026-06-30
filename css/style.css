@@ -297,6 +297,22 @@ canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-a
 .map-name{font-size:20px;font-weight:900;color:var(--petrol);}
 .map-tag{font-size:13px;font-weight:700;color:#0a4d57;background:rgba(255,255,255,.6);padding:3px 12px;border-radius:12px;}
 
+/* ---- מחוון מיקום ---- */
+.loc-chip{position:absolute;top:70px;left:50%;transform:translateX(-50%);pointer-events:none;z-index:11;
+  background:rgba(255,255,255,.92);border:3px solid #fff;border-radius:20px;padding:6px 18px;
+  font-weight:900;font-size:17px;color:var(--petrol);box-shadow:var(--shadow);white-space:nowrap;}
+
+/* ---- יומן הרפתקאות ---- */
+.journal-card{width:min(440px,94vw);max-height:88vh;overflow-y:auto;}
+.journal-card h2{font-family:'Fredoka';text-align:center;color:var(--petrol);margin:6px 0 8px;}
+.jprogress{text-align:center;font-weight:700;color:var(--teal);margin-bottom:14px;font-size:15px;}
+.jrow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;background:#fff;border-radius:16px;padding:10px 12px;margin:8px 0;box-shadow:0 3px 0 #e7d8b0;}
+.jrow.unseen{opacity:.6;}
+.jemoji{font-size:30px;}
+.jname{font-weight:700;color:var(--petrol);font-size:16px;flex:1;min-width:80px;}
+.jcount{font-size:13px;color:var(--teal);font-weight:700;}
+.jnext{font-size:12px;color:#a07400;font-weight:700;background:#fff3cf;padding:2px 8px;border-radius:10px;}
+
 @media (max-width:420px){
   .game-title{font-size:38px;}
   .question{font-size:28px;}
