@@ -13,6 +13,8 @@ import { createDelivery } from './delivery.js';
 import { createPhoto } from './photo.js';
 import { buildForest } from './forest_area.js';
 import { buildLake } from './lake_area.js';
+import { buildVillage } from './village_area.js';
+import { buildMountain } from './mountain_area.js';
 
 const nowMs = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
@@ -53,9 +55,11 @@ const PADDOCK = { x: 0, z: -7, r: 5 };
 
 // --- עולם פתוח: אזורים שאפשר לנסוע אליהם ---
 const AREAS = [
-  { id: 'farm',   name: 'החווה', emoji: '🏡', x: 0,  z: 0,   unlock: 1 },
-  { id: 'forest', name: 'היער',  emoji: '🌲', x: 0,  z: -70, unlock: 1 },
-  { id: 'lake',   name: 'האגם',  emoji: '🏖️', x: 70, z: 6,   unlock: 2 }
+  { id: 'farm',     name: 'החווה', emoji: '🏡', x: 0,   z: 0,   unlock: 1 },
+  { id: 'forest',   name: 'היער',  emoji: '🌲', x: 0,   z: -70, unlock: 1 },
+  { id: 'lake',     name: 'האגם',  emoji: '🏖️', x: 70,  z: 6,   unlock: 2 },
+  { id: 'village',  name: 'הכפר',  emoji: '🏘️', x: -72, z: 0,   unlock: 3 },
+  { id: 'mountain', name: 'ההר',   emoji: '🏔️', x: 0,   z: 72,  unlock: 4 }
 ];
 let currentArea = 'farm';
 function travelToArea(id) {
@@ -101,6 +105,27 @@ function buildFarm(saved) {
   const areaDeps = { THREE, World, decor, activity: registerActivity, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio };
   buildForest(Object.assign({ center: { x: 0, z: -70 } }, areaDeps));
   buildLake(Object.assign({ center: { x: 70, z: 6 } }, areaDeps));
+  buildVillage(Object.assign({ center: { x: -72, z: 0 } }, areaDeps));
+  buildMountain(Object.assign({ center: { x: 0, z: 72 } }, areaDeps));
+  forestDensify();
+  buildPaths();
+}
+
+// ציפוף היער (היה דליל בחזית)
+function forestDensify() {
+  const c = { x: 0, z: -70 }, trees = ['assets/pine_tree.png', 'assets/oak_tree.png', 'assets/tree.png'];
+  for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 10; decor(trees[i % 3], c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 6.5 + Math.random() * 2, true); }
+  for (let i = 0; i < 8; i++) { const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 11; decor('assets/bush.png', c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 2.2, false); }
+  for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 13; decor('assets/flowers_wild.png', c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 1.4, false); }
+}
+
+// שבילי עפר שמחברים את החווה לכל אזור
+function buildPaths() {
+  const targets = [[0, -70], [70, 6], [-72, 0], [0, 72]];
+  targets.forEach(([tx, tz]) => {
+    const steps = 11;
+    for (let i = 2; i < steps; i++) { World.floorPatch(tx * i / steps, tz * i / steps, 5.5, 5.5, 0xc8a878); }
+  });
 }
 
 // החלת שדרוג נראה על העולם
