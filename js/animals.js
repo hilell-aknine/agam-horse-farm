@@ -28,7 +28,7 @@ class Animal {
     this.sprite.userData.animal = this;
     this.group.add(this.sprite);
     World.scene.add(this.group);
-    if (this.produce) World.registerPickable(this.sprite);
+    World.registerPickable(this.sprite);
 
     if (this.produce) {
       this.product = World.emojiSprite(this.produce.emoji, 1.2);
@@ -57,9 +57,12 @@ class Animal {
       this.wait -= dt; if (this.wait < -1) this._newTarget();
     }
     this.phase += dt * 4;
-    this.sprite.position.y = Math.abs(Math.sin(this.phase)) * 0.1;
-    this.sprite.scale.x = this.scale * this.facing;
-    this.sprite.scale.y = this.scale;
+    if (this._hop > 0) this._hop -= dt;
+    const hop = this._hop > 0 ? Math.sin((1 - this._hop / 0.6) * Math.PI) * 0.6 : 0;
+    const breathe = 1 + Math.sin(this.phase * 0.5) * 0.03;
+    this.sprite.position.y = Math.abs(Math.sin(this.phase)) * 0.1 + hop;
+    this.sprite.scale.x = this.scale * this.facing * breathe;
+    this.sprite.scale.y = this.scale * (hop > 0 ? 1 + hop * 0.1 : breathe);
     if (this.produce && !this.ready && now - this.lastProduced >= this.produce.intervalMs) {
       this.ready = true; if (this.product) this.product.visible = true;
     }
@@ -76,8 +79,10 @@ class Animal {
     return this.produce ? this.produce.sell : 0;
   }
 
+  celebrate() { this._hop = 0.6; }
+
   dispose() {
-    if (this.produce) World.unregisterPickable(this.sprite);
+    World.unregisterPickable(this.sprite);
     World.scene.remove(this.group);
     if (this.sprite.material.map) this.sprite.material.map.dispose();
     this.sprite.material.dispose();

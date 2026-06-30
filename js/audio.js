@@ -68,6 +68,22 @@ const Audio = {
     this._tone(247, 0.26, 'sine', 0.14, 0.12);
   },
 
+  // קולות חיות פרוצדורליים (קירוב חמוד) — [תדר, משך, השהיה]
+  animalSound(type) {
+    if (!this.ctx || !this.sfxOn) return;
+    const P = {
+      horse:   [['sawtooth', 260, 0.22, 0], ['sawtooth', 300, 0.18, 0.16], ['sawtooth', 230, 0.2, 0.32]],
+      cow:     [['sawtooth', 175, 0.35, 0], ['sawtooth', 150, 0.45, 0.22]],
+      chicken: [['square', 950, 0.06, 0], ['square', 1150, 0.05, 0.09], ['square', 820, 0.07, 0.18]],
+      sheep:   [['sawtooth', 400, 0.28, 0], ['sawtooth', 340, 0.3, 0.2]],
+      pig:     [['square', 200, 0.07, 0], ['square', 175, 0.07, 0.09], ['square', 160, 0.09, 0.18]],
+      dog:     [['square', 320, 0.1, 0], ['square', 270, 0.12, 0.13]],
+      cat:     [['sine', 680, 0.18, 0], ['sine', 820, 0.22, 0.13]],
+      duck:    [['square', 520, 0.07, 0], ['square', 470, 0.07, 0.09], ['square', 520, 0.07, 0.18]]
+    }[type] || [['triangle', 440, 0.12, 0]];
+    P.forEach(([w, f, d, delay]) => this._tone(f, d, w, 0.16, delay));
+  },
+
   speak(text) {
     if (!this.voiceOn || !window.speechSynthesis || !text) return;
     try {

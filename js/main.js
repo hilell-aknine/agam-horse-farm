@@ -258,23 +258,33 @@ function grantReward(pos, res) {
   return 5 + bonus;
 }
 
+// פותח תרגיל עם קושי מותאם (35% מהזמן מחזק את הסוג החלש), ומתעד את התוצאה
+function askProblem(actionType, onCorrect, harder) {
+  const focus = Math.random() < 0.35 ? Game.weakType() : null;
+  const problem = generateProblem(Game.difficulty() + (harder ? 1 : 0), focus);
+  UI.askMath(problem, actionType, (res) => {
+    if (res.correct) { Game.recordResult(problem.type, res.firstTry); onCorrect(res); }
+    else if (!res.cancelled) Game.onWrong();
+  });
+}
+
 // ---------- טיפול בסוס ----------
 function handleAction(type, horse) {
   UI.closeHorseCard();
-  const problem = generateProblem(type === 'grow' ? Game.difficulty() + 1 : Game.difficulty());
-  UI.askMath(problem, type, (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem(type, (res) => {
     if (type === 'feed') { horse.hunger = 100; horse.feedCount++; }
     else if (type === 'brush') { horse.clean = 100; }
     else if (type === 'play') { horse.happy = 100; }
     else if (type === 'grow') {
       if (horse.grow()) { UI.toast('🎉 ' + horse.name + ' גדל/ה!', true); Audio.fanfare(); }
     }
+    horse.celebrate();
+    Game.bumpQuest(type);
     const got = grantReward(horse.group.position.clone(), res);
     UI.toast('+' + got + ' 🪙', false);
     saveAll();
     if (Horses.getById(horse.id)) setTimeout(() => UI.showHorseCard(horse, Game), 200);
-  });
+  }, type === 'grow');
 }
 
 // ---------- חנות ----------
@@ -284,9 +294,7 @@ function openShop() {
 
 function shopBuy(item, cat) {
   if (!Game.canAfford(item.cost)) { notEnough(item.cost); return; }
-  const problem = generateProblem(Game.difficulty());
-  UI.askMath(problem, 'buy', (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem('buy', (res) => {
     if (!Game.spend(item.cost)) return;
     const [x, z] = nextSlot();
     placeBought(item.id, x, z, true);
@@ -302,9 +310,7 @@ function buyField() {
   if (!Fields.canExpand()) { UI.toast('🎉 יש לך את כל השדות!', true); return; }
   const cost = Game.fieldCost(Fields.count());
   if (!Game.canAfford(cost)) { notEnough(cost); return; }
-  const problem = generateProblem(Game.difficulty());
-  UI.askMath(problem, 'field', (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem('field', (res) => {
     if (!Game.spend(cost)) return;
     Fields.ensure(Fields.count() + 1);
     const p = Fields.plots[Fields.plots.length - 1];
@@ -320,11 +326,10 @@ function buyHorse() {
   const owned = Horses.list.length;
   const cost = Game.horseCost(owned);
   if (!Game.canAfford(cost)) { notEnough(cost); return; }
-  const problem = generateProblem(Game.difficulty());
-  UI.askMath(problem, 'buy', (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem('buy', (res) => {
     if (!Game.spend(cost)) return;
     const h = Horses.add({ color: Horses.randomColor(), stage: 'foal', name: Horses.randomName() });
+    h.celebrate();
     spawnAt(h.group.position.x, h.group.position.z, 'confetti', 18);
     Audio.fanfare(); Audio.speak('סוס חדש הצטרף לחווה! קוראים לו ' + h.name);
     UI.toast('🐴 ' + h.name + ' הצטרף/ה לחווה!', true);
@@ -335,11 +340,10 @@ function buyHorse() {
 
 function buyAnimal(item) {
   if (!Game.canAfford(item.cost)) { notEnough(item.cost); return; }
-  const problem = generateProblem(Game.difficulty());
-  UI.askMath(problem, 'buy', (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem('buy', (res) => {
     if (!Game.spend(item.cost)) return;
     const an = Animals.add({ type: item.id, asset: item.asset, scale: item.scale, produce: item.produce, region: PADDOCK });
+    an.celebrate();
     spawnAt(an.group.position.x, an.group.position.z, 'confetti', 16);
     Audio.fanfare(); Audio.speak(item.name + ' חדשה הצטרפה לחווה!');
     UI.toast('🐔 ' + item.name + ' הצטרפה!', true);
@@ -359,11 +363,11 @@ function handleAnimal(a) {
 }
 
 function collectProduce(a) {
-  const problem = generateProblem(Game.difficulty());
-  UI.askMath(problem, 'harvest', (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem('harvest', (res) => {
     const gain = a.collect(nowMs());
     Game.addCoins(gain);
+    Game.bumpQuest('collect');
+    a.celebrate();
     spawnAt(a.group.position.x, a.group.position.z, 'coin', 12);
     Audio.coin(); Audio.fanfare();
     UI.toast('🥚 אספת! +' + gain + ' 🪙', true);
@@ -397,11 +401,10 @@ function handlePlot(plot) {
 function startPlant(plot, cropKey) {
   const def = CROPS[cropKey];
   if (!Game.canAfford(def.seedCost)) { notEnough(def.seedCost); return; }
-  const problem = generateProblem(Game.difficulty());
-  UI.askMath(problem, 'plant', (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem('plant', (res) => {
     if (!Game.spend(def.seedCost)) return;
     plot.plant(Object.assign({ key: cropKey }, def), nowMs());
+    Game.bumpQuest('plant');
     spawnAt(plot.pos.x, plot.pos.z, 'sparkle', 10);
     Audio.pop(); Audio.speak('שתלת ' + def.name + '. עכשיו צריך לחכות שיגדל');
     UI.toast('🌱 שתלת ' + def.name + '!', false);
@@ -411,11 +414,10 @@ function startPlant(plot, cropKey) {
 }
 
 function startHarvest(plot) {
-  const problem = generateProblem(Game.difficulty());
-  UI.askMath(problem, 'harvest', (res) => {
-    if (!res.correct) { if (!res.cancelled) Game.onWrong(); return; }
+  askProblem('harvest', (res) => {
     const key = plot.harvest();
     const gain = Game.sellCrop(key);
+    Game.bumpQuest('harvest');
     spawnAt(plot.pos.x, plot.pos.z, 'coin', 14);
     Audio.coin(); Audio.fanfare();
     UI.toast('🌾 קצרת! +' + gain + ' 🪙', true);
@@ -454,9 +456,9 @@ canvas.addEventListener('pointerup', (e) => {
     const hit = World.pickAt(e.clientX, e.clientY);
     if (!hit) return;
     const ud = hit.object.userData;
-    if (ud.horse) { Audio.pop(); UI.showHorseCard(ud.horse, Game); }
+    if (ud.horse) { Audio.animalSound('horse'); ud.horse.celebrate(); UI.showHorseCard(ud.horse, Game); }
     else if (ud.plot) { Audio.pop(); handlePlot(ud.plot); }
-    else if (ud.animal) { Audio.pop(); handleAnimal(ud.animal); }
+    else if (ud.animal) { Audio.animalSound(ud.animal.type); ud.animal.celebrate(); handleAnimal(ud.animal); }
   }
 });
 

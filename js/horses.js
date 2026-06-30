@@ -98,6 +98,8 @@ class Horse {
 
   mood() { return Math.round((this.hunger + this.happy + this.clean) / 3); }
 
+  celebrate() { this._hop = 0.6; }   // קפיצת-שמחה
+
   update(dt) {
     // דעיכת סטטיסטיקות איטית — עם רצפה גבוהה כדי שהסוס לעולם לא ייראה מוזנח (ללא תחושת כישלון)
     this.hunger = Math.max(50, this.hunger - 0.5 * dt);
@@ -118,12 +120,15 @@ class Horse {
       if (this.wait < -1) this._newTarget();
     }
 
-    // קפיצה עדינה + כיוון פנים
+    // קפיצה עדינה + נשימה + כיוון פנים + קפיצת-שמחה
     this.phase += dt * 3;
+    if (this._hop > 0) this._hop -= dt;
     const h = this._height();
-    this.sprite.position.y = Math.abs(Math.sin(this.phase)) * 0.12;
-    this.sprite.scale.x = h * this.facing;
-    this.sprite.scale.y = h;
+    const hop = this._hop > 0 ? Math.sin((1 - this._hop / 0.6) * Math.PI) * 0.9 : 0;
+    const breathe = 1 + Math.sin(this.phase * 0.45) * 0.025;
+    this.sprite.position.y = Math.abs(Math.sin(this.phase)) * 0.12 + hop;
+    this.sprite.scale.x = h * this.facing * breathe;
+    this.sprite.scale.y = h * (hop > 0 ? 1 + hop * 0.08 : breathe);
 
     // הסוס תמיד צבעוני ושמח
   }
