@@ -143,8 +143,10 @@ const UI = {
           <button class="act" data-act="play"><span class="act-ic">🎾</span><span class="act-lbl">לשחק</span></button>
           ${growBtn}
         </div>
+        <button class="dress-btn" id="dressBtn">👒 להלביש את ${horse.name}</button>
       </div>`;
     this.root.appendChild(ov);
+    ov.querySelector('#dressBtn').onclick = () => { Audio.click(); this.chooseAccessory(horse); };
     ov.querySelector('#closeCard').onclick = () => { Audio.click(); this.closeHorseCard(); };
     ov.onclick = (e) => { if (e.target === ov) this.closeHorseCard(); };
     ov.querySelectorAll('.act').forEach(b => {
@@ -285,6 +287,24 @@ const UI = {
     Audio.speak('מה נשתול?');
   },
 
+  // בורר אביזרים לסוס (הלבשה)
+  chooseAccessory(horse) {
+    const accs = ['👑', '🎀', '🤠', '🎩', '🌸', '🕶️', '❄️', '🌺', '⭐'];
+    const ov = el('div', 'overlay light'); ov.id = 'accOv';
+    let cards = accs.map(a => `<button class="acc-opt ${horse.accessory === a ? 'on' : ''}" data-a="${a}">${a}</button>`).join('');
+    cards += `<button class="acc-opt none" data-a="">🚫</button>`;
+    ov.innerHTML = `<div class="card acc-card"><button class="close" id="accClose">✖</button>
+      <h2>👒 מה ${horse.name} ילבש?</h2><div class="acc-grid">${cards}</div></div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#accClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.querySelectorAll('.acc-opt').forEach(b => b.onclick = () => {
+      Audio.click(); ov.remove(); this.closeHorseCard();
+      this.handlers.onDress && this.handlers.onDress(horse, b.dataset.a || null);
+    });
+    Audio.speak('מה נלביש?');
+  },
+
   // ---------- תפריט כיף: משימות / גלגל / מירוץ ----------
   openFun() {
     const g = this.handlers.getGame && this.handlers.getGame();
@@ -293,13 +313,20 @@ const UI = {
       <h2>🎯 כיף ופרסים</h2>
       <button class="fun-opt" id="optQuests">📋 משימות היום</button>
       <button class="fun-opt" id="optSpin">🎡 גלגל המזל</button>
-      <button class="fun-opt" id="optRace">🏁 מירוץ סוסים</button></div>`;
+      <button class="fun-opt" id="optRace">🏁 מירוץ סוסים</button>
+      <button class="fun-opt" id="optDeliver">🚚 משלוח לשוק</button>
+      <button class="fun-opt" id="optContest">🏆 תחרות יופי</button>
+      <button class="fun-opt" id="optPhoto">📸 צילום החווה</button></div>`;
     this.root.appendChild(ov);
     ov.querySelector('#funClose').onclick = () => { Audio.click(); ov.remove(); };
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-    ov.querySelector('#optQuests').onclick = () => { Audio.click(); ov.remove(); this.openQuests(g); };
-    ov.querySelector('#optSpin').onclick = () => { Audio.click(); ov.remove(); this.openSpin(); };
-    ov.querySelector('#optRace').onclick = () => { Audio.click(); ov.remove(); this.handlers.onRace && this.handlers.onRace(); };
+    const close = () => ov.remove();
+    ov.querySelector('#optQuests').onclick = () => { Audio.click(); close(); this.openQuests(g); };
+    ov.querySelector('#optSpin').onclick = () => { Audio.click(); close(); this.openSpin(); };
+    ov.querySelector('#optRace').onclick = () => { Audio.click(); close(); this.handlers.onRace && this.handlers.onRace(); };
+    ov.querySelector('#optDeliver').onclick = () => { Audio.click(); close(); this.handlers.onDelivery && this.handlers.onDelivery(); };
+    ov.querySelector('#optContest').onclick = () => { Audio.click(); close(); this.handlers.onContest && this.handlers.onContest(); };
+    ov.querySelector('#optPhoto').onclick = () => { Audio.click(); close(); this.handlers.onPhoto && this.handlers.onPhoto(); };
   },
 
   openQuests(g) {

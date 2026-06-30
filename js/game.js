@@ -75,6 +75,9 @@ const Game = {
   questDate: '',
   spinDate: '',      // תאריך הסיבוב האחרון בגלגל
   upgrades: {},      // שדרוגי אסם/חווה שנקנו {id:true}
+  ribbons: 0,        // סרטים מתחרויות יופי
+  rares: {},         // חיות נדירות שנפתחו {id:true}
+  tree: null,        // עץ הקסם {planted, plantedAt, lastFruit}
   _firstRun: true,
 
   // קושי גדל עם הגיל שנבחר ועם ההתקדמות במשחק
@@ -178,7 +181,7 @@ const Game = {
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
         typeStats: this.typeStats, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
-        upgrades: this.upgrades, savedAt: Date.now(),
+        upgrades: this.upgrades, ribbons: this.ribbons, rares: this.rares, tree: this.tree, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
       this._lastData = data;     // לשימוש שמירת-הענן
@@ -203,6 +206,9 @@ const Game = {
     this.questDate = d.questDate || '';
     this.spinDate = d.spinDate || '';
     this.upgrades = d.upgrades || {};
+    this.ribbons = d.ribbons || 0;
+    this.rares = d.rares || {};
+    this.tree = d.tree || null;
     this._snap = { horses: d.horses || [], fields: d.fields || [], placed: d.placed || [], animals: d.animals || [] };
   },
 
@@ -223,6 +229,7 @@ const Game = {
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
     this.settings = { age: 6, sound: true, voice: true, music: true, daynight: true };
     this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {};
+    this.ribbons = 0; this.rares = {}; this.tree = null;
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }
 };

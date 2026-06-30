@@ -70,10 +70,24 @@ class Horse {
     World.scene.add(this.group);
     World.registerPickable(this.sprite);
 
+    this.accessory = opts.accessory || null;
+    this.accSprite = null;
+    if (this.accessory) this._applyAccessory();
+
     this.phase = Math.random() * Math.PI * 2;
     this._newTarget();
     this.facing = 1;
   }
+
+  _applyAccessory() {
+    if (this.accSprite) { this.group.remove(this.accSprite); this.accSprite.material.dispose(); this.accSprite = null; }
+    if (!this.accessory) return;
+    this.accSprite = World.emojiSprite(this.accessory, 1.5);
+    this.accSprite.center.set(0.5, 0.0);
+    this.accSprite.position.set(0, this._height() * 0.8, 0);
+    this.group.add(this.accSprite);
+  }
+  setAccessory(emoji) { this.accessory = emoji; this._applyAccessory(); }
 
   _height() { return this.stage === 'adult' ? 4.2 : 2.7; }
   _tex() { return `assets/${this.stage === 'adult' ? 'horse' : 'foal'}_${this.color}.png`; }
@@ -149,7 +163,7 @@ class Horse {
 
   toJSON() {
     return { id: this.id, name: this.name, color: this.color, stage: this.stage,
-      hunger: this.hunger, happy: this.happy, clean: this.clean, feedCount: this.feedCount };
+      hunger: this.hunger, happy: this.happy, clean: this.clean, feedCount: this.feedCount, accessory: this.accessory };
   }
 }
 

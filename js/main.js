@@ -8,6 +8,9 @@ import { UI } from './ui.js';
 import { Game, CROPS, SHOP } from './game.js';
 import { Audio } from './audio.js';
 import { generateProblem } from './math.js';
+import { createContest } from './contest.js';
+import { createDelivery } from './delivery.js';
+import { createPhoto } from './photo.js';
 
 const nowMs = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
@@ -26,6 +29,7 @@ UI.init({
   onBuyField: buyField,
   onBuyAnimal: buyAnimal,
   onBuyUpgrade: buyUpgrade,
+  onDress: handleDress,
   onSettings: applySettings,
   onReset: resetGame,
   onSpin: () => {
@@ -35,6 +39,9 @@ UI.init({
     return { ok: true, prize };
   },
   onRace: () => startRace(),
+  onDelivery: () => Mini.delivery.start(),
+  onContest: () => Mini.contest.open(),
+  onPhoto: () => Mini.photo.take(),
   getGame: () => Game
 });
 
@@ -66,6 +73,8 @@ function buildFarm(saved) {
   // החלת שדרוגי אסם/חווה שנקנו
   const ups = Game.upgrades || {};
   Object.keys(ups).forEach(id => { if (ups[id]) applyUpgrade(id); });
+  spawnRares();       // חיות נדירות שכבר נפתחו
+  initMagicTree();    // עץ הקסם
 }
 
 // החלת שדרוג נראה על העולם
@@ -290,7 +299,7 @@ function grantReward(pos, res) {
   if (bonus) Game.addCoins(bonus);
   Audio.coin(); Audio.praise();
   UI.updateHUD(Game);
-  if (r.leveledUp) { World.spawnParticles(pos, 'star', 16); UI.levelUp(Game.level); }
+  if (r.leveledUp) { World.spawnParticles(pos, 'star', 16); UI.levelUp(Game.level); checkRareUnlocks(); }
   return 5 + bonus;
 }
 
@@ -430,6 +439,82 @@ function buyUpgrade(item) {
   });
 }
 
+// הלבשת סוס (אביזר)
+function handleDress(horse, emoji) {
+  askProblem('buy', (res) => {
+    horse.setAccessory(emoji);
+    horse.celebrate();
+    World.spawnParticles(horse.group.position.clone(), 'sparkle', 10);
+    Audio.pop();
+    UI.toast(emoji ? '👒 איזה יופי!' : 'הורדנו את האביזר', false);
+    grantReward(horse.group.position.clone(), res);
+    saveAll();
+    if (Horses.getById(horse.id)) setTimeout(() => UI.showHorseCard(horse, Game), 200);
+  });
+}
+
+// --- חיות נדירות (נפתחות בעליית רמה) ---
+const RARES = [
+  { id: 'fox', asset: 'fox.png', level: 3, name: 'שועל', scale: 1.5, region: { x: -16, z: -2, r: 3 } },
+  { id: 'deer', asset: 'deer.png', level: 6, name: 'צבי', scale: 1.9, region: { x: 16, z: 2, r: 3 } },
+  { id: 'peacock', asset: 'peacock.png', level: 9, name: 'טווס', scale: 1.7, region: { x: -14, z: 8, r: 2.5 } },
+  { id: 'penguin', asset: 'penguin.png', level: 12, name: 'פינגווין', scale: 1.4, region: { x: -16, z: 7, r: 2 } }
+];
+function spawnRares() {
+  RARES.forEach(r => { if (Game.rares[r.id]) Animals.add({ type: r.id, asset: r.asset, scale: r.scale, region: r.region }); });
+}
+function checkRareUnlocks() {
+  RARES.forEach(r => {
+    if (r.level <= Game.level && !Game.rares[r.id]) {
+      Game.rares[r.id] = true;
+      const a = Animals.add({ type: r.id, asset: r.asset, scale: r.scale, region: r.region });
+      spawnAt(a.group.position.x, a.group.position.z, 'confetti', 18);
+      Audio.fanfare(); Audio.speak('חיה נדירה הצטרפה לחווה! ' + r.name);
+      UI.toast('✨ חיה נדירה: ' + r.name + ' הצטרף/ה!', true);
+      saveAll();
+    }
+  });
+}
+
+// --- עץ הקסם (נותן פרי כל כמה דקות) ---
+const TREE_FRUIT_MS = 90000;
+let treeFruitSprite = null;
+function initMagicTree() {
+  const x = -13.5, z = -3.5;
+  const t = World.makeBillboard('assets/oak_tree.png', 9, true);
+  t.position.set(x, 0, z); World.scene.add(t);
+  const sh = World.makeGroundShadow(2.6); sh.position.set(x, 0.04, z); World.scene.add(sh);
+  treeFruitSprite = World.emojiSprite('🍎', 1.8);
+  treeFruitSprite.center.set(0.5, 0.0);
+  treeFruitSprite.position.set(x, 5.6, z);
+  treeFruitSprite.visible = false;
+  treeFruitSprite.userData.magictree = true;
+  World.scene.add(treeFruitSprite);
+  World.registerPickable(treeFruitSprite);
+  if (!Game.tree) Game.tree = { lastFruit: nowMs() };
+}
+function updateMagicTree() {
+  if (!treeFruitSprite || !Game.tree) return;
+  const ready = nowMs() - (Game.tree.lastFruit || 0) >= TREE_FRUIT_MS;
+  treeFruitSprite.visible = ready;
+  if (ready) treeFruitSprite.position.y = 5.6 + Math.abs(Math.sin(performance.now() / 450)) * 0.3;
+}
+function harvestTree() {
+  if (!Game.tree || nowMs() - (Game.tree.lastFruit || 0) < TREE_FRUIT_MS) {
+    UI.toast('🌳 עוד אין פרי, עוד קצת...', false); Audio.speak('עוד אין פרי, עוד קצת'); return;
+  }
+  askProblem('harvest', (res) => {
+    Game.tree.lastFruit = nowMs();
+    const gain = 22;
+    Game.addCoins(gain);
+    spawnAt(-13.5, -3.5, 'apple', 14);
+    Audio.coin(); Audio.fanfare();
+    UI.toast('🍎 קטפת פרי קסם! +' + gain + ' 🪙', true);
+    grantReward({ x: -13.5, y: 4, z: -3.5 }, res);
+    saveAll();
+  });
+}
+
 function notEnough(cost) {
   UI.toast('צריך עוד ' + (cost - Game.coins) + ' 🪙', true);
   Audio.wrong(); Audio.speak('צריך עוד מטבעות. פתרי עוד תרגילים!');
@@ -539,6 +624,7 @@ canvas.addEventListener('pointerup', (e) => {
     if (ud.horse) { Audio.animalSound('horse'); ud.horse.celebrate(); UI.showHorseCard(ud.horse, Game); }
     else if (ud.plot) { Audio.pop(); handlePlot(ud.plot); }
     else if (ud.animal) { Audio.animalSound(ud.animal.type); ud.animal.celebrate(); handleAnimal(ud.animal); }
+    else if (ud.magictree) { Audio.pop(); harvestTree(); }
   }
 });
 
@@ -546,12 +632,25 @@ canvas.addEventListener('pointerup', (e) => {
 setInterval(saveAll, 8000);
 window.addEventListener('beforeunload', saveAll);
 
+// ---------- מיני-משחקים מבוססי-מודול (נבנו בטורבו) ----------
+const _deps = {
+  root: document.getElementById('ui'),
+  Game, UI, Audio, World, THREE, Horses,
+  askProblem, grantReward, spawnAt, saveAll
+};
+const Mini = {
+  contest: createContest(_deps),
+  delivery: createDelivery(_deps),
+  photo: createPhoto(_deps)
+};
+
 // ---------- לולאת המשחק ----------
 function loop() {
   const dt = World.update();
   Horses.update(dt);
   Fields.update(nowMs(), dt);
   Animals.update(nowMs(), dt);
+  updateMagicTree();
   World.render();
   requestAnimationFrame(loop);
 }
