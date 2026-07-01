@@ -18,6 +18,8 @@ const World = {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // אניזוטרופיה מקסימלית — מחדד טקסטורות בזווית המצלמה הנטויה (במקום 4 קבוע)
+    this.maxAniso = this.renderer.capabilities.getMaxAnisotropy();
 
     this.scene = new THREE.Scene();
     this.clock = new THREE.Clock();
@@ -225,7 +227,7 @@ const World = {
     }
     const t = this.texLoader.load(url);
     t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 4;
+    t.anisotropy = this.maxAniso || 4;
     if (shared) this._texCache[url] = t;
     return t;
   },
