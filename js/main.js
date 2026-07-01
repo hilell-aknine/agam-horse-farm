@@ -15,6 +15,7 @@ import { buildForest } from './forest_area.js';
 import { buildLake } from './lake_area.js';
 import { buildVillage } from './village_area.js';
 import { buildMountain } from './mountain_area.js';
+import { buildFair } from './fair_area.js';
 
 const nowMs = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
@@ -60,7 +61,8 @@ const AREAS = [
   { id: 'forest',   name: 'היער',  emoji: '🌲', x: 0,   z: -70, unlock: 1 },
   { id: 'lake',     name: 'האגם',  emoji: '🏖️', x: 70,  z: 6,   unlock: 2 },
   { id: 'village',  name: 'הכפר',  emoji: '🏘️', x: -72, z: 0,   unlock: 3 },
-  { id: 'mountain', name: 'ההר',   emoji: '🏔️', x: 0,   z: 72,  unlock: 4 }
+  { id: 'mountain', name: 'ההר',   emoji: '🏔️', x: 0,   z: 72,  unlock: 4 },
+  { id: 'fair',     name: 'היריד', emoji: '🎪', x: 64,  z: -64, unlock: 5 }
 ];
 let currentArea = 'farm';
 function travelToArea(id) {
@@ -126,6 +128,7 @@ function buildFarm(saved) {
   buildLake(Object.assign({}, areaDeps, { center: { x: 70, z: 6 }, grantReward: areaReward('lake') }));
   buildVillage(Object.assign({}, areaDeps, { center: { x: -72, z: 0 }, grantReward: areaReward('village') }));
   buildMountain(Object.assign({}, areaDeps, { center: { x: 0, z: 72 }, grantReward: areaReward('mountain') }));
+  buildFair(Object.assign({}, areaDeps, { center: { x: 64, z: -64 }, grantReward: areaReward('fair') }));
   forestDensify();
   buildPaths();
 }
@@ -140,7 +143,7 @@ function forestDensify() {
 
 // שבילי עפר שמחברים את החווה לכל אזור
 function buildPaths() {
-  const targets = [[0, -70], [70, 6], [-72, 0], [0, 72]];
+  const targets = [[0, -70], [70, 6], [-72, 0], [0, 72], [64, -64]];
   targets.forEach(([tx, tz]) => {
     const steps = 11;
     for (let i = 2; i < steps; i++) { World.floorPatch(tx * i / steps, tz * i / steps, 5.5, 5.5, 0xc8a878); }

@@ -19,7 +19,10 @@ const ACTIONS = {
   harvest: { icon: '🌾', label: 'לקצור' },
   buy:     { icon: '🛒', label: 'לקנות' },
   field:   { icon: '🟫', label: 'שדה חדש' },
-  race:    { icon: '🏁', label: 'מירוץ' }
+  race:    { icon: '🏁', label: 'מירוץ' },
+  ride:    { icon: '🎡', label: 'רכיבה' },
+  game:    { icon: '🎯', label: 'משחק' },
+  treat:   { icon: '🍭', label: 'ממתק' }
 };
 
 const UI = {
