@@ -364,6 +364,67 @@ const UI = {
     Audio.speak('יומן ההרפתקאות');
   },
 
+  // דוח הורי — תמונת התקדמות של אגם (מבוסס על נתוני-אמת שנאספים לקושי המותאם)
+  openParentReport(g) {
+    const META = {
+      add:      { l: 'חיבור',            e: '➕' },
+      sub:      { l: 'חיסור',            e: '➖' },
+      count:    { l: 'ספירה',            e: '🔢' },
+      compare:  { l: 'גדול / קטן',       e: '⚖️' },
+      missing:  { l: 'מספר חסר',         e: '🧩' },
+      neighbor: { l: 'לפני ואחרי',       e: '↔️' },
+      word:     { l: 'בעיות מילוליות',   e: '📖' },
+    };
+    const ts = g.typeStats || {};
+    let totC = 0, totN = 0;
+    const rows = Object.keys(META)
+      .filter(t => ts[t] && (ts[t].c + ts[t].w) > 0)
+      .map(t => {
+        const s = ts[t], n = s.c + s.w, pct = Math.round(s.c / n * 100);
+        totC += s.c; totN += n;
+        const cls = pct >= 85 ? 'good' : (pct >= 60 ? 'ok' : 'low');
+        return `<div class="prow">
+          <span class="pemoji">${META[t].e}</span>
+          <span class="pname">${META[t].l}</span>
+          <div class="qbar prog"><div class="qfill ${cls}" style="width:${pct}%"></div></div>
+          <span class="ppct">${pct}%</span>
+          <span class="pn">${s.c}/${n}</span></div>`;
+      }).join('');
+
+    const overall = totN ? Math.round(totC / totN * 100) : 0;
+    const weak = g.weakType && g.weakType();
+    const visited = Object.values((g.worldStats && g.worldStats.visited) || {}).filter(Boolean).length;
+    const acts = Object.values((g.worldStats && g.worldStats.activities) || {}).reduce((a, b) => a + b, 0);
+
+    let advice;
+    if (!totN) advice = '';
+    else if (weak && META[weak]) advice = `💡 כדאי לתרגל יחד: ${META[weak].e} ${META[weak].l}`;
+    else advice = '🌟 אגם שולטת יפה בכל סוגי התרגילים! כל הכבוד';
+
+    const body = totN
+      ? `<div class="rgrid">
+           <div class="rchip"><b>${g.level}</b><span>רמה</span></div>
+           <div class="rchip"><b>${overall}%</b><span>דיוק כללי</span></div>
+           <div class="rchip"><b>${g.solved || 0}</b><span>תרגילים</span></div>
+           <div class="rchip"><b>${g.bestStreak || 0}</b><span>רצף שיא</span></div>
+           <div class="rchip"><b>${visited}</b><span>אזורים</span></div>
+           <div class="rchip"><b>${acts}</b><span>פעילויות</span></div>
+         </div>
+         <div class="rtitle">דיוק לפי סוג תרגיל</div>
+         ${rows}
+         ${advice ? `<div class="radvice">${advice}</div>` : ''}`
+      : `<div class="shop-empty">עדיין אין מספיק נתונים 😊<br>שחקו קצת וחזרו לראות את ההתקדמות של אגם.</div>`;
+
+    const ov = el('div', 'overlay light'); ov.id = 'reportOv';
+    ov.innerHTML = `<div class="card journal-card report-card"><button class="close" id="rClose">✖</button>
+      <h2>📊 דוח להורה</h2>
+      <div class="jprogress">תמונת ההתקדמות של אגם</div>
+      ${body}</div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#rClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  },
+
   openQuests(g) {
     const ov = el('div', 'overlay light'); ov.id = 'questOv';
     const rows = (g.quests || []).map(q => {
@@ -579,10 +640,16 @@ const UI = {
         <div class="set-row"><span>🎵 מוזיקה</span><button class="toggle" data-key="music">פעיל</button></div>
         <div class="set-row"><span>🌙 יום ולילה</span><button class="toggle" data-key="daynight">פעיל</button></div>
         <div class="auth-block" id="authBlock"></div>
+        <button class="btn-report" id="reportBtn">📊 דוח להורה</button>
         <button class="btn-reset" id="resetBtn">🔄 להתחיל מחדש</button>
       </div>`;
     this.root.appendChild(ov);
     ov.querySelector('#setClose').onclick = () => { Audio.click(); ov.classList.add('hidden'); };
+    ov.querySelector('#reportBtn').onclick = () => {
+      Audio.click();
+      const g = this.handlers.getGame && this.handlers.getGame();
+      if (g) this.openParentReport(g);
+    };
     ov.onclick = (e) => { if (e.target === ov) ov.classList.add('hidden'); };
     ov.querySelector('#resetBtn').onclick = () => {
       if (confirm('להתחיל את המשחק מחדש? כל החווה תימחק.')) this.handlers.onReset && this.handlers.onReset();

@@ -320,3 +320,26 @@ canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-a
   .act-ic{font-size:34px;}
   .shop-grid{grid-template-columns:repeat(2,1fr);}
 }
+
+/* ---- דוח להורה ---- */
+.btn-report{display:block;width:100%;margin-top:14px;background:#e7f3f5;color:var(--teal);
+  font-weight:700;font-size:17px;border:none;border-radius:16px;padding:12px;cursor:pointer;
+  box-shadow:0 3px 8px rgba(0,0,0,.1);}
+.btn-report:hover{filter:brightness(.97);}
+.report-card .rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 14px;}
+.rchip{background:#fff;border-radius:14px;padding:10px 6px;text-align:center;box-shadow:0 3px 0 #e7d8b0;}
+.rchip b{display:block;font-family:'Fredoka';font-size:24px;color:var(--petrol);line-height:1;}
+.rchip span{font-size:12px;font-weight:700;color:var(--teal);}
+.rtitle{font-weight:700;color:var(--petrol);font-size:16px;margin:4px 2px 8px;}
+.prow{display:flex;align-items:center;gap:8px;background:#fff;border-radius:14px;
+  padding:8px 10px;margin:7px 0;box-shadow:0 3px 0 #e7d8b0;}
+.prow .pemoji{font-size:22px;}
+.prow .pname{font-weight:700;color:var(--petrol);font-size:14px;width:96px;flex:none;}
+.prow .qbar.prog{flex:1;margin:0;}
+.prow .ppct{font-weight:900;color:var(--ink);font-size:14px;width:40px;text-align:left;}
+.prow .pn{font-size:12px;color:var(--teal);font-weight:700;width:44px;text-align:left;}
+.qfill.good{background:linear-gradient(90deg,#5fbf5f,#8fd98f);}
+.qfill.ok{background:linear-gradient(90deg,#ffd24a,#ff9d3d);}
+.qfill.low{background:linear-gradient(90deg,#ef8a6b,#ef6b6b);}
+.radvice{margin-top:14px;background:#fff6df;border-radius:14px;padding:12px;
+  text-align:center;font-weight:700;color:var(--petrol);font-size:15px;box-shadow:0 3px 0 #e7d8b0;}
