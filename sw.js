@@ -1,10 +1,15 @@
 // sw.js — Service Worker: מאפשר למשחק לעבוד גם בלי אינטרנט (אחרי טעינה ראשונה)
-const CACHE = 'agam-farm-v1';
+// גרסה מועלית בכל שינוי קוד/אמנות — activate מוחק מטמון ישן ומרענן הכל
+// (בלי זה, cache-first מגיש למשתמשים מותקנים את הגרסה הישנה לנצח).
+const CACHE = 'agam-farm-v2';
 const CORE = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
   './js/main.js', './js/world.js', './js/horses.js', './js/animals.js',
   './js/fields.js', './js/game.js', './js/ui.js', './js/audio.js',
   './js/math.js', './js/cloud.js',
+  './js/contest.js', './js/delivery.js', './js/photo.js',
+  './js/forest_area.js', './js/lake_area.js', './js/village_area.js',
+  './js/mountain_area.js', './js/fair_area.js',
   './js/lib/three.module.min.js', './js/lib/addons/controls/OrbitControls.js'
 ];
 
