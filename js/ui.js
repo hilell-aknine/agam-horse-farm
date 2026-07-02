@@ -615,8 +615,9 @@ const UI = {
   raceEnd(prize) { this.raceClear(); this.toast('🏆 ניצחת במירוץ! +' + prize + ' 🪙', true); },
   raceClear() { const b = document.getElementById('raceBar'); if (b) b.remove(); },
 
-  // מפת העולם הפתוח
-  openMap(areas, currentId, onTravel) {
+  // מפת העולם הפתוח + שער לצפייה בחוות של חברות (נטען מהענן)
+  // opts = { canVisit, loadFarms:()=>Promise, onVisit:(farm)=>void }
+  openMap(areas, currentId, onTravel, opts = {}) {
     const g = this.handlers.getGame && this.handlers.getGame();
     const ov = el('div', 'overlay light'); ov.id = 'mapOv';
     const cards = areas.map(a => {
@@ -625,8 +626,12 @@ const UI = {
       return `<button class="map-area ${a.id === currentId ? 'here' : ''} ${locked ? 'locked' : ''}" data-id="${a.id}">
         <span class="map-emoji">${a.emoji}</span><span class="map-name">${a.name}</span><span class="map-tag">${tag}</span></button>`;
     }).join('');
+    const friendsSection = opts.canVisit ? `
+      <div class="map-friends-title">👭 חוות של חברות</div>
+      ${g && g.visiting ? '<button class="btn-home map-home" id="mapHome">🏡 חזרה לחווה שלי</button>' : ''}
+      <div class="map-farms" id="mapFarms"><div class="map-loading">טוען חוות... ⏳</div></div>` : '';
     ov.innerHTML = `<div class="card map-card"><button class="close" id="mapClose">✖</button>
-      <h2>🗺️ העולם של אגם</h2><div class="map-grid">${cards}</div></div>`;
+      <h2>🗺️ העולם של אגם</h2><div class="map-grid">${cards}</div>${friendsSection}</div>`;
     this.root.appendChild(ov);
     ov.querySelector('#mapClose').onclick = () => { Audio.click(); ov.remove(); };
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
@@ -635,7 +640,27 @@ const UI = {
       if (g && g.level < a.unlock) { Audio.wrong(); Audio.speak('האזור עוד נעול'); return; }
       Audio.click(); ov.remove(); onTravel(b.dataset.id);
     });
-    Audio.speak('לאן נוסעים?');
+    const homeBtn = ov.querySelector('#mapHome');
+    if (homeBtn) homeBtn.onclick = () => { Audio.click(); location.href = location.pathname; };
+    // חוות של חברות — נטענות אסינכרונית כדי לא לעכב את פתיחת המפה
+    if (opts.canVisit && opts.loadFarms) {
+      opts.loadFarms().then(farms => {
+        const box = ov.querySelector('#mapFarms');
+        if (!box) return;
+        if (!farms || !farms.length) { box.innerHTML = '<div class="map-loading">עוד אין חוות של חברות 🌱<br>ספרי לחברות להיכנס וליצור חווה!</div>'; return; }
+        box.innerHTML = farms.map((f, i) => `
+          <button class="friend-row" data-i="${i}">
+            <span class="friend-face">${['👧', '👩‍🌾', '🧒', '👱‍♀️'][i % 4]}</span>
+            <span class="friend-name">${String(f.name).replace(/</g, '&lt;')}</span>
+            <span class="friend-lvl">⭐ רמה ${f.level}</span>
+            <span class="friend-go">🐴 לבקר</span>
+          </button>`).join('');
+        box.querySelectorAll('.friend-row').forEach(b => b.onclick = () => {
+          Audio.click(); ov.remove(); opts.onVisit(farms[Number(b.dataset.i)]);
+        });
+      }).catch(() => { const box = ov.querySelector('#mapFarms'); if (box) box.innerHTML = '<div class="map-loading">לא הצלחנו לטעון חוות 😕</div>'; });
+    }
+    Audio.speak('לאן נוסעים? ואפשר גם לבקר בחוות של חברות');
   },
 
   // ---------- חלון תרגיל חשבון ----------

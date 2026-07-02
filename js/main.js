@@ -76,7 +76,11 @@ UI.init({
   onDelivery: () => Mini.delivery.start(),
   onContest: () => Mini.contest.open(),
   onPhoto: () => Mini.photo.take(),
-  onMap: () => UI.openMap(AREAS, currentArea, travelToArea),
+  onMap: () => UI.openMap(AREAS, currentArea, travelToArea, {
+    canVisit: Cloud.loggedIn(),
+    loadFarms: () => Cloud.listFarms(),
+    onVisit: (f) => { location.href = location.pathname + '?visit=' + encodeURIComponent(f.user_id) + '&name=' + encodeURIComponent(f.name); }
+  }),
   onJournal: () => UI.openJournal(AREAS, Game),
   onFriends: async () => {
     const farms = await Cloud.listFarms();
