@@ -1,7 +1,7 @@
 // sw.js — Service Worker: מאפשר למשחק לעבוד גם בלי אינטרנט (אחרי טעינה ראשונה)
 // גרסה מועלית בכל שינוי קוד/אמנות — activate מוחק מטמון ישן ומרענן הכל
 // (בלי זה, cache-first מגיש למשתמשים מותקנים את הגרסה הישנה לנצח).
-const CACHE = 'agam-farm-v8';
+const CACHE = 'agam-farm-v9';
 const CORE = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
   './js/main.js', './js/world.js', './js/horses.js', './js/animals.js',
@@ -24,20 +24,19 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// network-first: כשיש אינטרנט תמיד מגישים את הקוד/האמנות הכי עדכניים,
+// והמטמון משמש רק כגיבוי אופליין. (cache-first הישן "תקע" משתמשים על גרסה ישנה.)
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   // רק GET מאותו מקור (לא נוגעים ב-Supabase / CDN)
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then(hit => {   // ?visit=... מקבל את אותו index.html
-      if (hit) return hit;
-      return fetch(req).then(res => {
-        if (res && res.status === 200) {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-        }
-        return res;
-      });
-    })
+    fetch(req).then(res => {
+      if (res && res.status === 200) {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req, { ignoreSearch: true }))   // אופליין → מטמון
   );
 });
