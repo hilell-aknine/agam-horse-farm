@@ -198,6 +198,7 @@ const UI = {
         </div>
         <div class="stat streak hidden" id="streakBox"><span class="ic">🔥</span><span id="streakVal">0</span></div>
         <div class="left-tools">
+          <button class="gear" id="arrangeBtn" title="לסדר את החווה">🎨</button>
           <button class="gear" id="mapBtn" title="מפה">🗺️</button>
           <button class="gear" id="fsBtn" title="מסך מלא">⛶</button>
           <button class="gear" id="gameSettings">⚙️</button>
@@ -223,6 +224,23 @@ const UI = {
     h.querySelector('#fsBtn').onclick = () => { Audio.click(); this._toggleFs(); };
     h.querySelector('#funBtn').onclick = () => { Audio.click(); this.openFun(); };
     h.querySelector('#mapBtn').onclick = () => { Audio.click(); this.handlers.onMap && this.handlers.onMap(); };
+    h.querySelector('#arrangeBtn').onclick = () => { Audio.click(); this.handlers.onArrange && this.handlers.onArrange(); };
+  },
+
+  // מצב עיצוב: מדגיש את הכפתור ומראה באנר עם כפתור "סיימתי"
+  setArrangeMode(on) {
+    const btn = document.getElementById('arrangeBtn');
+    if (btn) btn.classList.toggle('active', on);
+    let bar = document.getElementById('arrangeBar');
+    if (on) {
+      if (!bar) {
+        bar = el('div', 'arrange-bar'); bar.id = 'arrangeBar';
+        bar.innerHTML = `<span>🎨 גררי כל קישוט לאן שתרצי</span>
+          <button class="btn-home" id="arrangeDone">✔ סיימתי</button>`;
+        this.root.appendChild(bar);
+        bar.querySelector('#arrangeDone').onclick = () => { Audio.click(); this.handlers.onArrange && this.handlers.onArrange(); };
+      }
+    } else if (bar) { bar.remove(); }
   },
 
   updateHUD(g) {

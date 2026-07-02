@@ -76,6 +76,7 @@ UI.init({
   onDelivery: () => Mini.delivery.start(),
   onContest: () => Mini.contest.open(),
   onPhoto: () => Mini.photo.take(),
+  onArrange: () => toggleArrange(),
   onMap: () => UI.openMap(AREAS, currentArea, travelToArea, {
     canVisit: Cloud.loggedIn(),
     loadFarms: () => Cloud.listFarms(),
@@ -147,6 +148,7 @@ function registerUpdater(fn) { areaUpdaters.push(fn); }
 // פריטים שנקנו והוצבו בחווה
 let placedItems = [];          // נתוני שמירה {id,x,z}
 const placedMeshes = [];       // אובייקטי תלת-ממד להסרה ב-reset
+const movableSprites = [];     // ספרייטים שאפשר לגרור במצב עיצוב (רק פריטים שנקנו)
 let barnSprite = null;         // רפרנס לאסם (להחלפה בשדרוג)
 
 // בניית החווה מתוך נתוני שמירה (מקומי או ענן)
@@ -161,7 +163,7 @@ function buildFarm(saved) {
   }
   if (saved && saved.fields && saved.fields.length) Fields.load(saved.fields, CROPS, nowMs());
   else Fields.ensure(3);
-  if (saved && saved.placed) saved.placed.forEach(p => { placeBought(p.id, p.x, p.z, false); placedItems.push({ id: p.id, x: p.x, z: p.z }); });
+  if (saved && saved.placed) saved.placed.forEach(p => placeBought(p.id, p.x, p.z, false));
   if (saved && saved.animals) saved.animals.forEach(a => {
     const def = SHOP.animals.find(s => s.id === a.type);
     if (def) Animals.add({ id: a.id, type: a.type, asset: def.asset, scale: def.scale, produce: def.produce, region: PADDOCK, name: a.name, lastProduced: a.lastProduced });
@@ -440,7 +442,7 @@ function nextSlot() {
   const a = Math.random() * Math.PI * 2, r = 12.5 + Math.random() * 1.5;
   return [Math.cos(a) * r, Math.sin(a) * r];
 }
-function placeBought(id, x, z, record) {
+function placeBought(id, x, z, save) {
   const it = shopItemById(id);
   const h = it ? it.h : 2.5;
   const asset = it ? it.asset : (id + '.png');
@@ -450,7 +452,13 @@ function placeBought(id, x, z, record) {
   sh.position.set(x, 0.04, z);
   World.scene.add(sp); World.scene.add(sh);
   placedMeshes.push(sp, sh);
-  if (record) { placedItems.push({ id, x, z }); saveAll(); }
+  // רשומת-שמירה מקושרת לספרייט → גרירה במצב עיצוב מעדכנת אותה ישירות
+  const rec = { id, x, z };
+  placedItems.push(rec);
+  sp.userData.placedRec = rec;
+  sp.userData.placedShadow = sh;
+  movableSprites.push(sp);
+  if (save) saveAll();
   return sp;
 }
 
@@ -823,6 +831,7 @@ function resetGame() {
   Animals.clear();
   placedMeshes.forEach(m => { World.scene.remove(m); if (m.material) m.material.dispose(); });
   placedMeshes.length = 0;
+  movableSprites.length = 0;
   placedItems = [];
   Horses.add({ color: 'brown', stage: 'foal', name: 'כוכב' });
   Horses.add({ color: 'golden', stage: 'foal', name: 'דבש' });
@@ -834,10 +843,54 @@ function resetGame() {
   saveAll();
 }
 
+// ---------- מצב עיצוב: גרירת פריטים שנקנו ----------
+let arrangeMode = false;
+let dragging = null;
+function toggleArrange() {
+  if (Game.visiting) { visitBlock(); return; }
+  if (!arrangeMode && !movableSprites.length) {
+    UI.toast('קני קישוטים בחנות ואז אפשר לסדר אותם 🛒', true);
+    Audio.speak('קני קישוטים בחנות, ואז אפשר לגרור אותם לאן שתרצי');
+    return;
+  }
+  arrangeMode = !arrangeMode;
+  dragging = null;
+  World.controls.enabled = !arrangeMode;   // מקפיא את המצלמה כדי שהגרירה תזיז פריט ולא נוף
+  UI.setArrangeMode(arrangeMode);
+  if (arrangeMode) Audio.speak('מצב עיצוב! גררי כל קישוט לאן שבא לך');
+  else { saveAll(); Audio.speak('שמרנו את העיצוב'); }
+}
+
+// גרירת פריט בתוך שטח הגדר
+function dragPlacedTo(clientX, clientY) {
+  if (!dragging) return;
+  const p = World.pickGround(clientX, clientY);
+  if (!p) return;
+  const R = (World.fenceR || 15) - 1.2;         // נשארים בתוך הגדר (שמתרחבת עם ההרחבה)
+  let x = p.x, z = p.z; const d = Math.hypot(x, z);
+  if (d > R) { x = x / d * R; z = z / d * R; }
+  dragging.position.x = x; dragging.position.z = z;
+  const sh = dragging.userData.placedShadow; if (sh) { sh.position.x = x; sh.position.z = z; }
+  const rec = dragging.userData.placedRec; if (rec) { rec.x = x; rec.z = z; }
+}
+
 // ---------- בחירה (הקלקה/נגיעה, להבדיל מגרירת מצלמה) ----------
 let downX = 0, downY = 0, downT = 0;
-canvas.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY; downT = performance.now(); });
+canvas.addEventListener('pointerdown', (e) => {
+  downX = e.clientX; downY = e.clientY; downT = performance.now();
+  if (arrangeMode) {
+    const hit = World.pickAmong(e.clientX, e.clientY, movableSprites);
+    if (hit) { dragging = hit.object; try { canvas.setPointerCapture(e.pointerId); } catch (err) {} Audio.pop(); }
+  }
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (arrangeMode && dragging) { e.preventDefault(); dragPlacedTo(e.clientX, e.clientY); }
+}, { passive: false });
 canvas.addEventListener('pointerup', (e) => {
+  if (arrangeMode) {
+    if (dragging) { dragging = null; saveAll(); Audio.pop(); }
+    return;   // במצב עיצוב אין פעולות-נגיעה רגילות
+  }
   const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
   const dt = performance.now() - downT;
   if (moved < 12 && dt < 450) {

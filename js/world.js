@@ -339,6 +339,26 @@ const World = {
     return hits.length ? hits[0] : null;
   },
 
+  // בחירה מתוך רשימת אובייקטים ספציפית (לגרירה במצב עיצוב)
+  pickAmong(clientX, clientY, list) {
+    if (!list || !list.length) return null;
+    this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
+    this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects(list, true).filter(h => h.object.visible);
+    return hits.length ? hits[0] : null;
+  },
+
+  // נקודת-קרקע (מישור y=0) מתחת לנקודת המסך — יעד הגרירה
+  pickGround(clientX, clientY) {
+    this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
+    this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    if (!this._groundPlane) this._groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const pt = new THREE.Vector3();
+    return this.raycaster.ray.intersectPlane(this._groundPlane, pt) ? pt : null;
+  },
+
   // --- חלקיקים (לבבות / כוכבים / קונפטי) ---
   _emoji(emoji) {
     if (this._emojiTex[emoji]) return this._emojiTex[emoji];
