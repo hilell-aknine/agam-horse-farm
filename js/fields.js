@@ -1,10 +1,11 @@
 // fields.js — חלקות שדה: שתילה, גדילה בזמן אמת (ללא לחץ/הפסד), קצירה
 import { World, THREE } from './world.js';
 
-// עד 9 חלקות, רשת 3x3 באזור גינת הירק (חזית-שמאל)
+// עד 15 חלקות, רשת 3x5 באזור גינת הירק (חזית-שמאל). 9 הראשונות זמינות מההתחלה;
+// הרחבת-שטח החווה (בכסף) פותחת שורות נוספות (z=9.3, 12.2) עד 15.
 const SLOTS = [];
 (function () {
-  const xs = [-10.2, -7.5, -4.8], zs = [0.6, 3.5, 6.4];
+  const xs = [-10.2, -7.5, -4.8], zs = [0.6, 3.5, 6.4, 9.3, 12.2];
   for (const z of zs) for (const x of xs) SLOTS.push(new THREE.Vector3(x, 0, z));
 })();
 
@@ -101,7 +102,8 @@ class Plot {
 
 const Fields = {
   plots: [],
-  maxPlots: SLOTS.length,
+  maxPlots: 9,          // תקרה התחלתית; גדלה עם הרחבת-שטח החווה (עד SLOTS.length=15)
+  slotCap: SLOTS.length,
 
   ensure(n) { while (this.plots.length < n && this.plots.length < this.maxPlots) this.plots.push(new Plot(this.plots.length)); },
   count() { return this.plots.length; },

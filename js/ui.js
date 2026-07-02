@@ -323,6 +323,7 @@ const UI = {
           <button class="shop-tab" data-tab="horses">🐴 סוסים</button>
           <button class="shop-tab" data-tab="upgrades">🏠 שדרוגים</button>
           <button class="shop-tab" data-tab="fields">🟫 שדה</button>
+          <button class="shop-tab" data-tab="expand">🏞️ הרחבה</button>
         </div>
         <div class="shop-grid shelf" id="shopGrid"></div>
       </div>`;
@@ -331,7 +332,7 @@ const UI = {
     ov.onclick = (e) => { if (e.target === ov) this.closeShop(); };
     const grid = ov.querySelector('#shopGrid');
     const bubble = ov.querySelector('#keeperBubble');
-    const lines = { decor: 'קישוטים יפים לחווה! 🌳', equipment: 'הציוד הכי טוב! 🚜', animals: 'חיות חמודות 🐔', horses: 'סוסים נהדרים! 🐴', upgrades: 'שדרוגים לאסם! 🏠', fields: 'עוד שדה לגדל בו 🟫' };
+    const lines = { decor: 'קישוטים יפים לחווה! 🌳', equipment: 'הציוד הכי טוב! 🚜', animals: 'חיות חמודות 🐔', horses: 'סוסים נהדרים! 🐴', upgrades: 'שדרוגים לאסם! 🏠', fields: 'עוד שדה לגדל בו 🟫', expand: 'רוצה חווה יותר גדולה? 🏞️' };
     const keeperSay = (t) => { if (bubble) bubble.textContent = t; Audio.speak(t); };
     const tabs = ov.querySelectorAll('.shop-tab');
     const render = (tab) => {
@@ -356,11 +357,22 @@ const UI = {
         });
       } else if (tab === 'fields') {
         if (counts.fields >= counts.maxFields) {
-          grid.innerHTML = '<div class="shop-empty">🎉 יש לך את כל השדות!</div>';
+          grid.innerHTML = '<div class="shop-empty">🎉 כל השדות פתוחים! רוצה עוד? קני 🏞️ הרחבה</div>';
         } else {
           const cost = game.fieldCost(counts.fields);
           grid.appendChild(this._shopCard('assets/hay_bale.png', 'שדה חדש לשתילה', cost, game.coins >= cost,
             () => { this.closeShop(); this.handlers.onBuyField && this.handlers.onBuyField(); }, '🟫'));
+        }
+      } else if (tab === 'expand') {
+        if (!game.canExpandFarm()) {
+          grid.innerHTML = '<div class="shop-empty">🎉 החווה שלך בגודל הכי גדול!</div>';
+        } else {
+          const cost = game.expansionCost();
+          const c = this._shopCard('assets/farm_gate.png', 'להגדיל את החווה 🏞️', cost, game.coins >= cost,
+            () => { this.closeShop(); this.handlers.onBuyExpansion && this.handlers.onBuyExpansion(); }, '🏞️');
+          const note = el('div', 'shop-note', 'גדר גדולה יותר · עוד 3 מקומות לשדות');
+          c.appendChild(note);
+          grid.appendChild(c);
         }
       }
     };
@@ -763,6 +775,13 @@ const UI = {
             <button data-age="7">7</button>
           </div>
         </div>
+        <div class="set-row"><span>🎯 רמת קושי</span>
+          <div class="diff-pick">
+            <button data-diff="easy">קל</button>
+            <button data-diff="normal">רגיל</button>
+            <button data-diff="hard">מאתגר</button>
+          </div>
+        </div>
         <div class="set-row"><span>🔊 צלילים</span><button class="toggle" data-key="sound">פעיל</button></div>
         <div class="set-row"><span>🗣️ קול מקריא</span><button class="toggle" data-key="voice">פעיל</button></div>
         <div class="set-row"><span>🎵 מוזיקה</span><button class="toggle" data-key="music">פעיל</button></div>
@@ -847,6 +866,10 @@ const UI = {
     ov.querySelectorAll('.age-pick button').forEach(b => {
       b.classList.toggle('on', Number(b.dataset.age) === g.settings.age);
       b.onclick = () => { Audio.click(); g.settings.age = Number(b.dataset.age); this._syncSettings(g); this.handlers.onSettings && this.handlers.onSettings(); };
+    });
+    ov.querySelectorAll('.diff-pick button').forEach(b => {
+      b.classList.toggle('on', b.dataset.diff === (g.settings.diff || 'normal'));
+      b.onclick = () => { Audio.click(); g.settings.diff = b.dataset.diff; this._syncSettings(g); this.handlers.onSettings && this.handlers.onSettings(); };
     });
     ov.querySelectorAll('.toggle').forEach(b => {
       const k = b.dataset.key;

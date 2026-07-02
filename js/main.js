@@ -29,6 +29,23 @@ const VISIT = (() => {
   } catch (e) { return null; }
 })();
 const OWNER_KEY = 'agam_farm_owner';   // איזה חשבון "מחזיק" את השמירה המקומית במכשיר הזה
+const LOCAL_SAVE_KEY = 'agam_farm_v2'; // מפתח השמירה המקומית (זהה ל-SAVE_KEY ב-game.js)
+
+// מכשיר משותף: אחרי הרשמה/כניסה — אם השמירה המקומית לא שייכת למשתמש הנוכחי
+// (כולל "בעלים לא ידוע" ממשחק-אורח), מוחקים אותה כדי שלא תזלוג לחשבון החדש.
+// הענן ישחזר את החווה האמיתית של המשתמש. תמיד מסמנים בעלות למשתמש הנוכחי.
+function claimDeviceForCurrentUser() {
+  if (!Cloud.userId) return;
+  let owner = null;
+  try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
+  let hasLocal = false;
+  try { hasLocal = !!localStorage.getItem(LOCAL_SAVE_KEY); } catch (e) {}
+  if (hasLocal && owner !== Cloud.userId) {
+    try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
+    Game.reset();
+  }
+  try { localStorage.setItem(OWNER_KEY, Cloud.userId); } catch (e) {}
+}
 
 // ---------- אתחול ----------
 Audio.init();
@@ -42,6 +59,7 @@ UI.init({
   onBuyHorse: buyHorse,
   onShopBuy: shopBuy,
   onBuyField: buyField,
+  onBuyExpansion: buyExpansion,
   onBuyAnimal: buyAnimal,
   onBuyUpgrade: buyUpgrade,
   onDress: handleDress,
@@ -68,17 +86,13 @@ UI.init({
   },
   onAuth: {
     signUp: async (email, pass, name) => {
-      // מכשיר משותף: אם השמירה המקומית שייכת לחשבון אחר — מתחילים נקי
-      let owner = null;
-      try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
-      const hadForeignSave = owner && !!localStorage.getItem('agam_farm_v2');
       await Cloud.signUp(email, pass, name);
-      if (hadForeignSave && owner !== Cloud.userId) {
-        try { localStorage.removeItem('agam_farm_v2'); } catch (e) {}
-      }
-      try { localStorage.setItem(OWNER_KEY, Cloud.userId); } catch (e) {}
+      claimDeviceForCurrentUser();   // מנקה שמירה של חשבון אחר לפני ה-reload
     },
-    signIn: async (email, pass) => { await Cloud.signIn(email, pass); }
+    signIn: async (email, pass) => {
+      await Cloud.signIn(email, pass);
+      claimDeviceForCurrentUser();   // מנקה שמירה של חשבון אחר לפני ה-reload
+    }
   },
   getGame: () => Game
 });
@@ -134,6 +148,7 @@ let barnSprite = null;         // רפרנס לאסם (להחלפה בשדרוג
 // בניית החווה מתוך נתוני שמירה (מקומי או ענן)
 function buildFarm(saved) {
   placeDecor();
+  applyExpansion(Game.expansion || 0);   // חווה מורחבת: גדר גדולה + תקרת-שדות + קרקע גינה מורחבת
   if (saved && saved.horses && saved.horses.length) {
     saved.horses.forEach(h => Horses.add(h));
   } else {
@@ -195,6 +210,22 @@ function applyUpgrade(id) {
   }
 }
 
+// --- הרחבת שטח החווה: מגדילה גדר, תקרת-שדות וקרקע-גינה לפי רמת ההרחבה ---
+let gardenExpandPatch = null;
+function applyExpansion(level) {
+  // תקרת שדות — לעולם לא מתחת למה שכבר קיים (שומר התקדמות)
+  Fields.maxPlots = Math.max(Fields.plots ? Fields.plots.length : 0, Math.min(Fields.slotCap, 9 + level * 3));
+  // גדר גדולה יותר (השטח גדל לעין)
+  World.rebuildFence(15 + level * 4);
+  // קרקע גינה מורחבת שתכסה את השורות החדשות (z עד 12.2)
+  if (gardenExpandPatch) { World.scene.remove(gardenExpandPatch); if (gardenExpandPatch.material) gardenExpandPatch.material.dispose(); gardenExpandPatch = null; }
+  if (level > 0) {
+    const lastZ = [6.4, 9.3, 12.2][level] ?? 12.2;   // z של השורה האחרונה הפתוחה
+    const z0 = -1.4, z1 = lastZ + 1.6;
+    gardenExpandPatch = World.floorPatch(-7.5, (z0 + z1) / 2, 10, (z1 - z0), 0x8a5a2e);
+  }
+}
+
 const withTimeout = (p, ms, fallback) => Promise.race([p, new Promise(r => setTimeout(() => r(fallback), ms))]);
 const readyUI = () => { try { window.hideLoader && window.hideLoader(); } catch (e) {} };
 
@@ -227,8 +258,9 @@ async function boot() {
     // מכשיר משותף: אם השמירה המקומית שייכת לחשבון אחר — לא נוגעים בה, הענן קובע
     let owner = null;
     try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
-    if (loggedIn && owner && owner !== Cloud.userId && localData) {
-      Game.reset();                                     // החווה של החברה הקודמת כבר שמורה בענן שלה
+    // בעלים שונה — או בעלים לא ידוע (משחק-אורח קודם) — השמירה המקומית אינה של המשתמש הנוכחי
+    if (loggedIn && localData && owner !== Cloud.userId) {
+      Game.reset();                                     // החווה של המשתמש הקודם שמורה בענן שלו
       localData = null; saved = null;
     }
     const cloudData = await withTimeout(Cloud.pull(), 4000, null);
@@ -482,6 +514,9 @@ function handleAction(type, horse) {
     }
     horse.celebrate();
     const fx = { feed: 'apple', brush: 'bubble', play: 'ball', grow: 'sparkle' }[type] || 'heart';
+    // פידבק ויזואלי מומחש — אמוji ענק של הפעולה קופץ ליד הסוס
+    const bigIcon = { feed: '🍎', brush: '🧼', play: '🎾', grow: '🌟' }[type] || '❤️';
+    World.showAction(horse.group.position.clone(), bigIcon);
     World.spawnParticles(horse.group.position.clone(), fx, 12);
     questBump(type);
     const got = grantReward(horse.group.position.clone(), res);
@@ -533,6 +568,22 @@ function buyField() {
   });
 }
 
+// הרחבת שטח החווה בכסף — גדר גדלה + עוד חלקות שדה
+function buyExpansion() {
+  if (!Game.canExpandFarm()) { UI.toast('🎉 החווה שלך בגודל המקסימלי!', true); return; }
+  const cost = Game.expansionCost();
+  if (!Game.canAfford(cost)) { notEnough(cost); return; }
+  askProblem('buy', (res) => {
+    if (!Game.expandFarm()) return;
+    applyExpansion(Game.expansion);
+    spawnAt(0, 10, 'star', 20);
+    Audio.fanfare(); Audio.speak('החווה שלך גדלה! עכשיו יש יותר מקום');
+    UI.toast('🏞️ החווה גדלה! עוד מקום לשדות', true);
+    grantReward({ x: 0, y: 2, z: 10 }, res);
+    saveAll();
+  });
+}
+
 function buyHorse() {
   const owned = Horses.list.length;
   const cost = Game.horseCost(owned);
@@ -579,6 +630,7 @@ function collectProduce(a) {
     Game.addCoins(gain);
     questBump('collect');
     a.celebrate();
+    World.showAction(a.group.position.clone(), (a.produce && a.produce.emoji) || '🥚');
     spawnAt(a.group.position.x, a.group.position.z, 'coin', 12);
     Audio.coin(); Audio.fanfare();
     UI.toast('🥚 אספת! +' + gain + ' 🪙', true);
@@ -608,6 +660,7 @@ function handleDress(horse, emoji) {
   askProblem('buy', (res) => {
     horse.setAccessory(emoji);
     horse.celebrate();
+    World.showAction(horse.group.position.clone(), emoji || '👒');
     World.spawnParticles(horse.group.position.clone(), 'sparkle', 10);
     Audio.pop();
     UI.toast(emoji ? '👒 איזה יופי!' : 'הורדנו את האביזר', false);
@@ -734,6 +787,7 @@ function startPlant(plot, cropKey) {
     if (!Game.spend(def.seedCost)) return;
     plot.plant(Object.assign({ key: cropKey }, def), nowMs());
     questBump('plant');
+    World.showAction({ x: plot.pos.x, y: 0, z: plot.pos.z }, '🌱');
     spawnAt(plot.pos.x, plot.pos.z, 'sparkle', 10);
     Audio.pop(); Audio.speak('שתלת ' + def.name + '. עכשיו צריך לחכות שיגדל');
     UI.toast('🌱 שתלת ' + def.name + '!', false);
@@ -747,6 +801,7 @@ function startHarvest(plot) {
     const key = plot.harvest();
     const gain = Game.sellCrop(key);
     questBump('harvest');
+    World.showAction({ x: plot.pos.x, y: 0, z: plot.pos.z }, '🌾');
     spawnAt(plot.pos.x, plot.pos.z, 'coin', 14);
     Audio.coin(); Audio.fanfare();
     UI.toast('🌾 קצרת! +' + gain + ' 🪙', true);

@@ -69,12 +69,13 @@ const Game = {
   streak: 0,
   bestStreak: 0,
   solved: 0,
-  settings: { age: 6, sound: true, voice: true, music: true, daynight: true },
+  settings: { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true },
   typeStats: {},     // {type: {c, w}} — דיוק לפי סוג תרגיל
   quests: [],        // משימות היום
   questDate: '',
   spinDate: '',      // תאריך הסיבוב האחרון בגלגל
   upgrades: {},      // שדרוגי אסם/חווה שנקנו {id:true}
+  expansion: 0,      // רמת הרחבת-שטח החווה (0..3) — הגדר גדל והשדות מתרבים
   ribbons: 0,        // סרטים מתחרויות יופי
   rares: {},         // חיות נדירות שנפתחו {id:true}
   tree: null,        // עץ הקסם {planted, plantedAt, lastFruit}
@@ -83,8 +84,10 @@ const Game = {
 
   // קושי גדל עם הגיל שנבחר ועם ההתקדמות במשחק
   ageBase() { return { 5: 1, 6: 3, 7: 5 }[this.settings.age] || 3; },
+  // כוונון-קושי ידני מההגדרות: קל מוריד, מאתגר מעלה (מעל האוטומטי)
+  diffOffset() { return { easy: -2, normal: 0, hard: 2 }[this.settings.diff] ?? 0; },
   difficulty() {
-    const d = this.ageBase() + Math.floor(this.level / 2);
+    const d = this.ageBase() + Math.floor(this.level / 2) + this.diffOffset();
     return Math.max(1, Math.min(12, d));
   },
 
@@ -179,6 +182,18 @@ const Game = {
   horseCost(owned) { return 25 + 15 * Math.max(0, owned - 1); },
   fieldCost(count) { return 20 + 12 * Math.max(0, count); },
 
+  // --- הרחבת שטח החווה (בכסף) ---
+  maxExpansion: 3,
+  expansionCost() { return [70, 140, 240][this.expansion] || null; },   // null = הורחב למקסימום
+  canExpandFarm() { return this.expansion < this.maxExpansion; },
+  expandFarm() {                     // מגדיל רמת-הרחבה; המתקשר בונה מחדש גדר + שדות
+    if (this.expansion >= this.maxExpansion) return false;
+    this.expansion++; this.save();
+    return true;
+  },
+  fenceRadius() { return 15 + this.expansion * 4; },       // רדיוס הגדר לפי רמת ההרחבה
+  fieldCap() { return 9 + this.expansion * 3; },           // תקרת חלקות שדה לפי ההרחבה
+
   // מכירת יבול בקציר — מחזיר כמה מטבעות נוספו
   sellCrop(key) {
     const c = CROPS[key];
@@ -197,7 +212,7 @@ const Game = {
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
         typeStats: this.typeStats, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
-        upgrades: this.upgrades, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
+        upgrades: this.upgrades, expansion: this.expansion, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
       this._lastData = data;     // לשימוש שמירת-הענן
@@ -216,12 +231,13 @@ const Game = {
     this.streak = d.streak ?? 0;
     this.bestStreak = d.bestStreak ?? 0;
     this.solved = d.solved ?? 0;
-    this.settings = Object.assign({ age: 6, sound: true, voice: true, music: true, daynight: true }, d.settings || {});
+    this.settings = Object.assign({ age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true }, d.settings || {});
     this.typeStats = d.typeStats || {};
     this.quests = d.quests || [];
     this.questDate = d.questDate || '';
     this.spinDate = d.spinDate || '';
     this.upgrades = d.upgrades || {};
+    this.expansion = d.expansion || 0;
     this.ribbons = d.ribbons || 0;
     this.rares = d.rares || {};
     this.tree = d.tree || null;
@@ -244,8 +260,8 @@ const Game = {
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
     this.coins = 40; this.xp = 0; this.level = 1; this.stars = 0;
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
-    this.settings = { age: 6, sound: true, voice: true, music: true, daynight: true };
-    this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {};
+    this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true };
+    this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0;
     this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }

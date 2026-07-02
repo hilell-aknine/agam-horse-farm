@@ -8,6 +8,7 @@ const World = {
   pickables: [],        // אובייקטים שאפשר ללחוץ עליהם (סוסים)
   clouds: [],
   particles: [],
+  effects: [],          // אפקטי-פעולה גדולים (אמוji מומחש: תפוח/מברשת/כדור)
   texLoader: null,
   _emojiTex: {},
 
@@ -120,10 +121,13 @@ const World = {
     // רצפות האזורים מתווספות ב-floorPatch (גינה/מגרש רכיבה) — המרכז נשאר דשא
   },
 
-  _fence() {
+  _fence() { this.fenceR = 15; this._buildFenceAt(15); },
+
+  // בונה גדר בטבעת ברדיוס נתון. נשמר ב-this.fenceGroup כדי לאפשר הרחבת-חווה (בנייה מחדש)
+  _buildFenceAt(R) {
     const woodMat = new THREE.MeshStandardMaterial({ color: 0xa9743b, roughness: 0.8 });
     const railMat = new THREE.MeshStandardMaterial({ color: 0xc79a5b, roughness: 0.8 });
-    const R = 15, N = 28;
+    const N = Math.round(28 * R / 15);   // צפיפות עמודים קבועה כשהחווה גדלה
     const group = new THREE.Group();
     for (let i = 0; i < N; i++) {
       const a = (i / N) * Math.PI * 2;
@@ -146,7 +150,18 @@ const World = {
         group.add(rail);
       }
     }
+    this.fenceGroup = group;
+    this.fenceR = R;
     this.scene.add(group);
+  },
+
+  // הרחבת-חווה: בונה מחדש את הגדר ברדיוס גדול יותר (השטח גדל באופן נראה לעין)
+  rebuildFence(R) {
+    if (this.fenceGroup) {
+      this.scene.remove(this.fenceGroup);
+      this.fenceGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    }
+    this._buildFenceAt(R);
   },
 
   _sun() {
@@ -363,6 +378,36 @@ const World = {
     }
   },
 
+  // אפקט-פעולה מומחש: אמוji ענק שקופץ ליד הסוס, מתנדנד, ואז מתעופף ונמוג
+  // (פידבק ויזואלי ברור: 🍎 להאכיל · 🧼 לנקות · 🎾 לשחק). big=true → גדול במיוחד
+  showAction(worldPos, emoji, big = false) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._emoji(emoji), transparent: true, depthWrite: false }));
+    sp.center.set(0.5, 0.5);
+    sp.position.set(worldPos.x, (worldPos.y || 0) + 2.4, worldPos.z);
+    sp.scale.set(0.1, 0.1, 1);
+    this.scene.add(sp);
+    this.effects.push({ sprite: sp, age: 0, life: 1.4, size: big ? 4.2 : 3.0, baseY: sp.position.y });
+    return sp;
+  },
+
+  _updateEffects(dt) {
+    for (let i = this.effects.length - 1; i >= 0; i--) {
+      const e = this.effects[i];
+      e.age += dt;
+      const k = e.age / e.life;               // 0→1
+      const sp = e.sprite;
+      // קפיצה פנימה (0-0.28): גדילה עם overshoot אלסטי; החזקה; יציאה (0.6-1): עלייה ודעיכה
+      let s;
+      if (k < 0.28) { const t = k / 0.28; s = e.size * (1.15 - 0.15 * Math.cos(t * Math.PI)) * (t < 1 ? (1 + 0.12 * Math.sin(t * Math.PI)) : 1); }
+      else s = e.size;
+      sp.scale.set(s, s, 1);
+      sp.material.rotation = Math.sin(e.age * 9) * 0.18;      // נדנוד עליז
+      if (k > 0.6) { const t = (k - 0.6) / 0.4; sp.position.y = e.baseY + t * 1.8; sp.material.opacity = Math.max(0, 1 - t); }
+      else { sp.position.y = e.baseY + Math.sin(e.age * 6) * 0.12; sp.material.opacity = 1; }
+      if (e.age >= e.life) { this.scene.remove(sp); sp.material.dispose(); this.effects.splice(i, 1); }
+    }
+  },
+
   // sprite מאימוג'י (לשלבי גדילה וכו')
   emojiSprite(emoji, size = 1) {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this._emoji(emoji), transparent: true, depthWrite: false }));
@@ -486,6 +531,7 @@ const World = {
         this.particles.splice(i, 1);
       }
     }
+    this._updateEffects(dt);
     return dt;
   },
 
