@@ -320,15 +320,27 @@ function spawnCritters() {
 }
 
 // ---------- תפאורה קבועה ----------
+// כשמצב עיצוב פעיל (_decorMovable) קישוטי-החווה הקבועים ניתנים לגרירה + נשמרים
+// לפי decorId יציב (סדר יצירה). מיקום מותאם מ-Game.decorPos גובר על ברירת המחדל.
+let _decorId = 0;
+let _decorMovable = false;
 function decor(url, x, z, height, withShadow = true) {
+  let id = null;
+  if (_decorMovable) {
+    id = 'd' + (_decorId++);
+    const ov = (Game.decorPos || {})[id];
+    if (ov) { x = ov.x; z = ov.z; }
+  }
   const sp = World.makeBillboard(url, height, true);
   sp.position.set(x, 0, z);
   World.scene.add(sp);
+  let sh = null;
   if (withShadow) {
-    const sh = World.makeGroundShadow(height * 0.3);
+    sh = World.makeGroundShadow(height * 0.3);
     sh.position.set(x, 0.04, z);
     World.scene.add(sh);
   }
+  if (id) { sp.userData.decorId = id; sp.userData.placedShadow = sh; movableSprites.push(sp); }
   return sp;
 }
 
@@ -400,6 +412,8 @@ function placeZones() {
 }
 
 function placeDecor() {
+  // קישוטי-החווה הנקובים — ניתנים לגרירה במצב עיצוב (barn, pond, windmill...)
+  _decorMovable = true;
   // נוף חתימה סביב הפסטורה
   barnSprite = decor('assets/barn.png', 0, -13.8, 9);
   decor('assets/pond.png', -17, 7, 3, false);
@@ -411,6 +425,7 @@ function placeDecor() {
   decor('assets/farm_gate.png', 0, 14.8, 5.5);
   decor('assets/doghouse.png', -5, -10.8, 1.9, false);
   placeZones();
+  _decorMovable = false;   // מכאן והלאה — רקע פזור (לא נגרר, לא נשמר)
   // יער מסביב
   scatter(['assets/tree.png', 'assets/pine_tree.png', 'assets/oak_tree.png'], 26, 17, 29, 7.5, 1.5, true);
   // שיחים, סלעים
@@ -870,8 +885,10 @@ function dragPlacedTo(clientX, clientY) {
   let x = p.x, z = p.z; const d = Math.hypot(x, z);
   if (d > R) { x = x / d * R; z = z / d * R; }
   dragging.position.x = x; dragging.position.z = z;
-  const sh = dragging.userData.placedShadow; if (sh) { sh.position.x = x; sh.position.z = z; }
-  const rec = dragging.userData.placedRec; if (rec) { rec.x = x; rec.z = z; }
+  const ud = dragging.userData;
+  if (ud.placedShadow) { ud.placedShadow.position.x = x; ud.placedShadow.position.z = z; }
+  if (ud.placedRec) { ud.placedRec.x = x; ud.placedRec.z = z; }        // פריט שנקנה
+  if (ud.decorId) { (Game.decorPos || (Game.decorPos = {}))[ud.decorId] = { x, z }; }  // קישוט-חווה קבוע
 }
 
 // ---------- בחירה (הקלקה/נגיעה, להבדיל מגרירת מצלמה) ----------

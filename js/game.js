@@ -76,6 +76,7 @@ const Game = {
   spinDate: '',      // תאריך הסיבוב האחרון בגלגל
   upgrades: {},      // שדרוגי אסם/חווה שנקנו {id:true}
   expansion: 0,      // רמת הרחבת-שטח החווה (0..3) — הגדר גדל והשדות מתרבים
+  decorPos: {},      // מיקומים מותאמים של קישוטי-החווה שהוזזו במצב עיצוב {decorId:{x,z}}
   ribbons: 0,        // סרטים מתחרויות יופי
   rares: {},         // חיות נדירות שנפתחו {id:true}
   tree: null,        // עץ הקסם {planted, plantedAt, lastFruit}
@@ -212,7 +213,7 @@ const Game = {
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
         typeStats: this.typeStats, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
-        upgrades: this.upgrades, expansion: this.expansion, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
+        upgrades: this.upgrades, expansion: this.expansion, decorPos: this.decorPos, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
       this._lastData = data;     // לשימוש שמירת-הענן
@@ -238,6 +239,7 @@ const Game = {
     this.spinDate = d.spinDate || '';
     this.upgrades = d.upgrades || {};
     this.expansion = d.expansion || 0;
+    this.decorPos = d.decorPos || {};
     this.ribbons = d.ribbons || 0;
     this.rares = d.rares || {};
     this.tree = d.tree || null;
@@ -261,7 +263,7 @@ const Game = {
     this.coins = 40; this.xp = 0; this.level = 1; this.stars = 0;
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
     this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true };
-    this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0;
+    this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
     this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }
