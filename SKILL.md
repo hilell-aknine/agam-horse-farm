@@ -5,6 +5,7 @@
 ## מטרת-על · [Tier 4 — אישי/תחביב]
 משחק **עולם-פתוח תלת-ממדי בסגנון FarmVille** לבת של הלל, **אגם (גיל 6)**, בעברית מלאה.
 החווה היא הבית, ומסביבה עולם מחובר (יער/אגם/כפר/הר). **כל פעולה דורשת תרגיל חשבון מותאם לכיתה א'** — קושי עולה עם הרמה ומחזק את הסוג החלש. גישת "אי אפשר להפסיד" (מחקר גיל 5-7): יבול ממתין, סוס תמיד שמח, טעות חושפת+מקריאה את התשובה.
+**עולם חברתי (2026-07-02):** דף הבית = שער הרשמה/כניסה (שם+מייל+סיסמה) — לכל חברה של אגם חווה משלה בענן, וכפתור "👭 החוות של החברות" מאפשר לבקר בחווה של חברה **במצב צפייה בלבד** (`?visit=<user_id>` — כל הפעולות/שמירה חסומות, באנר "חזרה הביתה").
 
 ## Stack
 - **Vanilla JS (ES modules) + Three.js r160** (מוטמע מקומית ב-`js/lib/`, importmap — **בלי שלב build**).
@@ -30,8 +31,11 @@
 - **מודולי מיני-משחק:** `contest.js`, `delivery.js`, `photo.js` — `create*(deps)` → API.
 
 ## מודל נתונים
-- מקומי: `localStorage['agam_farm_v2']` — coins/xp/level/stars/settings/typeStats/quests/upgrades/ribbons/rares/tree/worldStats + horses/fields/placed/animals + savedAt.
-- ענן: Supabase `public.game_saves(user_id uuid PK → auth.users, data jsonb, updated_at)` · RLS `auth.uid()=user_id` · Auth: anon+email, `mailer_autoconfirm=true`. Ref `xgqetnlsesgwiypufodf`.
+- מקומי: `localStorage['agam_farm_v2']` — coins/xp/level/stars/settings/typeStats/quests/upgrades/ribbons/rares/tree/worldStats + horses/fields/placed/animals + savedAt. בנוסף `agam_farm_owner` = user_id שמחזיק את השמירה במכשיר (הגנת מכשיר משותף: הרשמה חדשה לא יורשת חווה של אחרת).
+- ענן: Supabase Ref `xgqetnlsesgwiypufodf` (חשבון hilelltohar@gmail.com) · Auth: email (`mailer_autoconfirm=true`; אין יותר כניסה אנונימית אוטומטית — session אנונימי ותיק ממשיך לעבוד עד הרשמה).
+  - `public.game_saves(user_id uuid PK → auth.users, data jsonb, updated_at)` — כתיבה רק לעצמך; קריאה: לעצמך + `visit_select` לכל מי שיש לה פרופיל חווה (ביקורים).
+  - `public.farm_profiles(user_id PK, name, level, updated_at)` — שם+רמה גלויים לחברות; RLS דרך פונקציית `public.has_farm()` (**security definer** — מדיניות שמפנה לאותה טבלה ישירות = רקורסיה אינסופית).
+  - בפרויקט יש גם טבלאות דמו ישנות של ג'ף (מ-2026-06-03, נטושות) — ג'ף החי רץ בחשבון נפרד (`szplwdkskbeprvyvjqvv`). אפשר למחוק באישור הלל.
 
 ## צנרת אמנות (tools/gen_*.py)
 FAL: **Flux dev בסגנון "flat vector / die-cut sticker" (guidance 6, 40 steps) → BiRefNet cutout → PIL UnsharpMask**. מפתח FAL ב-`.secrets\creative-board.env`. תקציב 30₪ · נוצל ~11.3₪.
