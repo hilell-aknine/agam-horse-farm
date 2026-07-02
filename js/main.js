@@ -20,6 +20,16 @@ import { buildFair } from './fair_area.js';
 const nowMs = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
 
+// --- עולם חברתי: מצב ביקור אצל חברה (?visit=<user_id>&name=<שם>) ---
+const VISIT = (() => {
+  try {
+    const p = new URLSearchParams(location.search);
+    const id = p.get('visit');
+    return id ? { id, name: p.get('name') || 'חברה' } : null;
+  } catch (e) { return null; }
+})();
+const OWNER_KEY = 'agam_farm_owner';   // איזה חשבון "מחזיק" את השמירה המקומית במכשיר הזה
+
 // ---------- אתחול ----------
 Audio.init();
 const canvas = document.getElementById('scene');
@@ -38,6 +48,7 @@ UI.init({
   onSettings: applySettings,
   onReset: resetGame,
   onSpin: () => {
+    if (Game.visiting) { visitBlock(); return { ok: false }; }
     if (!Game.canSpin(today())) return { ok: false };
     const prize = Game.doSpin(today());
     UI.updateHUD(Game); saveAll();
@@ -49,6 +60,26 @@ UI.init({
   onPhoto: () => Mini.photo.take(),
   onMap: () => UI.openMap(AREAS, currentArea, travelToArea),
   onJournal: () => UI.openJournal(AREAS, Game),
+  onFriends: async () => {
+    const farms = await Cloud.listFarms();
+    UI.openFriends(farms, (f) => {
+      location.href = location.pathname + '?visit=' + encodeURIComponent(f.user_id) + '&name=' + encodeURIComponent(f.name);
+    });
+  },
+  onAuth: {
+    signUp: async (email, pass, name) => {
+      // מכשיר משותף: אם השמירה המקומית שייכת לחשבון אחר — מתחילים נקי
+      let owner = null;
+      try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
+      const hadForeignSave = owner && !!localStorage.getItem('agam_farm_v2');
+      await Cloud.signUp(email, pass, name);
+      if (hadForeignSave && owner !== Cloud.userId) {
+        try { localStorage.removeItem('agam_farm_v2'); } catch (e) {}
+      }
+      try { localStorage.setItem(OWNER_KEY, Cloud.userId); } catch (e) {}
+    },
+    signIn: async (email, pass) => { await Cloud.signIn(email, pass); }
+  },
   getGame: () => Game
 });
 
@@ -165,27 +196,77 @@ function applyUpgrade(id) {
 }
 
 const withTimeout = (p, ms, fallback) => Promise.race([p, new Promise(r => setTimeout(() => r(fallback), ms))]);
+const readyUI = () => { try { window.hideLoader && window.hideLoader(); } catch (e) {} };
 
 async function boot() {
-  const localData = Game.load();
+  let localData = Game.load();
   let saved = localData;
   await withTimeout(Cloud.init(), 4500, false);   // לא נתקע אם אין רשת
+
+  // ---------- מצב ביקור: צופים בחווה של חברה (קריאה בלבד) ----------
+  if (VISIT) {
+    if (Cloud.loggedIn()) {
+      const friendData = await withTimeout(Cloud.pullUser(VISIT.id), 6000, null);
+      if (friendData) {
+        Game.applyData(friendData);
+        Game.visiting = VISIT.name;
+        buildFarm(friendData);
+        applySettings();
+        UI.startVisit(VISIT.name, Game);
+        readyUI();
+        return;
+      }
+    }
+    // לא מחוברת / החווה לא נמצאה — חוזרים הביתה נקי
+    location.replace(location.pathname);
+    return;
+  }
+
   if (Cloud.ready) {
+    const loggedIn = Cloud.loggedIn();                  // משתמש עם אימייל (לא אורח)
+    // מכשיר משותף: אם השמירה המקומית שייכת לחשבון אחר — לא נוגעים בה, הענן קובע
+    let owner = null;
+    try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
+    if (loggedIn && owner && owner !== Cloud.userId && localData) {
+      Game.reset();                                     // החווה של החברה הקודמת כבר שמורה בענן שלה
+      localData = null; saved = null;
+    }
     const cloudData = await withTimeout(Cloud.pull(), 4000, null);
-    const loggedIn = !!Cloud.email();                   // משתמש עם אימייל (לא אורח)
     if (cloudData && (loggedIn || !localData || (cloudData.savedAt || 0) >= (localData.savedAt || 0))) {
       Game.applyData(cloudData); saved = cloudData;     // מחובר/עדכני יותר → הענן מנצח
     } else if (localData) {
-      Cloud.push(Game.lastData());                      // העלאת השמירה המקומית לענן (כולל "claim" של אורח)
+      Cloud.push(Game.lastData());                      // העלאת השמירה המקומית לענן ("claim" של השמירה במכשיר)
+    }
+    if (loggedIn) {
+      try { localStorage.setItem(OWNER_KEY, Cloud.userId); } catch (e) {}
+      await withTimeout(Cloud.fetchProfile(), 3000, null);
     }
   }
   buildFarm(saved);
-  UI.showTitle();
   applySettings();
+
+  // ---------- שער כניסה: אונליין בלי חשבון → הרשמה/כניסה קודם ----------
+  if (Cloud.ready && !Cloud.loggedIn()) {
+    UI.showAuthGate();
+    readyUI();
+    return;
+  }
+  // מחוברת אבל בלי שם (חשבון ותיק) — שואלים פעם אחת ושומרים פרופיל
+  if (Cloud.loggedIn() && !Cloud.profileName()) {
+    UI.askPlayerName(async (name) => {
+      await Cloud.saveProfile(name, Game.level);
+      UI.showTitle();
+    });
+    readyUI();
+    return;
+  }
+  UI.showTitle();
+  readyUI();
 }
 boot();
 
 function saveAll() {
+  if (Game.visiting) return;   // אצל חברה לא שומרים כלום
   Game.save({ horses: Horses.toJSON(), fields: Fields.toJSON(), placed: placedItems, animals: Animals.toJSON() });
   Cloud.push(Game.lastData());
 }
@@ -380,6 +461,7 @@ function grantReward(pos, res) {
 
 // פותח תרגיל עם קושי מותאם (35% מהזמן מחזק את הסוג החלש), ומתעד את התוצאה
 function askProblem(actionType, onCorrect, harder) {
+  if (Game.visiting) { visitBlock(); return; }
   const focus = Math.random() < 0.35 ? Game.weakType() : null;
   const problem = generateProblem(Game.difficulty() + (harder ? 1 : 0), focus);
   UI.askMath(problem, actionType, (res) => {
@@ -410,7 +492,14 @@ function handleAction(type, horse) {
 }
 
 // ---------- חנות ----------
+// במצב ביקור — רק מסתכלים ומטיילים
+function visitBlock() {
+  UI.toast('👀 זו החווה של ' + Game.visiting + ' — מסתכלים ומטיילים בלבד', true);
+  Audio.speak('זו החווה של ' + Game.visiting + '. אפשר להסתכל ולטייל');
+}
+
 function openShop() {
+  if (Game.visiting) { visitBlock(); return; }
   UI.openShop(Game, { horses: Horses.list.length, fields: Fields.count(), maxFields: Fields.maxPlots });
 }
 
@@ -668,6 +757,7 @@ function startHarvest(plot) {
 
 // ---------- reset ----------
 function resetGame() {
+  if (Game.visiting) return;
   Game.reset();
   Horses.clear();
   Fields.clear();

@@ -1,7 +1,7 @@
 // sw.js — Service Worker: מאפשר למשחק לעבוד גם בלי אינטרנט (אחרי טעינה ראשונה)
 // גרסה מועלית בכל שינוי קוד/אמנות — activate מוחק מטמון ישן ומרענן הכל
 // (בלי זה, cache-first מגיש למשתמשים מותקנים את הגרסה הישנה לנצח).
-const CACHE = 'agam-farm-v2';
+const CACHE = 'agam-farm-v3';
 const CORE = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
   './js/main.js', './js/world.js', './js/horses.js', './js/animals.js',
@@ -29,7 +29,7 @@ self.addEventListener('fetch', (e) => {
   // רק GET מאותו מקור (לא נוגעים ב-Supabase / CDN)
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith(
-    caches.match(req).then(hit => {
+    caches.match(req, { ignoreSearch: true }).then(hit => {   // ?visit=... מקבל את אותו index.html
       if (hit) return hit;
       return fetch(req).then(res => {
         if (res && res.status === 200) {

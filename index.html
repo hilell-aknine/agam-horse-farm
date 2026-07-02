@@ -38,9 +38,9 @@
       l.classList.add('hidden');
       setTimeout(() => { if (l && l.parentNode) l.parentNode.removeChild(l); }, 600);
     }
-    window.addEventListener('load', () => setTimeout(hideLoader, 500));
-    // גיבוי: גם אם load מתעכב, נסיר אחרי 3.5 שניות
-    setTimeout(hideLoader, 3500);
+    window.hideLoader = hideLoader;   // main.js מסיר כשמסך הפתיחה/כניסה מוכן
+    // גיבוי: גם אם boot נתקע, נסיר אחרי 9 שניות
+    setTimeout(hideLoader, 9000);
     // Service Worker — עבודה גם בלי אינטרנט
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

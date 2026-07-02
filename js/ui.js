@@ -40,24 +40,151 @@ const UI = {
 
   // ---------- מסך פתיחה ----------
   _buildTitle() {
-    const s = el('div', 'screen title-screen');
+    const s = el('div', 'screen title-screen hidden');
     s.id = 'titleScreen';
     s.innerHTML = `
       <div class="title-card">
         <div class="title-emoji">🐴</div>
         <h1 class="game-title">החווה של אגם</h1>
-        <p class="game-sub">מגדלים סוסים ולומדים חשבון!</p>
+        <p class="game-sub" id="titleHello">מגדלים סוסים ולומדים חשבון!</p>
         <button class="btn-big btn-play" id="playBtn">בואו נשחק! ▶</button>
+        <button class="btn-ghost" id="titleFriends">👭 החוות של החברות</button>
         <button class="btn-ghost" id="titleSettings">⚙️ הגדרות</button>
         <p class="credit">נבנה באהבה ע״י אבא 💙</p>
       </div>`;
     this.root.appendChild(s);
     s.querySelector('#playBtn').onclick = () => { Audio.resume(); Audio.click(); this.handlers.onStart && this.handlers.onStart(); };
     s.querySelector('#titleSettings').onclick = () => { Audio.click(); this.openSettings(); };
+    s.querySelector('#titleFriends').onclick = () => { Audio.resume(); Audio.click(); this.handlers.onFriends && this.handlers.onFriends(); };
   },
 
-  showTitle() { document.getElementById('titleScreen').classList.remove('hidden'); this.hud.classList.add('hidden'); },
+  showTitle() {
+    const name = Cloud.profileName();
+    const hello = document.getElementById('titleHello');
+    if (hello && name) hello.textContent = 'שלום ' + name + '! מגדלים סוסים ולומדים חשבון!';
+    document.getElementById('titleFriends').classList.toggle('hidden', !Cloud.loggedIn());
+    document.getElementById('titleScreen').classList.remove('hidden');
+    this.hud.classList.add('hidden');
+  },
   showGame() { document.getElementById('titleScreen').classList.add('hidden'); this.hud.classList.remove('hidden'); },
+
+  // ---------- שער כניסה: הרשמה / כניסה (דף הבית לכל שחקנית) ----------
+  showAuthGate() {
+    let s = document.getElementById('authScreen');
+    if (s) { s.classList.remove('hidden'); return; }
+    s = el('div', 'screen title-screen');
+    s.id = 'authScreen';
+    s.innerHTML = `
+      <div class="title-card auth-card">
+        <div class="title-emoji">🐴</div>
+        <h1 class="game-title">החווה של אגם</h1>
+        <p class="game-sub">לכל חברה יש חווה משלה בעולם!</p>
+        <div class="auth-tabs">
+          <button class="auth-tab on" id="tabUp">🌱 חווה חדשה</button>
+          <button class="auth-tab" id="tabIn">🔑 כניסה</button>
+        </div>
+        <div id="formUp">
+          <input class="auth-in" id="agName" type="text" placeholder="איך קוראים לך? (שם פרטי)" maxlength="20" autocomplete="name">
+          <input class="auth-in" id="agEmailUp" type="email" placeholder="אימייל (של אמא או אבא)" dir="ltr" autocomplete="email">
+          <input class="auth-in" id="agPassUp" type="password" placeholder="סיסמה (6+ תווים)" dir="ltr" autocomplete="new-password">
+          <button class="btn-big btn-play" id="agSignUp">יוצרים חווה! 🌱</button>
+        </div>
+        <div id="formIn" class="hidden">
+          <input class="auth-in" id="agEmailIn" type="email" placeholder="אימייל" dir="ltr" autocomplete="email">
+          <input class="auth-in" id="agPassIn" type="password" placeholder="סיסמה" dir="ltr" autocomplete="current-password">
+          <button class="btn-big btn-play" id="agSignIn">נכנסות! 🐴</button>
+        </div>
+        <div class="auth-msg" id="agMsg"></div>
+        <p class="credit">נבנה באהבה ע״י אבא 💙</p>
+      </div>`;
+    this.root.appendChild(s);
+    const msg = (t, ok) => { const m = s.querySelector('#agMsg'); m.textContent = t; m.className = 'auth-msg ' + (ok ? 'ok' : 'err'); };
+    const tabUp = s.querySelector('#tabUp'), tabIn = s.querySelector('#tabIn');
+    const formUp = s.querySelector('#formUp'), formIn = s.querySelector('#formIn');
+    tabUp.onclick = () => { Audio.click(); tabUp.classList.add('on'); tabIn.classList.remove('on'); formUp.classList.remove('hidden'); formIn.classList.add('hidden'); msg(''); };
+    tabIn.onclick = () => { Audio.click(); tabIn.classList.add('on'); tabUp.classList.remove('on'); formIn.classList.remove('hidden'); formUp.classList.add('hidden'); msg(''); };
+    s.querySelector('#agSignUp').onclick = async () => {
+      Audio.resume(); Audio.click();
+      const name = s.querySelector('#agName').value.trim();
+      const email = s.querySelector('#agEmailUp').value.trim();
+      const pass = s.querySelector('#agPassUp').value;
+      if (!name) { msg('כתבי איך קוראים לך 😊'); return; }
+      if (!email || pass.length < 6) { msg('מלאי אימייל וסיסמה (6+ תווים)'); return; }
+      msg('יוצרים לך חווה... 🌱', true);
+      try {
+        await (this.handlers.onAuth && this.handlers.onAuth.signUp(email, pass, name));
+        msg('החווה שלך מוכנה! נכנסות...', true);
+        setTimeout(() => location.reload(), 700);
+      } catch (e) { msg(this._authErr(e)); }
+    };
+    s.querySelector('#agSignIn').onclick = async () => {
+      Audio.resume(); Audio.click();
+      const email = s.querySelector('#agEmailIn').value.trim();
+      const pass = s.querySelector('#agPassIn').value;
+      if (!email || !pass) { msg('מלאי אימייל וסיסמה'); return; }
+      msg('נכנסות... 🐴', true);
+      try {
+        await (this.handlers.onAuth && this.handlers.onAuth.signIn(email, pass));
+        msg('ברוכה הבאה! טוענים את החווה שלך...', true);
+        setTimeout(() => location.reload(), 700);
+      } catch (e) { msg(this._authErr(e)); }
+    };
+  },
+
+  // חשבון ותיק בלי שם — שואלים פעם אחת
+  askPlayerName(onDone) {
+    const ov = el('div', 'overlay light');
+    ov.innerHTML = `<div class="card name-card">
+      <h2>👋 איך קוראים לך?</h2>
+      <p class="auth-note">כדי שהחברות יזהו את החווה שלך</p>
+      <input class="auth-in" id="pnIn" type="text" placeholder="שם פרטי" maxlength="20">
+      <button class="btn-big btn-play" id="pnOk">זה השם שלי! ✨</button></div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#pnOk').onclick = () => {
+      const name = ov.querySelector('#pnIn').value.trim();
+      if (!name) { Audio.wrong(); return; }
+      Audio.click(); ov.remove(); onDone(name);
+    };
+  },
+
+  // ---------- החוות של החברות ----------
+  openFriends(farms, onVisit) {
+    const old = document.getElementById('friendsOv'); if (old) old.remove();
+    const ov = el('div', 'overlay light'); ov.id = 'friendsOv';
+    const rows = farms.length ? farms.map((f, i) => `
+      <button class="friend-row" data-i="${i}">
+        <span class="friend-face">${['👧', '👩‍🌾', '🧒', '👱‍♀️'][i % 4]}</span>
+        <span class="friend-name">${String(f.name).replace(/</g, '&lt;')}</span>
+        <span class="friend-lvl">⭐ רמה ${f.level}</span>
+        <span class="friend-go">🐴 לבקר</span>
+      </button>`).join('')
+      : `<div class="auth-note" style="padding:14px">עוד אין חוות של חברות 🌱<br>ספרי לחברות שלך להיכנס וליצור חווה משלהן!</div>`;
+    ov.innerHTML = `<div class="card friends-card"><button class="close" id="frClose">✖</button>
+      <h2>👭 החוות של החברות</h2>${rows}</div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#frClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.querySelectorAll('.friend-row').forEach(b => b.onclick = () => {
+      Audio.click(); ov.remove(); onVisit(farms[Number(b.dataset.i)]);
+    });
+    Audio.speak('אצל מי מבקרות?');
+  },
+
+  // ---------- מצב ביקור: צופים בחווה של חברה ----------
+  startVisit(name, g) {
+    document.getElementById('titleScreen').classList.add('hidden');
+    this.hud.classList.remove('hidden');
+    this.hud.classList.add('visiting');
+    this.updateHUD(g);
+    this.setLocation('👀', 'החווה של ' + name);
+    this.setTip('👀 מבקרות אצל ' + name + ' — מטיילות ומסתכלות');
+    const bar = el('div', 'visit-banner');
+    bar.innerHTML = `<span>👀 את מבקרת בחווה של <b>${String(name).replace(/</g, '&lt;')}</b></span>
+      <button class="btn-home" id="visitHome">🏡 חזרה הביתה</button>`;
+    this.root.appendChild(bar);
+    bar.querySelector('#visitHome').onclick = () => { Audio.click(); location.href = location.pathname; };
+    Audio.speak('הגענו לחווה של ' + name + '. אפשר לטייל ולהסתכל');
+  },
 
   // ---------- HUD ----------
   _buildHUD() {
@@ -316,6 +443,7 @@ const UI = {
   // ---------- תפריט כיף: משימות / גלגל / מירוץ ----------
   openFun() {
     const g = this.handlers.getGame && this.handlers.getGame();
+    if (g && g.visiting) { this.toast('👀 אצל ' + g.visiting + ' רק מסתכלים ומטיילים', true); return; }
     const ov = el('div', 'overlay light'); ov.id = 'funOv';
     ov.innerHTML = `<div class="card fun-card"><button class="close" id="funClose">✖</button>
       <h2>🎯 כיף ופרסים</h2>
