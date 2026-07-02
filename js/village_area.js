@@ -151,10 +151,10 @@ export function buildVillage(deps) {
   // 5. חיות הכפר — חתול, כלב ושתי תרנגולות שמסתובבות בכיכר
   // ───────────────────────────────────────────────
   const region = { x: center.x, z: center.z, r: 12 };
-  deps.Animals.add({ type: 'cat', asset: 'assets/cat.png', scale: 1.0, region });
-  deps.Animals.add({ type: 'dog', asset: 'assets/dog.png', scale: 1.2, region });
-  deps.Animals.add({ type: 'chicken', asset: 'assets/chicken.png', scale: 0.8, region });
-  deps.Animals.add({ type: 'chicken', asset: 'assets/chicken.png', scale: 0.8, region });
+  deps.Animals.add({ type: 'cat', asset: 'cat.png', scale: 1.0, region });
+  deps.Animals.add({ type: 'dog', asset: 'dog.png', scale: 1.2, region });
+  deps.Animals.add({ type: 'chicken', asset: 'chicken.png', scale: 0.8, region });
+  deps.Animals.add({ type: 'chicken', asset: 'chicken.png', scale: 0.8, region });
 
   // ───────────────────────────────────────────────
   // 6. אווירה מונפשת — עשן ארובה, ריחוף סמנים ונצנוץ מזרקה

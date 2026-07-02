@@ -74,9 +74,9 @@ export function buildLake(deps) {
   World.scene.add(sign);
 
   // ===== 5) חיות בר: שלושה ברווזים ששוטטים ליד המים ועליהם =====
-  deps.Animals.add({ type: 'duck', asset: 'assets/duck.png', scale: 1.1, region: { x: cx, z: cz, r: 9 } });
-  deps.Animals.add({ type: 'duck', asset: 'assets/duck.png', scale: 1.0, region: { x: cx, z: cz, r: 9 } });
-  deps.Animals.add({ type: 'duck', asset: 'assets/duck.png', scale: 1.2, region: { x: cx, z: cz, r: 9 } });
+  deps.Animals.add({ type: 'duck', asset: 'duck.png', scale: 1.1, region: { x: cx, z: cz, r: 9 } });
+  deps.Animals.add({ type: 'duck', asset: 'duck.png', scale: 1.0, region: { x: cx, z: cz, r: 9 } });
+  deps.Animals.add({ type: 'duck', asset: 'duck.png', scale: 1.2, region: { x: cx, z: cz, r: 9 } });
 
   // ===== 6a) פעילות דיג — פותחת בעיית חשבון; פתרון נכון = דג + מטבעות =====
   function fish(x, z) {

@@ -113,9 +113,9 @@ export function buildMountain(deps) {
 
   // ===== 5) חיות בר משוטטות: שני פינגווינים וכבשה =====
   const region = { x: cx, z: cz, r: 12 };
-  deps.Animals.add({ type: 'penguin', asset: 'penguin', scale: 1.0, region });
-  deps.Animals.add({ type: 'penguin', asset: 'penguin', scale: 0.9, region });
-  deps.Animals.add({ type: 'sheep',   asset: 'sheep',   scale: 1.0, region });
+  deps.Animals.add({ type: 'penguin', asset: 'penguin.png', scale: 1.0, region });
+  deps.Animals.add({ type: 'penguin', asset: 'penguin.png', scale: 0.9, region });
+  deps.Animals.add({ type: 'sheep',   asset: 'sheep.png',   scale: 1.0, region });
 
   // ===== 6) אווירה חיה (onUpdate): נשר חג מעל ההר + פולס לסמני ה-✨ + סלע מרחף קטן =====
   // נשר שעף במעגל איטי מעל הפסגה
