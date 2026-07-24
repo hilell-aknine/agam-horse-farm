@@ -53,6 +53,11 @@ export function buildMountain(deps) {
   for (let i = 0; i < 4; i++) ringDecor('assets/bush.png', rand(1.0, 1.6), true, 7, 16);
   for (let i = 0; i < 4; i++) ringDecor('assets/grass_tuft.png', rand(0.8, 1.3), false, 6, 16);
 
+  // פנס שביל וכמה סלעים+שיחים נוספים לעומק
+  deps.decor('assets/lamp_post.png', cx + 6, cz + 12, 4.0, true);
+  for (let i = 0; i < 3; i++) ringDecor('assets/rock.png', rand(1.2, 2.8), true, 7, 16);
+  for (let i = 0; i < 2; i++) ringDecor('assets/bush.png', rand(1.0, 1.5), true, 8, 15);
+
   // שלט "ההר" בקצה הקדמי של האזור
   const sign = World.makeSign('🏔️ ההר');
   sign.position.set(cx, 0, cz + 14);

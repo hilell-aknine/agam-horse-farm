@@ -68,6 +68,12 @@ export function buildLake(deps) {
   // ~5 עצים
   for (let i = 0; i < 5; i++) ringDecor('assets/tree.png', rand(3.0, 4.2), true);
 
+  // חמימות אנושית על החוף: ספסל לשבת מולו, פנס וכמה קנים נוספים
+  deps.decor('assets/bench.png', cx - 4, cz + 13, 2.0, true);
+  deps.decor('assets/lamp_post.png', cx + 5, cz + 14, 4.0, true);
+  for (let i = 0; i < 4; i++) ringDecor('assets/grass_tuft.png', rand(0.9, 1.4), false);
+  ringDecor('assets/tree.png', rand(3.2, 4.2), true);
+
   // 4) שלט "האגם" בקצה הקדמי של המים
   const sign = World.makeSign('🏖️ האגם');
   sign.position.set(cx, 0, cz + 16);

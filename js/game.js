@@ -9,6 +9,7 @@ const CROPS = {
   strawberry: { key: 'strawberry', name: 'תות',     icon: '🍓', asset: 'strawberry.png',   seedCost: 7,  sellPrice: 16, growMs: 32000, size: 1.7 },
   corn:       { key: 'corn',       name: 'תירס',    icon: '🌽', asset: 'corn.png',         seedCost: 8,  sellPrice: 18, growMs: 40000, size: 2.0 },
   pumpkin:    { key: 'pumpkin',    name: 'דלעת',    icon: '🎃', asset: 'pumpkin.png',      seedCost: 10, sellPrice: 24, growMs: 55000, size: 2.1 },
+  apple:      { key: 'apple',      name: 'תפוח',    icon: '🍎', asset: 'apple.png',        seedCost: 7,  sellPrice: 17, growMs: 34000, size: 1.9 },
 };
 
 // קטלוג החנות

@@ -199,8 +199,8 @@ function buildFarm(saved) {
 function forestDensify() {
   const c = { x: 0, z: -70 }, trees = ['assets/pine_tree.png', 'assets/oak_tree.png', 'assets/tree.png'];
   for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 10; decor(trees[i % 3], c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 6.5 + Math.random() * 2, true); }
-  for (let i = 0; i < 8; i++) { const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 11; decor('assets/bush.png', c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 2.2, false); }
-  for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 13; decor('assets/flowers_wild.png', c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 1.4, false); }
+  for (let i = 0; i < 8; i++) { const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 11; decor('assets/bush.png', c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 2.2, true); }
+  for (let i = 0; i < 10; i++) { const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 13; decor('assets/flowers_wild.png', c.x + Math.cos(a) * r, c.z + Math.sin(a) * r, 1.4, true); }
 }
 
 // שבילי עפר שמחברים את החווה לכל אזור
@@ -350,6 +350,8 @@ function decor(url, x, z, height, withShadow = true) {
   const sp = World.makeBillboard(url, height, true);
   sp.position.set(x, 0, z);
   World.scene.add(sp);
+  // תפאורה אורגנית מנדנדת ברוח (עצים/שיחים/פרחים/גידולים/דחליל)
+  if (/(tree|bush|flower|wheat|corn|pine|oak|grass|mushroom|scarecrow)/i.test(url)) World.addSway(sp);
   let sh = null;
   if (withShadow) {
     sh = World.makeGroundShadow(height * 0.3);

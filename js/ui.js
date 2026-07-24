@@ -44,6 +44,7 @@ const UI = {
     s.id = 'titleScreen';
     s.innerHTML = `
       <div class="title-card">
+        <img class="title-hero" src="assets/title_farm.png" alt="" onerror="this.remove()">
         <div class="title-emoji">🐴</div>
         <h1 class="game-title">החווה של אגם</h1>
         <p class="game-sub" id="titleHello">מגדלים סוסים ולומדים חשבון!</p>
@@ -76,6 +77,7 @@ const UI = {
     s.id = 'authScreen';
     s.innerHTML = `
       <div class="title-card auth-card">
+        <img class="title-hero" src="assets/title_farm.png" alt="" onerror="this.remove()">
         <div class="title-emoji">🐴</div>
         <h1 class="game-title">החווה של אגם</h1>
         <p class="game-sub">לכל חברה יש חווה משלה בעולם!</p>

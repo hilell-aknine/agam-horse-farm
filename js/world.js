@@ -19,6 +19,9 @@ const World = {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // tone mapping — צבעים עשירים ופחות "שטופים" (קולנועי-רך)
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.06;
     // אניזוטרופיה מקסימלית — מחדד טקסטורות בזווית המצלמה הנטויה (במקום 4 קבוע)
     this.maxAniso = this.renderer.capabilities.getMaxAnisotropy();
 
@@ -52,6 +55,7 @@ const World = {
     this._fence();
     this._sun();
     this._environment();
+    this._ambientCreatures();
     this._initWeather();
 
     window.addEventListener('resize', () => this.resize());
@@ -192,13 +196,35 @@ const World = {
 
     const starGeo = new THREE.BufferGeometry();
     const sp = [];
-    for (let i = 0; i < 160; i++) {
+    for (let i = 0; i < 400; i++) {
       const a = Math.random() * Math.PI * 2, b = Math.random() * 0.5 + 0.1;
       sp.push(Math.cos(a) * 80 * Math.cos(b), 30 + Math.random() * 45, Math.sin(a) * 80 * Math.cos(b));
     }
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
-    this.stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0, fog: false }));
+    this.stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0, fog: false }));
     this.scene.add(this.stars);
+  },
+
+  // חרקים מרחפים לאווירה: פרפרים ביום, גחליליות בלילה (שימוש-חוזר ב-emojiSprite)
+  _ambientCreatures() {
+    this.ambients = [];
+    const mk = (emoji, size, baseY, yVar, night, op) => {
+      const s = this.emojiSprite(emoji, size);
+      s.center.set(0.5, 0.5);
+      s.position.set((Math.random() - 0.5) * 34, baseY + Math.random() * yVar, (Math.random() - 0.5) * 22 - 2);
+      s.material.opacity = 0;
+      s.userData = { ph: Math.random() * 6.28, sp: 0.4 + Math.random() * 0.5, night: !!night, baseY: s.position.y, maxOp: op };
+      this.scene.add(s);
+      this.ambients.push(s);
+    };
+    for (let i = 0; i < 4; i++) mk('🦋', 0.95, 2.0, 2.6, false, 1);
+    for (let i = 0; i < 9; i++) mk('✨', 0.55, 1.1, 1.8, true, 0.95);
+  },
+
+  // רישום תפאורה שתנדנד ברוח (על material.rotation — לא על ה-Sprite עצמו)
+  addSway(sp) {
+    if (!this.swayables) this.swayables = [];
+    this.swayables.push({ sp, phase: Math.random() * Math.PI * 2, speed: 0.5 + Math.random() * 0.6, amp: 0.025 + Math.random() * 0.022 });
   },
 
   _environment() {
@@ -449,6 +475,10 @@ const World = {
     const duskAmt = Math.max(0, 1 - Math.abs(light - 0.4) * 4) * 0.45;
     c.lerp(new THREE.Color(0xff9d6e), duskAmt);
     this.skyMesh.material.color.copy(c);
+    // צבע אור השמש: לילה כחלחל → יום חם, עם דחיפת שעת-זהב כתומה בזריחה/שקיעה
+    const sunCol = new THREE.Color(0x3b4c85).lerp(new THREE.Color(0xfff2cc), Math.min(1, light * 1.4));
+    sunCol.lerp(new THREE.Color(0xff8a4d), duskAmt * 0.85);
+    this.sunLight.color.copy(sunCol);
     this.scene.fog.color.setHex(0x2b3a63).lerp(new THREE.Color(0xcfeaff), Math.min(1, light * 1.3));
     // מסלול שמש/ירח
     const a = t * Math.PI * 2 - Math.PI / 2;
@@ -457,7 +487,8 @@ const World = {
     this.moonMesh.position.set(Math.cos(a + Math.PI) * 42, Math.sin(a + Math.PI) * 38, -30);
     const nightF = 1 - Math.min(1, light * 1.5);
     this.moonMesh.material.opacity = nightF;
-    this.stars.material.opacity = nightF * 0.9;
+    // כוכבים: בהירות לילה + ריצוד עדין (טווינקל)
+    this.stars.material.opacity = nightF * (0.78 + 0.16 * Math.sin((this._t || 0) * 2.5));
     const sunUp = this.sunMesh.position.y > -2;
     this.sunMesh.visible = sunUp; this.sunHalo.visible = sunUp;
   },
@@ -524,6 +555,7 @@ const World = {
 
   update() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    this._t = (this._t || 0) + dt;
     this._updateTravel(dt);
     this.controls.update();
     this._updateDayNight(dt);
@@ -533,6 +565,29 @@ const World = {
     for (const cl of this.clouds) {
       cl.position.x += dt * 0.5;
       if (cl.position.x > 60) cl.position.x = -60;
+    }
+
+    // נדנוד תפאורה ברוח
+    if (this.swayables) {
+      for (const s of this.swayables) s.sp.material.rotation = Math.sin(this._t * s.speed + s.phase) * s.amp;
+    }
+
+    // חרקים מרחפים (פרפרים ביום, גחליליות בלילה)
+    if (this.ambients) {
+      const lt = 0.5 + 0.5 * Math.sin(this.tod * Math.PI * 2 - Math.PI / 2);
+      const isNight = lt < 0.34;
+      for (const a of this.ambients) {
+        const u = a.userData;
+        u.ph += dt * u.sp;
+        a.position.x += Math.cos(u.ph * 0.7) * dt * 1.3;
+        a.position.z += Math.sin(u.ph) * dt * 1.0;
+        a.position.y = u.baseY + Math.sin(u.ph * 2.2) * 0.45;
+        if (a.position.x > 20) a.position.x = -20; else if (a.position.x < -20) a.position.x = 20;
+        if (a.position.z > 12) a.position.z = -16; else if (a.position.z < -16) a.position.z = 12;
+        const want = (u.night ? isNight : !isNight) ? u.maxOp : 0;
+        a.material.opacity += (want - a.material.opacity) * Math.min(1, dt * 2);
+        a.visible = a.material.opacity > 0.02;
+      }
     }
 
     // חלקיקים
