@@ -1,0 +1,277 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פנקס פרומפטים · החווה של אגם 🐴</title>
+<style>
+  :root{
+    --petrol:#003B46; --teal:#00606B; --aqua:#2F8592; --frost:#E8F1F2; --gold:#D4AF37;
+    --grass:#6cbf4b; --sky:#bfe6f2; --card:#ffffff; --ink:#123; --muted:#5a6b70;
+    --ok:#2fa84f; --shadow:0 6px 20px rgba(0,40,50,.10);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:"Segoe UI","Heebo",Arial,sans-serif; direction:rtl;
+    background:linear-gradient(160deg,#eef8fb,#dff0e6 60%,#fff);
+    color:var(--ink); line-height:1.5;
+  }
+  header{
+    background:linear-gradient(135deg,var(--petrol),var(--teal));
+    color:#fff; padding:26px 20px 22px; text-align:center; position:relative;
+  }
+  header h1{margin:0 0 6px; font-size:28px}
+  header p{margin:4px auto; max-width:780px; opacity:.92; font-size:15px}
+  .wrap{max-width:1000px; margin:0 auto; padding:18px 14px 80px}
+
+  .save-banner{
+    background:linear-gradient(90deg,#0d5a2a,#1a7a3e); color:#fff; border-radius:14px;
+    padding:12px 16px; margin:16px 0; font-size:14.5px; box-shadow:var(--shadow);
+  }
+  .save-banner b{color:#ffe27a}
+
+  .style-lock{
+    background:#fff; border:2px dashed var(--gold); border-radius:16px;
+    padding:14px 16px; margin:14px 0; box-shadow:var(--shadow);
+  }
+  .style-lock h3{margin:0 0 6px; color:var(--teal); font-size:16px}
+  .style-lock code{
+    display:block; background:#0f2b30; color:#e8f1f2; padding:10px 12px;
+    border-radius:10px; font-size:12.5px; white-space:pre-wrap; direction:ltr; text-align:left;
+    margin-top:8px; line-height:1.45;
+  }
+  .style-lock small{color:var(--muted)}
+
+  .bar{
+    position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92);
+    backdrop-filter:blur(6px); border-radius:14px; padding:10px 12px; margin:12px 0 16px;
+    box-shadow:var(--shadow); display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  .bar .count{font-weight:800; color:var(--teal)}
+  .bar .prog{flex:1; min-width:140px; height:12px; background:#e3edf0; border-radius:8px; overflow:hidden}
+  .bar .prog>i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--grass),var(--gold)); transition:width .3s}
+  .chip{border:0; background:#e7f1f3; color:var(--teal); font-weight:700; padding:7px 13px; border-radius:999px; cursor:pointer; font-size:13px}
+  .chip.on{background:var(--teal); color:#fff}
+
+  .cat{margin:26px 0 10px; font-size:20px; color:var(--petrol); display:flex; align-items:center; gap:8px}
+  .cat .n{background:var(--gold); color:#3a2c00; font-size:12px; font-weight:800; padding:2px 9px; border-radius:999px}
+
+  .card{
+    background:var(--card); border-radius:16px; padding:15px 16px; margin:12px 0;
+    box-shadow:var(--shadow); border:2px solid transparent; transition:.2s;
+  }
+  .card.done{border-color:var(--ok); background:#f4fbf5}
+  .card .top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap}
+  .card h4{margin:0; font-size:17px; color:var(--petrol)}
+  .card .use{color:var(--muted); font-size:13.5px; margin:4px 0 0}
+  .files{margin-top:8px; display:flex; gap:6px; flex-wrap:wrap}
+  .files .f{background:#eef4f5; color:var(--teal); font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:8px; direction:ltr}
+  .crop{color:#a05a00; font-size:12.5px; margin-top:8px; background:#fff8e6; padding:6px 10px; border-radius:8px}
+  .card pre{
+    background:#0f2b30; color:#e8f1f2; padding:12px 13px; border-radius:12px; margin:12px 0 0;
+    font-size:12.5px; white-space:pre-wrap; direction:ltr; text-align:left; line-height:1.5; overflow:auto;
+  }
+  .actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+  button.act{border:0; padding:8px 14px; border-radius:10px; cursor:pointer; font-weight:700; font-size:13px}
+  .copy{background:var(--aqua); color:#fff}
+  .copy:active{transform:scale(.97)}
+  .mark{background:#eef4f5; color:var(--teal)}
+  .mark.done{background:var(--ok); color:#fff}
+  .badge{font-size:12px; font-weight:800; padding:3px 9px; border-radius:999px}
+  .b-sheet{background:#e7f1f3; color:var(--teal)}
+  .b-bg{background:#e8e2fb; color:#5b3aa0}
+  .b-vid{background:#fbeee0; color:#a05a00}
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:20px}
+  .note{background:#fff8e6; border:1px solid var(--gold); border-radius:12px; padding:12px 14px; font-size:13.5px; margin:14px 0}
+</style>
+
+<header>
+  <h1>🐴 פנקס פרומפטים · החווה של אגם</h1>
+  <p>פרומפטים מוכנים להעתקה ל-<b>ג'מיני</b> — ליצירת נכסים חדשים למשחק.
+  כל פרומפט עצמאי לגמרי (כולל את "נעילת הסגנון" בתוכו). מצב <b>חיסכון</b>: כל "גיליון" מייצר כמה נכסים בג'נרוט אחד.</p>
+</header>
+
+<div class="wrap">
+
+  <div class="save-banner">
+    💰 <b>מצב חיסכון בג'נרוטים:</b> במקום ליצור כל דמות/חפץ בנפרד, כל "גיליון" מבקש מג'מיני
+    <b>4-6 פריטים מופרדים בתמונה אחת</b> (גריד). כך 26 יצירות הצטמצמו ל-<b>6 גיליונות בלבד</b>.
+    אחרי היצירה: חותכים כל פריט לקובץ נפרד ומורידים רקע. (רקעים וסרטונים נשארים בודדים — אי אפשר לאחד אותם.)
+  </div>
+
+  <div class="style-lock">
+    <h3>🔒 נעילת הסגנון (כבר מוטמעת בכל פרומפט למטה)</h3>
+    <small>ה-DNA הוויזואלי של 85 הציורים הקיימים. שומר שכל נכס חדש יישב חלק ליד השאר. ג'מיני לא מוציא רקע שקוף אמיתי — תמיד צריך להסיר רקע אחרי (הכלי שכבר יש בפרויקט). אם ההסרה לא נקייה, אפשר לבקש בפרומפט <b>רקע ירוק זוהר #00FF00</b> במקום לבן — קל יותר לחיתוך.</small>
+    <code>flat vector illustration, clean crisp sharp vector art, bold uniform outline, solid flat vibrant colors, die-cut sticker, simple 2d mobile game asset, high contrast, in sharp focus, no gradient, no blur, kawaii cute, big friendly eyes, centered, full body in frame, on a plain solid pure white background</code>
+  </div>
+
+  <div class="bar">
+    <span class="count" id="count">0 / 0 נוצרו</span>
+    <span class="prog"><i id="progbar"></i></span>
+    <button class="chip on" data-f="all">הכל</button>
+    <button class="chip" data-f="sheet">🖼️ גיליונות</button>
+    <button class="chip" data-f="bg">🏞️ רקעים</button>
+    <button class="chip" data-f="vid">🎬 סרטונים</button>
+    <button class="chip" data-f="todo">⬜ לא נוצרו</button>
+    <button class="chip" data-f="done">✅ נוצרו</button>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="note">
+    💡 <b>איך לעבוד:</b> "העתק" → מדביקים בג'מיני → מקבלים גיליון עם כמה פריטים → מסמנים "נוצר ✅".
+    אחר כך חותכים כל פריט לקובץ בשם המוצע בתיקיית <code style="direction:ltr">assets/</code> ומורידים רקע.
+    הסימונים נשמרים אוטומטית בדפדפן הזה.
+  </div>
+
+</div>
+
+<footer>נבנה עבור הלל · פרויקט "החווה של אגם" · Tier 4</footer>
+
+<script>
+const STYLE = "flat vector illustration, clean crisp sharp vector art, bold uniform outline, solid flat vibrant colors, die-cut sticker, simple 2d mobile game asset, high contrast, in sharp focus, no gradient, no blur, kawaii cute, big friendly eyes, centered, full body in frame, on a plain solid pure white background";
+const SHEET = "All items clearly separated and isolated, NOT overlapping, evenly spaced with clear gaps between them, uniform consistent size and proportions, same baseline, identical lighting and outline weight, each item fully inside the frame and ready to be cropped individually. " + STYLE;
+
+const DATA = [
+ {cat:"🐎 גיליון סוסים — תנוחות חדשות", items:[
+   {t:"גיליון: 4 סוסים בתנוחות שונות", type:"sheet",
+    u:"דהירה + אכילה + שינה + פלומינו — פריים אנימציה, מצב לילה, וגזע חדש לחנות. 4 בג'נרוט אחד.",
+    files:["horse_run.png","horse_eat.png","horse_sleep.png","horse_palomino.png"],
+    p:"Game asset sheet. A 2x2 grid of 4 separate cute cartoon horses, each a full-body side profile view: (1) a brown horse in a mid-gallop running pose, legs stretched, flowing mane and tail; (2) a brown horse lowering its head down to eat, calm happy face; (3) a brown horse lying down sleeping, eyes closed, with a tiny 'zzz'; (4) a palomino horse standing, golden cream coat with white mane and tail. "+SHEET},
+ ]},
+
+ {cat:"🦄 גיליון סייחים ופוני", items:[
+   {t:"גיליון: 4 סייחים/פונים חמודים", type:"sheet",
+    u:"סייח פלומינו + פוני ננסי + סוס קשת + סייח קשת. הרחבת גזעים לגידול.",
+    files:["foal_palomino.png","pony.png","horse_rainbow.png","foal_rainbow.png"],
+    p:"Game asset sheet. A 2x2 grid of 4 separate cute characters, each full-body side profile view: (1) a tiny baby foal pony with golden cream palomino coat and a white fluffy mane, big adorable eyes, short legs; (2) a tiny chubby pony, brown and white, fluffy mane, short legs; (3) a white horse with a magical rainbow colored mane and tail, sparkles; (4) a tiny white baby foal with a magical rainbow mane. "+SHEET},
+ ]},
+
+ {cat:"🐐 גיליון חיות חווה חדשות", items:[
+   {t:"גיליון: 6 חיות חווה", type:"sheet",
+    u:"עז, תרנגול הודו, אווז, סנאי, קיפוד, כבשה קטנה — חיות חדשות לחווה ולנוף.",
+    files:["goat.png","turkey.png","goose.png","squirrel.png","hedgehog.png","lamb.png"],
+    p:"Game asset sheet. A 2x3 grid of 6 separate cute cartoon farm animals, each full-body side profile view: (1) a white goat with small horns and a little beard; (2) a turkey bird with a colorful fanned tail and red wattle; (3) a white goose with an orange beak; (4) a squirrel with a big fluffy tail holding an acorn; (5) a hedgehog with soft spikes and a tiny happy face; (6) a small fluffy white baby lamb. "+SHEET},
+ ]},
+
+ {cat:"🏡 גיליון מבנים וקישוטים", items:[
+   {t:"גיליון: 6 מבנים וקישוטים", type:"sheet",
+    u:"חממה, שער-פרחים, קרוסלה, נדנדת צמיג, דוכן שוק, בית עץ — פריטים חדשים לחנות.",
+    files:["greenhouse.png","flower_arch.png","carousel.png","tire_swing.png","market_stall.png","treehouse.png"],
+    p:"Game asset sheet. A 2x3 grid of 6 separate cute farm buildings and decorations, each shown front view: (1) a small glass greenhouse with plants inside and a green roof frame; (2) a garden flower archway covered in pink and yellow flowers; (3) a small colorful merry-go-round carousel with a striped top; (4) a tire swing hanging from a rope; (5) a little wooden market stall with a striped awning and baskets of fruit; (6) a small wooden treehouse with a ladder and a tiny flag. "+SHEET},
+ ]},
+
+ {cat:"🌱 גיליון יבולים חדשים", items:[
+   {t:"גיליון: 4 יבולים", type:"sheet",
+    u:"עגבנייה, חמנייה, אבטיח, נבט-התחלה — גידולים חדשים לשדה.",
+    files:["tomato.png","sunflower.png","watermelon.png","sprout.png"],
+    p:"Game asset sheet. A 2x2 grid of 4 separate cute crop items: (1) a ripe red tomato with a green stem; (2) a tall yellow sunflower with a brown center and green leaves; (3) a round green watermelon with stripes; (4) a tiny green sprout seedling with two little leaves in brown soil. "+SHEET},
+ ]},
+
+ {cat:"⭐ גיליון אייקונים וממשק (UI)", items:[
+   {t:"גיליון: 4 אייקוני ממשק", type:"sheet",
+    u:"פיצוץ כוכבים, מדליית רמה, סרט פרס, בלון עידוד ריק — אפקטים ותגים ל-HUD.",
+    files:["star_burst.png","level_badge.png","rosette.png","bubble_cheer.png"],
+    p:"Game asset sheet. A 2x2 grid of 4 separate cute UI game icons: (1) a cheerful burst of golden stars and sparkles radiating outward (celebration effect); (2) a round golden level-up medal badge with a star in the center and a ribbon; (3) a blue and gold prize rosette ribbon award; (4) an empty blank speech bubble balloon with a soft glow, nothing written inside. "+SHEET},
+ ]},
+
+ {cat:"🏞️ רקעים וסצנות (בודדים — לא ניתן לאחד)", items:[
+   {t:"רקע מסך פתיחה — חווה נרחבת", type:"bg", files:["bg_title.png"],
+    u:"רקע רחב וקסום למסך הכניסה/הרשמה.",
+    p:"A wide beautiful cartoon farm landscape background, green rolling hills, a red barn, blue sky with soft fluffy clouds, a rainbow, horses grazing far away, warm morning light, no characters in the front. Flat vector illustration, 2d mobile game background art, vibrant colors, 16:9."},
+   {t:"רקע חורף (וריאציה עונתית)", type:"bg", files:["bg_winter.png"],
+    u:"קרקע/שמיים לגרסת חורף של החווה.",
+    p:"A wide cute winter farm landscape background, snow covered rolling hills, a barn with snow on the roof, soft pale blue sky, gentle snowfall. Flat vector illustration, 2d mobile game background art, 16:9."},
+   {t:"קרקע סתיו (טקסטורה)", type:"bg", files:["ground_autumn.png"],
+    u:"וריאציה עונתית לקרקע — עלים כתומים.",
+    p:"A seamless top-down autumn grass ground texture with scattered orange and yellow fallen leaves. Flat vector, 2d game tile, tileable, no characters."},
+ ]},
+
+ {cat:"🎬 סרטונים (Veo / ג'מיני וידאו)", items:[
+   {t:"פתיח קולנועי — טיסה מעל החווה", type:"vid", files:["video/intro.mp4"],
+    u:"קליפ פתיחה קצר שרץ במסך הכניסה.",
+    p:"A short 6-second cinematic flythrough over a colorful cartoon farm: green rolling hills, a red barn, cute horses grazing, a windmill turning, fluffy clouds and a rainbow, warm golden morning light. Cheerful 2D-cartoon storybook animation style, soft and friendly, smooth camera glide forward, seamless loop, no text, no people. 16:9."},
+   {t:"לולאת סוס דוהר", type:"vid", files:["video/horse_gallop.mp4"],
+    u:"אנימציית לופ של סוס לרקע/פרס.",
+    p:"A cute cartoon brown horse galloping in place on a simple green meadow, side view, flowing mane and tail, smooth looping animation, cheerful 2D storybook cartoon style, soft outlines, seamless loop, no text. Vertical 9:16 friendly for mobile."},
+   {t:"פיצוץ מטבעות (חגיגת פרס)", type:"vid", files:["video/coins_reward.mp4"],
+    u:"קליפ קצר שמנגן כשמסיימים משימה.",
+    p:"A short 3-second joyful burst of golden coins and stars raining and bouncing, sparkles everywhere, on a soft light background, cheerful celebration, 2D cartoon game style, no text, seamless. 1:1 square."},
+   {t:"רקע רגוע — עננים ופרפרים", type:"vid", files:["video/ambient.mp4"],
+    u:"אמביינט עדין לרקע מסכים שקטים.",
+    p:"A gentle looping ambient background: soft white clouds drifting slowly across a light blue sky, a few colorful butterflies fluttering, tiny sparkles, calm and dreamy, 2D cartoon storybook style, seamless loop, no text, no characters. 16:9."},
+   {t:"סייח קופצני שמח", type:"vid", files:["video/foal_hop.mp4"],
+    u:"קליפ קצר של סייח קטן קופץ — פרס/כרטיס סוס.",
+    p:"A cute tiny cartoon foal (baby horse) happily hopping and wagging its tail in place on green grass, big adorable eyes, side view, smooth looping animation, cheerful 2D storybook cartoon style, seamless loop, no text. Square 1:1."},
+ ]},
+];
+
+const BADGE = {sheet:'<span class="badge b-sheet">🖼️ גיליון</span>', bg:'<span class="badge b-bg">🏞️ רקע</span>', vid:'<span class="badge b-vid">🎬 סרטון</span>'};
+const list = document.getElementById('list');
+let filter = 'all';
+const saved = JSON.parse(localStorage.getItem('agam_prompt_done_v2')||'{}');
+let total=0, cards=[];
+
+DATA.forEach((group,gi)=>{
+  const h = document.createElement('div'); h.className='cat';
+  h.innerHTML = group.cat + ' <span class="n">'+group.items.length+'</span>';
+  h.dataset.group = gi;
+  list.appendChild(h);
+  group.items.forEach((it,ii)=>{
+    total++;
+    const id = 'g'+gi+'i'+ii;
+    const done = !!saved[id];
+    const c = document.createElement('div');
+    c.className='card'+(done?' done':'');
+    c.dataset.type=it.type; c.dataset.done=done;
+    const filesHtml = it.files.map(f=>'<span class="f">📁 '+f+'</span>').join('');
+    const cropHtml = it.type==='sheet' ? '<div class="crop">✂️ אחרי היצירה: לחתוך כל פריט לקובץ נפרד (לפי השמות למעלה) + להסיר רקע.</div>' : '';
+    c.innerHTML =
+      '<div class="top"><div><h4>'+it.t+'</h4>'+
+      '<div class="use">'+it.u+'</div>'+
+      '<div class="files">'+filesHtml+'</div>'+cropHtml+'</div>'+
+      BADGE[it.type]+'</div>'+
+      '<pre>'+it.p.replace(/</g,'&lt;')+'</pre>'+
+      '<div class="actions">'+
+      '<button class="act copy">📋 העתק פרומפט</button>'+
+      '<button class="act mark'+(done?' done':'')+'">'+(done?'✅ נוצר':'⬜ סמן כנוצר')+'</button>'+
+      '</div>';
+    c.querySelector('.copy').onclick=()=>{
+      navigator.clipboard.writeText(it.p).then(()=>{
+        const b=c.querySelector('.copy'); const o=b.textContent; b.textContent='✔ הועתק!';
+        setTimeout(()=>b.textContent=o,1200);
+      });
+    };
+    c.querySelector('.mark').onclick=()=>{
+      const now = c.dataset.done!=='true';
+      c.dataset.done=now; c.classList.toggle('done',now);
+      const b=c.querySelector('.mark'); b.classList.toggle('done',now);
+      b.textContent = now?'✅ נוצר':'⬜ סמן כנוצר';
+      if(now) saved[id]=1; else delete saved[id];
+      localStorage.setItem('agam_prompt_done_v2',JSON.stringify(saved));
+      refresh();
+    };
+    list.appendChild(c);
+    cards.push({el:c, group:h, type:it.type});
+  });
+});
+
+const chips=[...document.querySelectorAll('.chip')];
+chips.forEach(ch=>ch.onclick=()=>{chips.forEach(x=>x.classList.remove('on'));ch.classList.add('on');filter=ch.dataset.f;refresh();});
+
+function refresh(){
+  let done=0; const groupVisible={};
+  cards.forEach(k=>{
+    const d = k.el.dataset.done==='true'; if(d) done++;
+    let show=true;
+    if(filter==='sheet') show = k.type==='sheet';
+    else if(filter==='bg') show = k.type==='bg';
+    else if(filter==='vid') show = k.type==='vid';
+    else if(filter==='todo') show = !d;
+    else if(filter==='done') show = d;
+    k.el.style.display = show?'':'none';
+    if(show) groupVisible[k.group.dataset.group]=true;
+  });
+  document.querySelectorAll('.cat').forEach(g=> g.style.display = groupVisible[g.dataset.group]?'':'none');
+  document.getElementById('count').textContent = done+' / '+total+' נוצרו';
+  document.getElementById('progbar').style.width = (total?Math.round(done/total*100):0)+'%';
+}
+refresh();
+</script>

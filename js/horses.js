@@ -39,6 +39,13 @@ function roundRect(g, x, y, w, h, r) {
   g.closePath();
 }
 
+// האם כרגע לילה במשחק (נגזר ממחזור היום/לילה של World.tod)
+function isNightNow() {
+  const t = (typeof World.tod === 'number') ? World.tod : 0.35;
+  const light = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 - Math.PI / 2);
+  return light < 0.32;
+}
+
 class Horse {
   constructor(opts = {}) {
     this.id = opts.id || _id++;
@@ -61,6 +68,7 @@ class Horse {
 
     this.sprite = World.makeBillboard(this._tex(), this._height());
     this.sprite.userData.horse = this;
+    this._curTex = this._tex();      // הציור הנוכחי על ה-sprite (למניעת החלפות מיותרות)
     this.group.add(this.sprite);
 
     this.label = makeLabel(this.name);
@@ -104,6 +112,7 @@ class Horse {
     this.stage = 'adult';
     this.sprite.material.map = World.loadTexture(this._tex());
     this.sprite.material.needsUpdate = true;
+    this._curTex = this._tex();
     this.sprite.scale.set(this._height(), this._height(), 1);
     this.label.position.y = this._height() + 0.6;
     this.shadow.scale.set(this._height() * 0.42 * 2 / 3.2, 1, this._height() * 0.42 * 2 / 3.2);
@@ -124,7 +133,10 @@ class Horse {
     const pos = this.group.position;
     const to = this.target.clone().sub(pos); to.y = 0;
     const d = to.length();
-    if (d > 0.3 && this.wait <= 0) {
+    // סוס חום גדול "ישן" בלילה — נשאר במקום
+    const sleeping = this.color === 'brown' && this.stage === 'adult' && isNightNow();
+    const moving = !sleeping && d > 0.3 && this.wait <= 0;
+    if (moving) {
       to.normalize();
       const speed = (this.stage === 'adult' ? 1.4 : 1.1);
       pos.addScaledVector(to, speed * dt);
@@ -133,6 +145,8 @@ class Horse {
       this.wait -= dt;
       if (this.wait < -1) this._newTarget();
     }
+    this._sleeping = sleeping;
+    this._moving = moving;
 
     // קפיצה עדינה + נשימה + כיוון פנים + קפיצת-שמחה
     this.phase += dt * 3;
@@ -144,13 +158,27 @@ class Horse {
     this.sprite.scale.x = h * this.facing * breathe;
     this.sprite.scale.y = h * (hop > 0 ? 1 + hop * 0.08 : breathe);
 
-    // הסוס תמיד צבעוני ושמח
+    // תנוחה דינמית (חום גדול בלבד — שאר הצבעים נשארים בציור הצבע שלהם):
+    // ישן בלילה, דוהר בזמן תנועה. החלפה רק כשהציור הרצוי משתנה (טקסטורה משותפת במטמון).
+    let want = this._tex();
+    if (this.color === 'brown' && this.stage === 'adult') {
+      if (this._sleeping) want = 'assets/horse_sleep.png';
+      else if (this._moving) want = 'assets/horse_run.png';
+    }
+    if (want !== this._curTex) {
+      this.sprite.material.map = World.loadTexture(want, true);
+      this.sprite.material.needsUpdate = true;
+      this._curTex = want;
+    }
   }
 
   dispose() {
     World.unregisterPickable(this.sprite);
     World.scene.remove(this.group);
-    if (this.sprite.material.map) this.sprite.material.map.dispose();
+    // לא לשחרר טקסטורה משותפת שבמטמון (תנוחות/צבעים משותפים בין סוסים)
+    const map = this.sprite.material.map;
+    const shared = World._texCache && Object.values(World._texCache).includes(map);
+    if (map && !shared) map.dispose();
     this.sprite.material.dispose();
     if (this.label.material.map) this.label.material.map.dispose();
     this.label.material.dispose();

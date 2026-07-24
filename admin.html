@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>פאנל אדמין · החווה של אגם</title>
+<style>
+  :root{
+    --petrol:#003B46; --teal:#00606B; --aqua:#2F8592; --frost:#E8F1F2; --gold:#D4AF37;
+    --ok:#2fa84f; --danger:#c0392b; --ink:#12303a; --muted:#5a6b70; --line:#dce7ea;
+    --shadow:0 6px 22px rgba(0,40,50,.12);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI","Heebo",Arial,sans-serif;background:linear-gradient(160deg,#eef8fb,#e2eef0);color:var(--ink)}
+  header{background:linear-gradient(135deg,var(--petrol),var(--teal));color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  header h1{margin:0;font-size:20px}
+  header .right{display:flex;gap:8px;align-items:center}
+  .wrap{max-width:1080px;margin:0 auto;padding:18px 14px 60px}
+  button{font-family:inherit;border:0;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;padding:8px 14px}
+  .btn-primary{background:var(--aqua);color:#fff}
+  .btn-ghost{background:rgba(255,255,255,.18);color:#fff}
+  .btn-reset{background:#fff3e0;color:#a05a00;border:1px solid #f0d3a0}
+  .btn-reset:hover{background:#ffe6c2}
+  .card{background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:16px;margin:14px 0}
+  .note{background:#fff8e6;border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:13px;margin:10px 0;line-height:1.6}
+  input{font-family:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;width:100%}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .toolbar input{max-width:280px}
+  .count{color:var(--muted);font-size:13px;font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:right;padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--teal);font-size:12px;position:sticky;top:0;background:#fff}
+  td.email{direction:ltr;text-align:right;font-family:ui-monospace,monospace;font-size:12.5px}
+  .lvl{background:#e7f1f3;color:var(--teal);border-radius:999px;padding:2px 9px;font-weight:800;font-size:12px}
+  .guest{color:var(--muted);font-style:italic}
+  .tbl-wrap{overflow-x:auto}
+  .gate{max-width:420px;margin:8vh auto;text-align:center}
+  .gate .emoji{font-size:44px}
+  .gate input{margin:12px 0;direction:ltr}
+  .msg{font-size:13px;margin-top:8px;min-height:18px}
+  .msg.err{color:var(--danger)} .msg.ok{color:var(--ok)}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,30,40,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal{background:#fff;border-radius:18px;box-shadow:var(--shadow);max-width:440px;width:100%;padding:22px;text-align:center}
+  .modal h2{margin:0 0 6px;color:var(--petrol)}
+  .pw-box{background:#0f2b30;color:#eafcf0;font-family:ui-monospace,monospace;font-size:26px;letter-spacing:2px;padding:14px;border-radius:12px;margin:14px 0;direction:ltr;user-select:all}
+  .modal .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .hidden{display:none}
+  .spin{color:var(--muted);padding:24px;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- שער טוקן -->
+<div id="gate" class="gate card hidden">
+  <div class="emoji">🔐</div>
+  <h2>פאנל אדמין</h2>
+  <p style="color:var(--muted);font-size:13.5px">הזן את טוקן-האדמין (נשמר מקומית בדפדפן הזה בלבד).</p>
+  <input id="tokenIn" type="password" placeholder="ADMIN_PANEL_TOKEN" autocomplete="off">
+  <button class="btn-primary" id="tokenGo" style="width:100%">כניסה</button>
+  <div class="msg err" id="gateMsg"></div>
+</div>
+
+<!-- אפליקציה -->
+<div id="app" class="hidden">
+  <header>
+    <h1>👑 פאנל אדמין — החווה של אגם</h1>
+    <div class="right">
+      <button class="btn-ghost" id="refresh">🔄 רענון</button>
+      <button class="btn-ghost" id="logout">יציאה</button>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="note">
+      🔒 <b>לגבי סיסמאות:</b> אי אפשר להציג סיסמה — היא שמורה מוצפנת ולא ניתנת לשחזור (כך שומרים על החשבונות).
+      אם מישהי שכחה, לחצי <b>"אפס סיסמה"</b> — נוצרת סיסמה זמנית חדשה שתמסרי לה.
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <input id="search" placeholder="🔎 חיפוש לפי שם או אימייל">
+        <span class="count" id="count"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>שם</th><th>אימייל (שם משתמש)</th><th>רמה</th>
+            <th>נרשמה</th><th>כניסה אחרונה</th><th>חווה נשמרה</th><th></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="loading" class="spin">טוען משתמשות…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xgqetnlsesgwiypufodf.supabase.co';
+const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhncWV0bmxzZXNnd2l5cHVmb2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2Mjc5MjQsImV4cCI6MjA5NTIwMzkyNH0.0szenmLzE8nhCr-FdaqnLBCL5TjB1IuTxsWbUND0mU4';
+const FN = SUPABASE_URL + '/functions/v1/admin-users';
+const TOKEN_KEY = 'agam_admin_token';
+
+let TOKEN = localStorage.getItem(TOKEN_KEY) || '';
+let ALL = [];
+
+const $ = s => document.querySelector(s);
+
+async function api(action, extra) {
+  const res = await fetch(FN, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': ANON,
+      'Authorization': 'Bearer ' + ANON,
+      'x-admin-token': TOKEN,
+    },
+    body: JSON.stringify(Object.assign({ action }, extra || {})),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  try {
+    return new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Jerusalem' }).format(new Date(s));
+  } catch (e) { return s; }
+}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function render(list) {
+  const tb = $('#rows');
+  tb.innerHTML = list.map(u => `
+    <tr>
+      <td>${esc(u.name) || '<span class="guest">—</span>'}</td>
+      <td class="email">${u.email === '(אורח)' ? '<span class="guest">(אורח, בלי אימייל)</span>' : esc(u.email)}</td>
+      <td>${u.level !== '' && u.level != null ? `<span class="lvl">⭐ ${esc(u.level)}</span>` : '—'}</td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>${fmtDate(u.last_sign_in_at)}</td>
+      <td>${fmtDate(u.saved_at)}</td>
+      <td>${u.email && u.email !== '(אורח)'
+        ? `<button class="btn-reset" data-id="${esc(u.id)}" data-name="${esc(u.name || u.email)}">🔑 אפס סיסמה</button>`
+        : ''}</td>
+    </tr>`).join('');
+  $('#count').textContent = list.length + ' משתמשות';
+  tb.querySelectorAll('.btn-reset').forEach(b => b.onclick = () => resetFlow(b.dataset.id, b.dataset.name));
+}
+
+function applySearch() {
+  const q = $('#search').value.trim().toLowerCase();
+  render(!q ? ALL : ALL.filter(u => (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)));
+}
+
+async function load() {
+  $('#loading').classList.remove('hidden');
+  $('#loading').textContent = 'טוען משתמשות…';
+  try {
+    const { users } = await api('list');
+    ALL = users || [];
+    applySearch();
+    $('#loading').classList.add('hidden');
+  } catch (e) {
+    $('#loading').textContent = 'שגיאה: ' + e.message + (String(e.message).includes('unauthorized') ? ' (טוקן שגוי)' : '');
+    if (String(e.message).includes('unauthorized')) { setTimeout(logout, 1200); }
+  }
+}
+
+function genPassword() {
+  const w = ['pony', 'farm', 'star', 'horse', 'sunny', 'apple'][Math.floor(Math.random() * 6)];
+  return w + (100 + Math.floor(Math.random() * 900)); // למשל pony734 — קל להקלדה, 7 תווים
+}
+
+function resetFlow(userId, name) {
+  const pw = genPassword();
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h2>🔑 סיסמה זמנית ל${esc(name)}</h2>
+      <p style="color:var(--muted);font-size:13.5px">זו הסיסמה החדשה. מסרי אותה למשתמשת — היא תוכל להיכנס ולשנות אם תרצה.</p>
+      <div class="pw-box" id="pwv">${pw}</div>
+      <div class="row">
+        <button class="btn-primary" id="copyPw">📋 העתק</button>
+        <button class="btn-reset" id="regen">🎲 סיסמה אחרת</button>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn-primary" id="doReset" style="background:var(--ok)">✅ אשר ואפס</button>
+        <button class="btn-ghost" id="cancel" style="background:#eef4f5;color:var(--teal)">ביטול</button>
+      </div>
+      <div class="msg" id="rmsg"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.onclick = e => { if (e.target === ov) close(); };
+  ov.querySelector('#cancel').onclick = close;
+  ov.querySelector('#regen').onclick = () => { ov.querySelector('#pwv').textContent = genPassword(); };
+  ov.querySelector('#copyPw').onclick = () => navigator.clipboard.writeText(ov.querySelector('#pwv').textContent);
+  ov.querySelector('#doReset').onclick = async () => {
+    const newPassword = ov.querySelector('#pwv').textContent;
+    const msg = ov.querySelector('#rmsg');
+    msg.className = 'msg'; msg.textContent = 'מאפס…';
+    try {
+      await api('reset', { userId, newPassword });
+      msg.className = 'msg ok'; msg.textContent = '✅ הסיסמה אופסה! מסרי אותה למשתמשת.';
+      ov.querySelector('#doReset').disabled = true;
+    } catch (e) { msg.className = 'msg err'; msg.textContent = 'שגיאה: ' + e.message; }
+  };
+}
+
+function showApp() { $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden'); load(); }
+function logout() { localStorage.removeItem(TOKEN_KEY); TOKEN = ''; $('#app').classList.add('hidden'); $('#gate').classList.remove('hidden'); }
+
+$('#tokenGo').onclick = () => {
+  const v = $('#tokenIn').value.trim();
+  if (!v) { $('#gateMsg').textContent = 'הזן טוקן'; return; }
+  TOKEN = v; localStorage.setItem(TOKEN_KEY, v); showApp();
+};
+$('#tokenIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#tokenGo').click(); });
+$('#refresh').onclick = load;
+$('#logout').onclick = logout;
+$('#search').addEventListener('input', applySearch);
+
+if (TOKEN) showApp(); else $('#gate').classList.remove('hidden');
+</script>
+</body>
+</html>

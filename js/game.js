@@ -42,6 +42,8 @@ const SHOP = {
     { id: 'pig',     name: 'חזיר',    asset: 'pig.png',     cost: 50, scale: 1.9, produce: { emoji: '🍠', intervalMs: 45000, sell: 15 } },
     { id: 'sheep',   name: 'כבשה',    asset: 'sheep.png',   cost: 60, scale: 1.9, produce: { emoji: '🧶', intervalMs: 50000, sell: 18 } },
     { id: 'cow',     name: 'פרה',     asset: 'cow.png',     cost: 90, scale: 2.3, produce: { emoji: '🥛', intervalMs: 60000, sell: 26 } },
+    { id: 'goat',    name: 'עז',      asset: 'goat.png',    cost: 70, scale: 1.9, produce: { emoji: '🧀', intervalMs: 55000, sell: 20 } },
+    { id: 'turkey',  name: 'תרנגול הודו', asset: 'turkey.png', cost: 40, scale: 1.7, produce: { emoji: '🥚', intervalMs: 35000, sell: 11 } },
   ],
   // שדרוגים שמשנים את האסם/החווה באופן נראה (פעם אחת כל אחד)
   upgrades: [

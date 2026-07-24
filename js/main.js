@@ -99,8 +99,18 @@ UI.init({
       claimDeviceForCurrentUser();   // מנקה שמירה של חשבון אחר לפני ה-reload
     }
   },
+  onGuest: enterGuest,
   getGame: () => Game
 });
+
+// --- מצב אורח: משחק מקומי בלי חשבון (שמירה ב-localStorage בלבד, בלי ענן) ---
+const GUEST_KEY = 'agam_guest';
+function enterGuest() {
+  try { localStorage.setItem(GUEST_KEY, '1'); } catch (e) {}
+  const gate = document.getElementById('authScreen');
+  if (gate) gate.classList.add('hidden');
+  UI.showTitle();
+}
 
 // אזור המכלאה — בו חיות המשק משוטטות
 const PADDOCK = { x: 0, z: -7, r: 5 };
@@ -284,10 +294,15 @@ async function boot() {
   applySettings();
 
   // ---------- שער כניסה: אונליין בלי חשבון → הרשמה/כניסה קודם ----------
+  // אלא אם בחרו כבר לשחק כאורח — אז ממשיכים למשחק מקומי בלי לחסום שוב.
   if (Cloud.ready && !Cloud.loggedIn()) {
-    UI.showAuthGate();
-    readyUI();
-    return;
+    let guest = false;
+    try { guest = localStorage.getItem(GUEST_KEY) === '1'; } catch (e) {}
+    if (!guest) {
+      UI.showAuthGate();
+      readyUI();
+      return;
+    }
   }
   // מחוברת אבל בלי שם (חשבון ותיק) — שואלים פעם אחת ושומרים פרופיל
   if (Cloud.loggedIn() && !Cloud.profileName()) {
@@ -317,6 +332,7 @@ function spawnCritters() {
   Animals.add({ type: 'duck', asset: 'duck.png', scale: 1.0, region: { x: -16, z: 7, r: 2.5 } });
   Animals.add({ type: 'rabbit', asset: 'rabbit.png', scale: 1.0, region: { x: -9, z: 4, r: 3 } });
   Animals.add({ type: 'rabbit', asset: 'rabbit.png', scale: 1.0, region: { x: -8, z: 6, r: 2.5 } });
+  Animals.add({ type: 'pony', asset: 'pony.png', scale: 1.7, region: { x: -5, z: 5, r: 3 } });
 }
 
 // ---------- תפאורה קבועה ----------
@@ -611,13 +627,17 @@ function buyExpansion() {
   });
 }
 
-function buyHorse() {
+function buyHorse(breed) {
+  const special = breed === 'rainbow';
   const owned = Horses.list.length;
-  const cost = Game.horseCost(owned);
+  const cost = special ? 150 : Game.horseCost(owned);
   if (!Game.canAfford(cost)) { notEnough(cost); return; }
   askProblem('buy', (res) => {
     if (!Game.spend(cost)) return;
-    const h = Horses.add({ color: Horses.randomColor(), stage: 'foal', name: Horses.randomName() });
+    // סוס קשת נולד כבר גדול (אין ציור סייח-קשת) — לכן stage:'adult'
+    const h = special
+      ? Horses.add({ color: 'rainbow', stage: 'adult', name: 'קשת' })
+      : Horses.add({ color: Horses.randomColor(), stage: 'foal', name: Horses.randomName() });
     h.celebrate();
     spawnAt(h.group.position.x, h.group.position.z, 'confetti', 18);
     Audio.fanfare(); Audio.speak('סוס חדש הצטרף לחווה! קוראים לו ' + h.name);

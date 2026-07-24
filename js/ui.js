@@ -95,10 +95,12 @@ const UI = {
           <button class="btn-big btn-play" id="agSignIn">נכנסות! 🐴</button>
         </div>
         <div class="auth-msg" id="agMsg"></div>
+        <button class="btn-ghost auth-guest" id="agGuest">🎮 לשחק בלי חשבון (אורח)</button>
         <p class="credit">נבנה באהבה ע״י אבא 💙</p>
       </div>`;
     this.root.appendChild(s);
     const msg = (t, ok) => { const m = s.querySelector('#agMsg'); m.textContent = t; m.className = 'auth-msg ' + (ok ? 'ok' : 'err'); };
+    s.querySelector('#agGuest').onclick = () => { Audio.resume(); Audio.click(); this.handlers.onGuest && this.handlers.onGuest(); };
     const tabUp = s.querySelector('#tabUp'), tabIn = s.querySelector('#tabIn');
     const formUp = s.querySelector('#formUp'), formIn = s.querySelector('#formIn');
     tabUp.onclick = () => { Audio.click(); tabUp.classList.add('on'); tabIn.classList.remove('on'); formUp.classList.remove('hidden'); formIn.classList.add('hidden'); msg(''); };
@@ -367,6 +369,9 @@ const UI = {
         const cost = game.horseCost(counts.horses);
         grid.appendChild(this._shopCard('assets/horse_brown.png', 'סוס חדש', cost, game.coins >= cost,
           () => { this.closeShop(); this.handlers.onBuyHorse && this.handlers.onBuyHorse(); }));
+        const rainbowCost = 150;   // סוס מיוחד ונדיר — רעמת קשת בענן
+        grid.appendChild(this._shopCard('assets/horse_rainbow.png', 'סוס קשת בענן 🌈', rainbowCost, game.coins >= rainbowCost,
+          () => { this.closeShop(); this.handlers.onBuyHorse && this.handlers.onBuyHorse('rainbow'); }));
       } else if (tab === 'upgrades') {
         SHOP.upgrades.forEach(it => {
           const owned = (game.upgrades || {})[it.id];

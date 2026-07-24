@@ -1,0 +1,7 @@
+# לא לפרסם קבצי פיתוח/פנימיים לאתר הציבורי (Vercel מפרסם את כל הריפו כברירת מחדל)
+/supabase/
+/tools/
+/.secrets/
+/assets/_gemini_extra/
+*.md
+/פרומפטים-גמיני.html

@@ -79,7 +79,9 @@ const Audio = {
       pig:     [['square', 200, 0.07, 0], ['square', 175, 0.07, 0.09], ['square', 160, 0.09, 0.18]],
       dog:     [['square', 320, 0.1, 0], ['square', 270, 0.12, 0.13]],
       cat:     [['sine', 680, 0.18, 0], ['sine', 820, 0.22, 0.13]],
-      duck:    [['square', 520, 0.07, 0], ['square', 470, 0.07, 0.09], ['square', 520, 0.07, 0.18]]
+      duck:    [['square', 520, 0.07, 0], ['square', 470, 0.07, 0.09], ['square', 520, 0.07, 0.18]],
+      goat:    [['sawtooth', 440, 0.1, 0], ['sawtooth', 470, 0.09, 0.11], ['sawtooth', 410, 0.12, 0.22]],
+      turkey:  [['square', 300, 0.05, 0], ['square', 360, 0.05, 0.07], ['square', 300, 0.05, 0.14], ['square', 360, 0.05, 0.21]]
     }[type] || [['triangle', 440, 0.12, 0]];
     P.forEach(([w, f, d, delay]) => this._tone(f, d, w, 0.16, delay));
   },
