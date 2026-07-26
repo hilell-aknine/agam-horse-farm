@@ -724,6 +724,7 @@ const UI = {
       const b = el('button', 'choice', String(c));
       b.onclick = () => {
         if (b.classList.contains('done')) return;
+        Audio.speak(String(c));   // מקריא את המספר שנבחר — עוזר למי שעוד לא קוראת ספרות
         if (c === problem.answer) {
           b.classList.add('correct', 'done');
           Audio.success();
@@ -848,6 +849,7 @@ const UI = {
       if (g) this.openParentReport(g);
     };
     ov.onclick = (e) => { if (e.target === ov) ov.classList.add('hidden'); };
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ov.classList.contains('hidden')) ov.classList.add('hidden'); });
     ov.querySelector('#resetBtn').onclick = () => {
       if (confirm('להתחיל את המשחק מחדש? כל החווה תימחק.')) this.handlers.onReset && this.handlers.onReset();
     };

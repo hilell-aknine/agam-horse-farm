@@ -41,10 +41,11 @@ const World = {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.enablePan = false;
-    this.controls.minDistance = 10;
-    this.controls.maxDistance = 40;
-    this.controls.minPolarAngle = 0.5;
-    this.controls.maxPolarAngle = 1.45;   // לא לרדת מתחת לקרקע
+    this.controls.minDistance = 12;
+    this.controls.maxDistance = 30;          // לא מתרחקים עד שהחווה נעשית זעירה
+    this.controls.minPolarAngle = 0.82;      // לא מסתכלים מלמעלה
+    this.controls.maxPolarAngle = 1.28;      // לא רואים שמיים/דשא ריק — החווה תמיד במסגרת
+    this.controls.rotateSpeed = 0.55;        // סיבוב עדין — פחות רגיש ללחיצות/גרירות זעירות לא מכוונות
     this.controls.autoRotate = true;
     this.controls.autoRotateSpeed = 0.4;
     this.controls.update();
@@ -468,10 +469,10 @@ const World = {
     this.tod = (this.tod + dt / 240) % 1;                 // מחזור מלא ~4 דקות
     const t = this.tod;
     const light = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 - Math.PI / 2);  // 0=חצות, 1=צהריים
-    this.hemi.intensity = 0.22 + 0.7 * light;
-    this.sunLight.intensity = 0.1 + 0.95 * light;
-    // צבע שמיים: לילה כהה → יום בהיר, עם נגיעת זריחה/שקיעה
-    const c = new THREE.Color(0x24305c).lerp(new THREE.Color(0xffffff), Math.min(1, light * 1.3));
+    this.hemi.intensity = 0.45 + 0.55 * light;   // רצפת-לילה גבוהה יותר — השדות נשארים קריאים
+    this.sunLight.intensity = 0.28 + 0.85 * light;
+    // צבע שמיים: לילה (כחול רך, לא שחור) → יום בהיר, עם נגיעת זריחה/שקיעה
+    const c = new THREE.Color(0x3a4a78).lerp(new THREE.Color(0xffffff), Math.min(1, light * 1.3));
     const duskAmt = Math.max(0, 1 - Math.abs(light - 0.4) * 4) * 0.45;
     c.lerp(new THREE.Color(0xff9d6e), duskAmt);
     this.skyMesh.material.color.copy(c);
@@ -479,7 +480,7 @@ const World = {
     const sunCol = new THREE.Color(0x3b4c85).lerp(new THREE.Color(0xfff2cc), Math.min(1, light * 1.4));
     sunCol.lerp(new THREE.Color(0xff8a4d), duskAmt * 0.85);
     this.sunLight.color.copy(sunCol);
-    this.scene.fog.color.setHex(0x2b3a63).lerp(new THREE.Color(0xcfeaff), Math.min(1, light * 1.3));
+    this.scene.fog.color.setHex(0x3f4f78).lerp(new THREE.Color(0xcfeaff), Math.min(1, light * 1.3));
     // מסלול שמש/ירח
     const a = t * Math.PI * 2 - Math.PI / 2;
     this.sunMesh.position.set(Math.cos(a) * 42, Math.sin(a) * 38, -30);
@@ -539,9 +540,9 @@ const World = {
     this.rainbow.visible = rm.opacity > 0.01;
   },
 
-  // נסיעה חלקה למרכז אזור (עולם פתוח)
-  travelTo(cx, cz) {
-    this._travel = { x: cx, z: cz };
+  // נסיעה חלקה למרכז אזור (עולם פתוח) — כולל נרמול מרחק לטווח עבודה נוח וקבוע
+  travelTo(cx, cz, dist = 22) {
+    this._travel = { x: cx, z: cz, dist };
     this.controls.autoRotate = false;
   },
   _updateTravel(dt) {
@@ -550,6 +551,12 @@ const World = {
     const tgt = this.controls.target;
     tgt.x += (T.x - tgt.x) * k;
     tgt.z += (T.z - tgt.z) * k;
+    // נרמול מרחק המצלמה → כל חזרה ל"חווה"/אזור מגיעה לאותו מרחק עבודה נוח
+    if (T.dist) {
+      const off = this.camera.position.clone().sub(tgt);
+      off.setLength(off.length() + (T.dist - off.length()) * k);
+      this.camera.position.copy(tgt).add(off);
+    }
     if (Math.hypot(tgt.x - T.x, tgt.z - T.z) < 0.5) { this._travel = null; this.controls.autoRotate = true; }
   },
 

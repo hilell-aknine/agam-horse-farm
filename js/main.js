@@ -119,7 +119,7 @@ const PADDOCK = { x: 0, z: -7, r: 5 };
 const AREAS = [
   { id: 'farm',     name: 'החווה', emoji: '🏡', x: 0,   z: 0,   unlock: 1 },
   { id: 'forest',   name: 'היער',  emoji: '🌲', x: 0,   z: -70, unlock: 1 },
-  { id: 'lake',     name: 'האגם',  emoji: '🏖️', x: 70,  z: 6,   unlock: 2 },
+  { id: 'lake',     name: 'האגם',  emoji: '🏖️', x: 70,  z: 6,   unlock: 1 },
   { id: 'village',  name: 'הכפר',  emoji: '🏘️', x: -72, z: 0,   unlock: 3 },
   { id: 'mountain', name: 'ההר',   emoji: '🏔️', x: 0,   z: 72,  unlock: 4 },
   { id: 'fair',     name: 'היריד', emoji: '🎪', x: 64,  z: -64, unlock: 5 }
