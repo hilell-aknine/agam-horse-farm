@@ -5,3 +5,5 @@
 *.log
 *.log.err
 _anchor/
+
+__pycache__/
