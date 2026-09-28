@@ -410,3 +410,19 @@ canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-a
   max-width:94vw;white-space:nowrap;animation:pop .25s;}
 
 .auth-guest{ margin-top:8px; opacity:.9; font-size:.95em; }
+
+/* ---- UX סבב 2 ---- */
+.gate-play{width:100%;font-size:28px;padding:20px;margin-top:6px;}
+.gate-parents{font-size:15px;opacity:.85;}
+#parentBox{margin-top:8px;border-top:2px dashed #e7d8b0;padding-top:10px;}
+/* ספירה בלחיצה: יעד מגע גדול, מספר קטן על כל פריט שנספר */
+.em.tap{cursor:pointer;min-width:48px;min-height:48px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:14px;position:relative;transition:transform .15s,background .2s;}
+.em.tap:active{transform:scale(.9);}
+.em.counted{background:#fff3c4;transform:scale(1.06);}
+.em.counted::before{content:attr(data-n);position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;
+  background:#1d8a99;color:#fff;font:700 14px Fredoka,sans-serif;display:flex;align-items:center;justify-content:center;}
+.fun-more{display:block;width:100%;margin-top:10px;background:transparent;color:var(--teal);font-weight:900;font-size:18px;padding:10px;}
+.btn-parents{display:block;width:100%;margin-top:14px;background:#f2ecd9;color:var(--teal);font-weight:900;
+  font-size:17px;border-radius:16px;padding:12px;}
+.parent-zone{margin-top:8px;border-top:2px dashed #e7d8b0;padding-top:6px;}

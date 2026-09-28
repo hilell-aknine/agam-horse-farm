@@ -81,6 +81,9 @@ const UI = {
         <div class="title-emoji">🐴</div>
         <h1 class="game-title">החווה של אגם</h1>
         <p class="game-sub">לכל חברה יש חווה משלה בעולם!</p>
+        <button class="btn-big btn-play gate-play" id="agGuest">בואי נשחק! ▶</button>
+        <button class="btn-ghost gate-parents" id="agParents">👨‍👩‍👧 להורים: חשבון כדי לשמור ולבקר חברות</button>
+        <div id="parentBox" class="hidden">
         <div class="auth-tabs">
           <button class="auth-tab on" id="tabUp">🌱 חווה חדשה</button>
           <button class="auth-tab" id="tabIn">🔑 כניסה</button>
@@ -97,12 +100,19 @@ const UI = {
           <button class="btn-big btn-play" id="agSignIn">נכנסות! 🐴</button>
         </div>
         <div class="auth-msg" id="agMsg"></div>
-        <button class="btn-ghost auth-guest" id="agGuest">🎮 לשחק בלי חשבון (אורח)</button>
+        <div class="auth-note">חווה שכבר התחלתן לשחק בלי חשבון עוברת לחשבון החדש.</div>
+        </div>
         <p class="credit">נבנה באהבה ע״י אבא 💙</p>
       </div>`;
     this.root.appendChild(s);
     const msg = (t, ok) => { const m = s.querySelector('#agMsg'); m.textContent = t; m.className = 'auth-msg ' + (ok ? 'ok' : 'err'); };
     s.querySelector('#agGuest').onclick = () => { Audio.resume(); Audio.click(); this.handlers.onGuest && this.handlers.onGuest(); };
+    s.querySelector('#agParents').onclick = () => {
+      Audio.click();
+      const box = s.querySelector('#parentBox');
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
     const tabUp = s.querySelector('#tabUp'), tabIn = s.querySelector('#tabIn');
     const formUp = s.querySelector('#formUp'), formIn = s.querySelector('#formIn');
     tabUp.onclick = () => { Audio.click(); tabUp.classList.add('on'); tabIn.classList.remove('on'); formUp.classList.remove('hidden'); formIn.classList.add('hidden'); msg(''); };
@@ -487,12 +497,15 @@ const UI = {
       <button class="fun-opt" id="optQuests">📋 משימות היום</button>
       <button class="fun-opt" id="optSpin">🎡 גלגל המזל</button>
       <button class="fun-opt" id="optRace">🏁 מירוץ סוסים</button>
+      <button class="fun-more" id="optMore">עוד משחקים ⬇</button>
+      <div class="fun-rest hidden" id="funRest">
       <button class="fun-opt" id="optDeliver">🚚 משלוח לשוק</button>
       <button class="fun-opt" id="optContest">🏆 תחרות יופי</button>
       <button class="fun-opt" id="optPhoto">📸 צילום החווה</button>
-      <button class="fun-opt" id="optJournal">📖 יומן הרפתקאות</button></div>`;
+      <button class="fun-opt" id="optJournal">📖 יומן הרפתקאות</button></div></div>`;
     this.root.appendChild(ov);
     ov.querySelector('#funClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.querySelector('#optMore').onclick = (e) => { Audio.click(); e.currentTarget.remove(); ov.querySelector('#funRest').classList.remove('hidden'); };
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
     const close = () => ov.remove();
     ov.querySelector('#optQuests').onclick = () => { Audio.click(); close(); this.openQuests(g); };
@@ -717,6 +730,7 @@ const UI = {
     const vis = ov.querySelector('#visual');
     vis.style.direction = 'ltr';
     vis.innerHTML = this._renderVisual(problem.visual);
+    this._wireCounting(vis);
 
     // אפשרויות
     const ch = ov.querySelector('#choices');
@@ -766,6 +780,22 @@ const UI = {
     const ht = ov.querySelector('#hintText');
     if (ht) { ht.classList.remove('hidden'); }
     if (speak) Audio.speak(problem.hint || '');
+  },
+
+  // "געי ותספרי": כל פריט שלא נמחק מקבל מספר ומוקרא בקול, כך שהרמז באמת עובד.
+  // פריט שכבר נספר רק חוזר על המספר שלו (לא מדלגים ולא סופרים פעמיים).
+  _wireCounting(vis) {
+    const WORDS = ['אחת', 'שתיים', 'שלוש', 'ארבע', 'חמש', 'שש', 'שבע', 'שמונה', 'תשע', 'עשר',
+      'אחת עשרה', 'שתים עשרה', 'שלוש עשרה', 'ארבע עשרה', 'חמש עשרה', 'שש עשרה', 'שבע עשרה', 'שמונה עשרה', 'תשע עשרה', 'עשרים'];
+    let n = 0;
+    vis.querySelectorAll('.em:not(.gone)').forEach(e => {
+      e.classList.add('tap');
+      e.onclick = () => {
+        if (!e.dataset.n) { n++; e.dataset.n = n; e.classList.add('counted'); }
+        const k = Number(e.dataset.n);
+        Audio.speak(WORDS[k - 1] || String(k));
+      };
+    });
   },
 
   _renderVisual(v) {
@@ -820,6 +850,12 @@ const UI = {
       <div class="card settings-card">
         <button class="close" id="setClose">✖</button>
         <h2>⚙️ הגדרות</h2>
+        <div class="set-row"><span>🔊 צלילים</span><button class="toggle" data-key="sound">פעיל</button></div>
+        <div class="set-row"><span>🗣️ קול מקריא</span><button class="toggle" data-key="voice">פעיל</button></div>
+        <div class="set-row"><span>🎵 מוזיקה</span><button class="toggle" data-key="music">פעיל</button></div>
+        <div class="set-row"><span>🌙 יום ולילה</span><button class="toggle" data-key="daynight">פעיל</button></div>
+        <button class="btn-parents" id="parentsBtn">👨‍👩‍👧 להורים ⬇</button>
+        <div class="parent-zone hidden" id="parentZone">
         <div class="set-row"><span>גיל</span>
           <div class="age-pick">
             <button data-age="5">5</button>
@@ -834,16 +870,14 @@ const UI = {
             <button data-diff="hard">מאתגר</button>
           </div>
         </div>
-        <div class="set-row"><span>🔊 צלילים</span><button class="toggle" data-key="sound">פעיל</button></div>
-        <div class="set-row"><span>🗣️ קול מקריא</span><button class="toggle" data-key="voice">פעיל</button></div>
-        <div class="set-row"><span>🎵 מוזיקה</span><button class="toggle" data-key="music">פעיל</button></div>
-        <div class="set-row"><span>🌙 יום ולילה</span><button class="toggle" data-key="daynight">פעיל</button></div>
         <div class="auth-block" id="authBlock"></div>
         <button class="btn-report" id="reportBtn">📊 דוח להורה</button>
         <button class="btn-reset" id="resetBtn">🔄 להתחיל מחדש</button>
+        </div>
       </div>`;
     this.root.appendChild(ov);
     ov.querySelector('#setClose').onclick = () => { Audio.click(); ov.classList.add('hidden'); };
+    ov.querySelector('#parentsBtn').onclick = () => { Audio.click(); ov.querySelector('#parentZone').classList.toggle('hidden'); };
     ov.querySelector('#reportBtn').onclick = () => {
       Audio.click();
       const g = this.handlers.getGame && this.handlers.getGame();
@@ -902,14 +936,14 @@ const UI = {
       Audio.click();
       if (!em() || pw().length < 6) { msg('מלאי אימייל וסיסמה (6+ תווים)'); return; }
       msg('רושמת...', true);
-      try { await Cloud.signUp(em(), pw()); msg('נרשמת! טוען...', true); setTimeout(() => location.reload(), 700); }
+      try { await this.handlers.onAuth.signUp(em(), pw()); msg('נרשמת! טוען...', true); setTimeout(() => location.reload(), 700); }
       catch (e) { msg(this._authErr(e)); }
     };
     box.querySelector('#authIn').onclick = async () => {
       Audio.click();
       if (!em() || !pw()) { msg('מלאי אימייל וסיסמה'); return; }
       msg('נכנסת...', true);
-      try { await Cloud.signIn(em(), pw()); msg('ברוכה הבאה! טוען...', true); setTimeout(() => location.reload(), 700); }
+      try { await this.handlers.onAuth.signIn(em(), pw()); msg('ברוכה הבאה! טוען...', true); setTimeout(() => location.reload(), 700); }
       catch (e) { msg(this._authErr(e)); }
     };
   },

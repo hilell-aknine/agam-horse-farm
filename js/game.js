@@ -73,6 +73,8 @@ const Game = {
   bestStreak: 0,
   solved: 0,
   settings: { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true },
+  mastery: 0,        // שליטה בחשבון (0..8) — מה שמזיז את הקושי
+  recent: [],        // 5 התוצאות האחרונות: 1=ניסיון ראשון, 0=בעזרה
   typeStats: {},     // {type: {c, w}} — דיוק לפי סוג תרגיל
   quests: [],        // משימות היום
   questDate: '',
@@ -90,9 +92,17 @@ const Game = {
   ageBase() { return { 5: 1, 6: 3, 7: 5 }[this.settings.age] || 3; },
   // כוונון-קושי ידני מההגדרות: קל מוריד, מאתגר מעלה (מעל האוטומטי)
   diffOffset() { return { easy: -2, normal: 0, hard: 2 }[this.settings.diff] ?? 0; },
+  // הקושי עולה לפי שליטה אמיתית ולא לפי רמת החווה: רמה עולה גם כשפותרים בעזרה.
+  // 5 הצלחות רצופות בניסיון ראשון → שליטה +1. 3 מתוך 5 האחרונים בעזרה → שליטה -1.
   difficulty() {
-    const d = this.ageBase() + Math.floor(this.level / 2) + this.diffOffset();
+    const d = this.ageBase() + this.mastery + this.diffOffset();
     return Math.max(1, Math.min(12, d));
+  },
+  _updateMastery(firstTry) {
+    this.recent = (this.recent || []).concat(firstTry ? 1 : 0).slice(-5);
+    const helped = this.recent.filter(x => !x).length;
+    if (this.recent.length === 5 && helped === 0) { this.mastery = Math.min(8, this.mastery + 1); this.recent = []; }
+    else if (helped >= 3) { this.mastery = Math.max(0, this.mastery - 1); this.recent = []; }
   },
 
   xpForNext() { return 100; },
@@ -122,6 +132,7 @@ const Game = {
     if (!type) return;
     const s = this.typeStats[type] || (this.typeStats[type] = { c: 0, w: 0 });
     if (correct) s.c++; else s.w++;
+    this._updateMastery(correct);
   },
   weakType() {
     let worst = null, wr = 1;
@@ -215,7 +226,7 @@ const Game = {
         coins: this.coins, xp: this.xp, level: this.level, stars: this.stars,
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
-        typeStats: this.typeStats, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
+        typeStats: this.typeStats, mastery: this.mastery, recent: this.recent, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
         upgrades: this.upgrades, expansion: this.expansion, decorPos: this.decorPos, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
@@ -237,6 +248,9 @@ const Game = {
     this.solved = d.solved ?? 0;
     this.settings = Object.assign({ age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true }, d.settings || {});
     this.typeStats = d.typeStats || {};
+    // שמירה ישנה בלי שליטה: מתחילים מהקושי שהיה לה (רמה/2), והמנגנון יתקן מכאן
+    this.mastery = Number.isFinite(d.mastery) ? d.mastery : Math.min(8, Math.floor((d.level || 1) / 2));
+    this.recent = d.recent || [];
     this.quests = d.quests || [];
     this.questDate = d.questDate || '';
     this.spinDate = d.spinDate || '';
@@ -266,7 +280,7 @@ const Game = {
     this.coins = 40; this.xp = 0; this.level = 1; this.stars = 0;
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
     this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true };
-    this.typeStats = {}; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
+    this.typeStats = {}; this.mastery = 0; this.recent = []; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
     this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }

@@ -34,13 +34,16 @@ const LOCAL_SAVE_KEY = 'agam_farm_v2'; // מפתח השמירה המקומית (
 // מכשיר משותף: אחרי הרשמה/כניסה — אם השמירה המקומית לא שייכת למשתמש הנוכחי
 // (כולל "בעלים לא ידוע" ממשחק-אורח), מוחקים אותה כדי שלא תזלוג לחשבון החדש.
 // הענן ישחזר את החווה האמיתית של המשתמש. תמיד מסמנים בעלות למשתמש הנוכחי.
-function claimDeviceForCurrentUser() {
+// adoptGuest: חשבון *חדש* שנפתח אחרי משחק-אורח מאמץ את חוות האורח (אין לו חווה בענן),
+// במקום למחוק אותה. בכניסה לחשבון קיים עדיין מוחקים — הענן שלו מחזיק את החווה האמיתית.
+function claimDeviceForCurrentUser(adoptGuest = false) {
   if (!Cloud.userId) return;
   let owner = null;
   try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
   let hasLocal = false;
   try { hasLocal = !!localStorage.getItem(LOCAL_SAVE_KEY); } catch (e) {}
-  if (hasLocal && owner !== Cloud.userId) {
+  const guestFarm = hasLocal && !owner;
+  if (hasLocal && owner !== Cloud.userId && !(adoptGuest && guestFarm)) {
     try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
     Game.reset();
   }
@@ -92,7 +95,7 @@ UI.init({
   onAuth: {
     signUp: async (email, pass, name) => {
       await Cloud.signUp(email, pass, name);
-      claimDeviceForCurrentUser();   // מנקה שמירה של חשבון אחר לפני ה-reload
+      claimDeviceForCurrentUser(true);   // חשבון חדש מאמץ חוות-אורח; מנקה רק שמירה של חשבון אחר
     },
     signIn: async (email, pass) => {
       await Cloud.signIn(email, pass);
@@ -109,7 +112,7 @@ function enterGuest() {
   try { localStorage.setItem(GUEST_KEY, '1'); } catch (e) {}
   const gate = document.getElementById('authScreen');
   if (gate) gate.classList.add('hidden');
-  UI.showTitle();
+  startGame();   // ישר למשחק — בלי עוד מסך פתיחה באמצע
 }
 
 // אזור המכלאה — בו חיות המשק משוטטות

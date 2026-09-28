@@ -52,8 +52,8 @@ function maxFor(d) {
 
 // ---- מחוללי תרגילים ----
 
-function genCount() {
-  const n = rnd(2, 9);
+function genCount(d = 1) {
+  const n = d <= 2 ? rnd(2, 5) : d <= 4 ? rnd(2, 7) : rnd(3, 9);   // קודם 2-9 גם בקושי הקל
   const emoji = pick(EMOJIS);
   return {
     type: 'count',
@@ -223,7 +223,7 @@ function genWord(d) {
 const GEN = {
   add: (d) => Math.random() < 0.5 ? genAddVisual(d) : genAddPlain(d),
   sub: (d) => Math.random() < 0.5 ? genSubVisual(d) : genSubPlain(d),
-  count: (d) => genCount(),
+  count: (d) => genCount(d),
   compare: (d) => genCompare(d),
   missing: (d) => genMissing(d),
   neighbor: (d) => genNeighbor(d),
@@ -244,7 +244,7 @@ function generateProblem(difficulty = 1, focusType = null) {
   const push = (fn, w) => { for (let i = 0; i < w; i++) pool.push(fn); };
 
   if (d <= 2) {
-    push(() => genCount(), 3);
+    push(() => genCount(d), 3);
     push(() => genAddVisual(d), 4);
     push(() => genSubVisual(d), 2);
     push(() => genNeighbor(d), 1);
@@ -253,7 +253,7 @@ function generateProblem(difficulty = 1, focusType = null) {
     push(() => genSubVisual(d), 3);
     push(() => genCompare(d), 1);
     push(() => genNeighbor(d), 1);
-    push(() => genCount(), 1);
+    push(() => genCount(d), 1);
   } else if (d <= 7) {
     push(() => genAddVisual(d), 2);
     push(() => genSubVisual(d), 2);
