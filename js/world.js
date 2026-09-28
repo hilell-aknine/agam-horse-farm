@@ -46,7 +46,8 @@ const World = {
     this.controls.minPolarAngle = 0.82;      // לא מסתכלים מלמעלה
     this.controls.maxPolarAngle = 1.28;      // לא רואים שמיים/דשא ריק — החווה תמיד במסגרת
     this.controls.rotateSpeed = 0.55;        // סיבוב עדין — פחות רגיש ללחיצות/גרירות זעירות לא מכוונות
-    this.controls.autoRotate = true;
+    // בלי סיבוב אוטומטי: ילדה בת 6 צריכה עולם יציב, שהסוס יהיה איפה שהיה לפני רגע
+    this.controls.autoRotate = false;
     this.controls.autoRotateSpeed = 0.4;
     this.controls.update();
 
@@ -557,7 +558,7 @@ const World = {
       off.setLength(off.length() + (T.dist - off.length()) * k);
       this.camera.position.copy(tgt).add(off);
     }
-    if (Math.hypot(tgt.x - T.x, tgt.z - T.z) < 0.5) { this._travel = null; this.controls.autoRotate = true; }
+    if (Math.hypot(tgt.x - T.x, tgt.z - T.z) < 0.5) { this._travel = null; }
   },
 
   update() {

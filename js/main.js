@@ -567,7 +567,7 @@ function handleAction(type, horse) {
     const got = grantReward(horse.group.position.clone(), res);
     UI.toast('+' + got + ' 🪙', false);
     saveAll();
-    if (Horses.getById(horse.id)) setTimeout(() => UI.showHorseCard(horse, Game), 200);
+    // לא פותחים שוב את כרטיס הסוס: הוא הסתיר את התגובה של הסוס, שהיא הפרס האמיתי. נגיעה בסוס פותחת אותו מחדש
   }, type === 'grow');
 }
 

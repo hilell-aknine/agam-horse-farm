@@ -197,7 +197,7 @@ const UI = {
       <div class="topbar">
         <div class="stat coins"><span class="ic">🪙</span><span id="coinVal">0</span></div>
         <div class="stat level">
-          <span class="ic">⭐</span><span id="lvlVal">1</span>
+          <span class="ic">⭐</span><span class="lvl-txt">רמה <span id="lvlVal">1</span></span>
           <div class="xpbar"><div class="xpfill" id="xpFill"></div></div>
         </div>
         <div class="stat streak hidden" id="streakBox"><span class="ic">🔥</span><span id="streakVal">0</span></div>
@@ -736,8 +736,9 @@ const UI = {
           Audio.wrong();
           setTimeout(() => b.classList.remove('wrong'), 500);
           if (attempts === 1) {
-            this._showHint(ov, problem);
-            Audio.speak('כמעט! נסי שוב');
+            // משפט אחד: קודם הרמז נקטע מיד ע"י "כמעט! נסי שוב" (speak מבטל את הדיבור הקודם)
+            this._showHint(ov, problem, false);
+            Audio.speak('כמעט! ' + (problem.hint || 'נסי שוב'));
           }
           if (attempts >= 2) {
             // חושפים ומקריאים את התשובה הנכונה — שתלמד, לא תנחש
@@ -753,7 +754,7 @@ const UI = {
       ch.appendChild(b);
     });
 
-    ov.querySelector('#mathClose').onclick = () => { Audio.click(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
+    ov.querySelector('#mathClose').onclick = () => { Audio.click(); Audio.stopSpeak(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
     ov.querySelector('#speakBtn').onclick = () => Audio.speak(problem.speech || problem.question);
     ov.querySelector('#hintBtn').onclick = () => this._showHint(ov, problem);
 
@@ -761,10 +762,10 @@ const UI = {
     Audio.speak(problem.speech || problem.question);
   },
 
-  _showHint(ov, problem) {
+  _showHint(ov, problem, speak = true) {
     const ht = ov.querySelector('#hintText');
     if (ht) { ht.classList.remove('hidden'); }
-    Audio.speak(problem.hint || '');
+    if (speak) Audio.speak(problem.hint || '');
   },
 
   _renderVisual(v) {
