@@ -11,7 +11,7 @@ function el(tag, cls, html) {
 }
 
 const ACTIONS = {
-  feed:    { icon: '🍎', label: 'להאכיל' },
+  feed:    { icon: '🥕', label: 'להאכיל' },
   brush:   { icon: '🧼', label: 'לנקות' },
   play:    { icon: '🎾', label: 'לשחק' },
   grow:    { icon: '🌱', label: 'לגדול' },
@@ -212,6 +212,7 @@ const UI = {
         </div>
         <div class="stat streak hidden" id="streakBox"><span class="ic">🔥</span><span id="streakVal">0</span></div>
         <div class="left-tools">
+          <button class="gear" id="homeBtn" title="חזרה למרכז">🏠</button>
           <button class="gear" id="arrangeBtn" title="לסדר את החווה">🎨</button>
           <button class="gear" id="mapBtn" title="מפה">🗺️</button>
           <button class="gear" id="fsBtn" title="מסך מלא">⛶</button>
@@ -239,6 +240,7 @@ const UI = {
     h.querySelector('#funBtn').onclick = () => { Audio.click(); this.openFun(); };
     h.querySelector('#mapBtn').onclick = () => { Audio.click(); this.handlers.onMap && this.handlers.onMap(); };
     h.querySelector('#arrangeBtn').onclick = () => { Audio.click(); this.handlers.onArrange && this.handlers.onArrange(); };
+    h.querySelector('#homeBtn').onclick = () => { Audio.click(); this.handlers.onHome && this.handlers.onHome(); };
   },
 
   // מצב עיצוב: מדגיש את הכפתור ומראה באנר עם כפתור "סיימתי"
@@ -305,7 +307,7 @@ const UI = {
           ${this._bar('🎾 שמחה', horse.happy)}
         </div>
         <div class="acts">
-          <button class="act" data-act="feed"><span class="act-ic">🍎</span><span class="act-lbl">להאכיל</span></button>
+          <button class="act" data-act="feed"><span class="act-ic">🥕</span><span class="act-lbl">להאכיל</span></button>
           <button class="act" data-act="brush"><span class="act-ic">🧼</span><span class="act-lbl">לנקות</span></button>
           <button class="act" data-act="play"><span class="act-ic">🎾</span><span class="act-lbl">לשחק</span></button>
           ${growBtn}
@@ -699,6 +701,121 @@ const UI = {
       }).catch(() => { const box = ov.querySelector('#mapFarms'); if (box) box.innerHTML = '<div class="map-loading">לא הצלחנו לטעון חוות 😕</div>'; });
     }
     Audio.speak('לאן נוסעים? ואפשר גם לבקר בחוות של חברות');
+  },
+
+  // ---------- משימת העברה: החשבון הוא הפעולה ----------
+  // task: {mode, target, prefilled, scaffold, who:{name,img}, item, itemName, box, verb}
+  // onDone({correct, firstTry, cancelled}) — אותו חוזה כמו askMath
+  askTransfer(task, actionType, onDone) {
+    this._mathOpen = true;
+    const WORDS = ['אחת', 'שתיים', 'שלוש', 'ארבע', 'חמש', 'שש', 'שבע', 'שמונה', 'תשע', 'עשר', 'אחת עשרה', 'שתים עשרה'];
+    const word = (n) => WORDS[n - 1] || String(n);
+    const act = ACTIONS[actionType] || { icon: task.item, label: '' };
+    const { target, prefilled, mode } = task;
+    let attempts = 0, scaffold = task.scaffold, finished = false;
+    const pileN = Math.min(12, Math.max(6, target - prefilled + 3));
+    const ask = mode === 'missing'
+      ? `ב${task.box} יש כבר ${prefilled}. ${task.who.name} רוצה ${target}. כמה עוד?`
+      : `${task.verb} ${target} ${task.itemName}`;
+    const say = mode === 'missing'
+      ? `ב${task.box} יש כבר ${prefilled} ${task.itemName}. ${task.who.name} רוצה ${target}. תוסיפי כמה שחסר`
+      : `${task.verb} ${target} ${task.itemName}. געי ב${task.itemName} אחד אחד`;
+    const ov = el('div', 'overlay math-ov');
+    ov.id = 'mathOv';
+    ov.innerHTML = `
+      <div class="card math-card transfer-card">
+        <button class="close" id="mathClose">✖</button>
+        <div class="math-top">
+          <span class="math-act">${act.icon} ${act.label}</span>
+          <button class="speaker" id="speakBtn" title="שמיעה">🔊</button>
+        </div>
+        <div class="tr-who">
+          ${task.who.img ? `<img class="tr-img" src="${task.who.img}" alt="">` : ''}
+          <div class="tr-bubble">${ask} <span class="tr-big">${task.item}</span></div>
+        </div>
+        <div class="tr-box" id="trBox"><span class="tr-label">${task.box}</span><div class="tr-in" id="trIn"></div></div>
+        <div class="tr-pile" id="trPile"></div>
+        <button class="btn-big btn-play tr-done ${scaffold ? 'hidden' : ''}" id="trDone">✔ זהו!</button>
+        <div class="hint-text hidden" id="trMsg"></div>
+      </div>`;
+    this.root.appendChild(ov);
+    const box = ov.querySelector('#trIn'), pile = ov.querySelector('#trPile'), msg = ov.querySelector('#trMsg');
+    const inBox = () => box.querySelectorAll('.tr-item').length;
+    const added = () => box.querySelectorAll('.tr-item.mine').length;
+
+    const renderSlots = () => {
+      box.querySelectorAll('.tr-slot').forEach(s => s.remove());
+      if (!scaffold) return;
+      for (let i = inBox(); i < target; i++) box.appendChild(el('span', 'tr-slot'));
+    };
+    const item = (mine) => { const b = el('button', 'tr-item' + (mine ? ' mine' : ' pre'), task.item); return b; };
+    for (let i = 0; i < prefilled; i++) box.appendChild(item(false));
+    for (let i = 0; i < pileN; i++) {
+      const b = item(true);
+      b.onclick = () => move(b);
+      pile.appendChild(b);
+    }
+    renderSlots();
+
+    const finish = (ok) => {
+      finished = true; this._mathOpen = false;
+      Audio.success();
+      setTimeout(() => { ov.remove(); onDone && onDone({ correct: true, firstTry: attempts === 0 }); }, 900);
+    };
+
+    function move(b) {
+      if (finished) return;
+      if (b.parentNode === pile) {
+        if (scaffold && inBox() >= target) { Audio.wrong(); Audio.speak('השוקת מלאה'); return; }
+        const slot = box.querySelector('.tr-slot');
+        slot ? box.insertBefore(b, slot) : box.appendChild(b);
+        if (slot) slot.remove();
+        Audio.pop();
+        // עם פיגום סופרים בקול (לומדת לספור); בלי פיגום היא סופרת בעצמה
+        if (scaffold) Audio.speak(word(inBox()));
+        if (scaffold && inBox() === target) finish(true);
+      } else {
+        pile.appendChild(b);
+        Audio.pop();
+        renderSlots();
+      }
+      msg.classList.add('hidden');
+      box.querySelectorAll('.tr-item').forEach(x => delete x.dataset.n);
+    }
+
+    ov.querySelector('#trDone').onclick = () => {
+      if (finished) return;
+      Audio.click();
+      const n = inBox();
+      if (n === target) { finish(true); return; }
+      attempts++;
+      Audio.wrong();
+      // מראים את הספירה על הפריטים עצמם — לומדים מהטעות, לא מקבלים ציון
+      box.querySelectorAll('.tr-item').forEach((x, i) => { x.dataset.n = i + 1; });
+      const diff = Math.abs(n - target);
+      const fix = n > target ? (diff === 1 ? 'צריך להחזיר אחד' : `צריך להחזיר ${diff}`)
+                             : (diff === 1 ? 'חסר עוד אחד' : `חסרים עוד ${diff}`);
+      msg.innerHTML = `יש כאן <b>${n}</b>. ${task.who.name} רוצה <b>${target}</b>. ${fix}`;
+      msg.classList.remove('hidden');
+      Audio.speak(`יש כאן ${n}. ${task.who.name} רוצה ${target}. ${fix}`);
+      if (attempts >= 2 && !scaffold) {
+        // אחרי שתי טעויות: משבצות מסומנות, והמשימה הופכת להתאמה אחד-לאחד
+        scaffold = true;
+        while (inBox() > target) { const x = box.querySelector('.tr-item.mine:last-of-type') || [...box.querySelectorAll('.tr-item.mine')].pop(); if (!x) break; pile.appendChild(x); }
+        renderSlots();
+        ov.querySelector('#trDone').classList.add('hidden');
+        if (inBox() === target) finish(true);
+      }
+    };
+    ov.querySelector('#mathClose').onclick = () => { Audio.click(); Audio.stopSpeak(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
+    ov.querySelector('#speakBtn').onclick = () => Audio.speak(say);
+    Audio.speak(say);
+  },
+
+  // הדגשה חיה של כפתור (הדרכה): מהבהב עד שנוגעים בו
+  pulse(selector) {
+    const b = document.querySelector(selector);
+    if (b) b.classList.add('tut-pulse');
   },
 
   // ---------- חלון תרגיל חשבון ----------

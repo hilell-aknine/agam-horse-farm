@@ -45,7 +45,10 @@ const World = {
     this.controls.maxDistance = 30;          // לא מתרחקים עד שהחווה נעשית זעירה
     this.controls.minPolarAngle = 0.82;      // לא מסתכלים מלמעלה
     this.controls.maxPolarAngle = 1.28;      // לא רואים שמיים/דשא ריק — החווה תמיד במסגרת
-    this.controls.rotateSpeed = 0.55;        // סיבוב עדין — פחות רגיש ללחיצות/גרירות זעירות לא מכוונות
+    this.controls.rotateSpeed = 0.55;
+    // סיבוב מוגבל לצדדים (±40°): אפשר להציץ, אי אפשר ללכת לאיבוד מאחורי הרפת
+    this.controls.minAzimuthAngle = -0.7;
+    this.controls.maxAzimuthAngle = 0.7;        // סיבוב עדין — פחות רגיש ללחיצות/גרירות זעירות לא מכוונות
     // בלי סיבוב אוטומטי: ילדה בת 6 צריכה עולם יציב, שהסוס יהיה איפה שהיה לפני רגע
     this.controls.autoRotate = false;
     this.controls.autoRotateSpeed = 0.4;

@@ -273,4 +273,14 @@ function generateProblem(difficulty = 1, focusType = null) {
   return _mark(pick(pool)());
 }
 
-export { generateProblem };
+// משימת "העברה": במקום שאלה לפני הפעולה, החשבון הוא הפעולה עצמה (להעביר בדיוק N גזרים לשוקת).
+// d<=2: משבצות מסומנות (התאמה אחד-לאחד) · d<=5: לספור לבד ולהגיד "זהו" · d>=6: להשלים עד N (מה חסר).
+function makeTransferTask(difficulty = 1) {
+  const d = Math.max(1, Math.min(12, Math.round(difficulty)));
+  if (d <= 2) return { mode: 'count', type: 'count', target: rnd(2, 5), prefilled: 0, scaffold: true };
+  if (d <= 5) return { mode: 'count', type: 'count', target: rnd(3, d <= 3 ? 7 : 9), prefilled: 0, scaffold: false };
+  const target = rnd(5, Math.min(12, maxFor(d)));
+  return { mode: 'missing', type: 'missing', target, prefilled: rnd(1, target - 2), scaffold: false };
+}
+
+export { generateProblem, makeTransferTask };

@@ -7,7 +7,7 @@ import { Cloud } from './cloud.js';
 import { UI } from './ui.js';
 import { Game, CROPS, SHOP } from './game.js';
 import { Audio } from './audio.js';
-import { generateProblem } from './math.js';
+import { generateProblem, makeTransferTask } from './math.js';
 import { createContest } from './contest.js';
 import { createDelivery } from './delivery.js';
 import { createPhoto } from './photo.js';
@@ -80,6 +80,7 @@ UI.init({
   onContest: () => Mini.contest.open(),
   onPhoto: () => Mini.photo.take(),
   onArrange: () => toggleArrange(),
+  onHome: () => { const a = AREAS.find(x => x.id === currentArea); if (a) World.travelTo(a.x, a.z); },
   onMap: () => UI.openMap(AREAS, currentArea, travelToArea, {
     canVisit: Cloud.loggedIn(),
     loadFarms: () => Cloud.listFarms(),
@@ -507,7 +508,53 @@ function startGame() {
   UI.setLocation('🏡', 'החווה');
   if (Game.settings.music) { Audio.musicOn = true; Audio.startMusic(); }
   UI.setTip('👆 געי בסוס או בשדה · 🛒 לחנות');
+  Tutorial.start();
 }
+
+// ---------- 60 השניות הראשונות: הדרכה קולית בלי קריאה ----------
+// סוס → האכלה (משימת גזרים) → שדה → שתילה. כל שלב מחכה לילדה, אין שעון.
+const Tutorial = {
+  step: null, _timer: null,
+  start() {
+    if (Game.tutorialDone || Game.visiting || !Horses.list.length) return;
+    this.step = 'horse';
+    const h = Horses.list[0];
+    World.travelTo(h.group.position.x, h.group.position.z, 16);
+    UI.setTip('👇 געי ב' + h.name);
+    setTimeout(() => Audio.speak('בואי נכיר את ' + h.name + '. געי ב' + h.name), 600);
+    this._point(() => h.group.position);
+  },
+  // חץ קופץ מעל היעד כל שתי שניות וחצי, עד שהשלב מתקדם
+  _point(getPos) {
+    clearInterval(this._timer);
+    const show = () => { const p = getPos(); if (p) World.showAction({ x: p.x, y: p.y || 0, z: p.z }, '👇'); };
+    show(); this._timer = setInterval(show, 2500);
+  },
+  horseOpened(horse) {
+    if (this.step !== 'horse') return;
+    this.step = 'feed';
+    clearInterval(this._timer);
+    UI.pulse('#horseCard [data-act="feed"]');
+    Audio.speak(horse.name + ' רעב. געי בגזר ונאכיל אותו');
+  },
+  fed() {
+    if (this.step !== 'feed') return;
+    const plot = Fields.freePlot();
+    if (!plot) { this.finish(); return; }
+    this.step = 'plant';
+    World.travelTo(plot.pos.x, plot.pos.z, 16);   // השדה יוצא מהמסגרת כשהמצלמה על הסוס
+    UI.setTip('👇 געי בשדה');
+    setTimeout(() => Audio.speak('איזה כיף, הוא שבע! עכשיו נשתול. געי בשדה'), 1400);
+    this._point(() => plot.state === 'empty' ? plot.pos : null);
+  },
+  planted() { if (this.step === 'plant') this.finish(); },
+  finish() {
+    clearInterval(this._timer); this.step = null;
+    Game.tutorialDone = true; saveAll();
+    UI.setTip('👆 געי בסוס או בשדה · 🛒 לחנות');
+    setTimeout(() => Audio.speak('מעולה! עכשיו זו החווה שלך. אפשר לטפל בסוסים, לשתול, ולקנות בחנות'), 1600);
+  }
+};
 
 // מעדכן התקדמות משימה ומתריע על השלמה
 function questBump(action) {
@@ -540,9 +587,18 @@ function grantReward(pos, res) {
 }
 
 // פותח תרגיל עם קושי מותאם (35% מהזמן מחזק את הסוג החלש), ומתעד את התוצאה
-function askProblem(actionType, onCorrect, harder) {
+// task: {who, item, itemName, box, verb} — כשניתן, החשבון הוא הפעולה עצמה (משימת העברה).
+// 25% מהזמן, או כשמחזקים סוג חלש, נשאר תרגיל רגיל — כדי לא לאבד תרגול חיבור/חיסור.
+function askProblem(actionType, onCorrect, harder, task) {
   if (Game.visiting) { visitBlock(); return; }
   const focus = Math.random() < 0.35 ? Game.weakType() : null;
+  if (task && !focus && (!Game.tutorialDone || Math.random() < 0.75)) {
+    const t = Object.assign(makeTransferTask(Game.difficulty() + (harder ? 1 : 0)), task);
+    UI.askTransfer(t, actionType, (res) => {
+      if (res.correct) { Game.recordResult(t.type, res.firstTry); questBump('solve'); onCorrect(res); }
+    });
+    return;
+  }
   const problem = generateProblem(Game.difficulty() + (harder ? 1 : 0), focus);
   UI.askMath(problem, actionType, (res) => {
     if (res.correct) { Game.recordResult(problem.type, res.firstTry); questBump('solve'); onCorrect(res); }
@@ -553,6 +609,9 @@ function askProblem(actionType, onCorrect, harder) {
 // ---------- טיפול בסוס ----------
 function handleAction(type, horse) {
   UI.closeHorseCard();
+  const task = type === 'feed'
+    ? { who: { name: horse.name, img: horse._tex() }, item: '🥕', itemName: 'גזרים', box: 'שוקת', verb: 'תני ל' + horse.name }
+    : null;
   askProblem(type, (res) => {
     if (type === 'feed') { horse.hunger = 100; horse.feedCount++; }
     else if (type === 'brush') { horse.clean = 100; }
@@ -563,15 +622,16 @@ function handleAction(type, horse) {
     horse.celebrate();
     const fx = { feed: 'apple', brush: 'bubble', play: 'ball', grow: 'sparkle' }[type] || 'heart';
     // פידבק ויזואלי מומחש — אמוji ענק של הפעולה קופץ ליד הסוס
-    const bigIcon = { feed: '🍎', brush: '🧼', play: '🎾', grow: '🌟' }[type] || '❤️';
+    const bigIcon = { feed: '🥕', brush: '🧼', play: '🎾', grow: '🌟' }[type] || '❤️';
     World.showAction(horse.group.position.clone(), bigIcon);
     World.spawnParticles(horse.group.position.clone(), fx, 12);
     questBump(type);
     const got = grantReward(horse.group.position.clone(), res);
     UI.toast('+' + got + ' 🪙', false);
     saveAll();
+    if (type === 'feed') Tutorial.fed();
     // לא פותחים שוב את כרטיס הסוס: הוא הסתיר את התגובה של הסוס, שהיא הפרס האמיתי. נגיעה בסוס פותחת אותו מחדש
-  }, type === 'grow');
+  }, type === 'grow', task);
 }
 
 // ---------- חנות ----------
@@ -835,6 +895,7 @@ function handlePlot(plot) {
 function startPlant(plot, cropKey) {
   const def = CROPS[cropKey];
   if (!Game.canAfford(def.seedCost)) { notEnough(def.seedCost); return; }
+  const task = { who: { name: 'השדה', img: 'assets/' + def.asset }, item: '🌱', itemName: 'זרעים', box: 'ערוגה', verb: 'שתלי' };
   askProblem('plant', (res) => {
     if (!Game.spend(def.seedCost)) return;
     plot.plant(Object.assign({ key: cropKey }, def), nowMs());
@@ -845,7 +906,8 @@ function startPlant(plot, cropKey) {
     UI.toast('🌱 שתלת ' + def.name + '!', false);
     grantReward({ x: plot.pos.x, y: 1, z: plot.pos.z }, res);
     saveAll();
-  });
+    Tutorial.planted();
+  }, false, task);
 }
 
 function startHarvest(plot) {
@@ -918,7 +980,11 @@ function dragPlacedTo(clientX, clientY) {
 
 // ---------- בחירה (הקלקה/נגיעה, להבדיל מגרירת מצלמה) ----------
 let downX = 0, downY = 0, downT = 0;
+const activePointers = new Set(); let multiTouch = false;
 canvas.addEventListener('pointerdown', (e) => {
+  activePointers.add(e.pointerId);
+  if (activePointers.size > 1) multiTouch = true;     // צביטה לזום — לא נגיעה
+  else multiTouch = false;
   downX = e.clientX; downY = e.clientY; downT = performance.now();
   if (arrangeMode) {
     const hit = World.pickAmong(e.clientX, e.clientY, movableSprites);
@@ -928,19 +994,22 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   if (arrangeMode && dragging) { e.preventDefault(); dragPlacedTo(e.clientX, e.clientY); }
 }, { passive: false });
+canvas.addEventListener('pointercancel', (e) => activePointers.delete(e.pointerId));
 canvas.addEventListener('pointerup', (e) => {
+  activePointers.delete(e.pointerId);
+  if (multiTouch) { if (!activePointers.size) multiTouch = false; return; }
   if (arrangeMode) {
     if (dragging) { dragging = null; saveAll(); Audio.pop(); }
     return;   // במצב עיצוב אין פעולות-נגיעה רגילות
   }
   const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
   const dt = performance.now() - downT;
-  if (moved < 12 && dt < 450) {
+  if (moved < 14 && dt < 900) {   // ילדה לוחצת לאט — 450ms פספס לחיצות מכוונות
     Audio.resume();
     const hit = World.pickAt(e.clientX, e.clientY);
     if (!hit) return;
     const ud = hit.object.userData;
-    if (ud.horse) { Audio.animalSound('horse'); ud.horse.celebrate(); UI.showHorseCard(ud.horse, Game); }
+    if (ud.horse) { Audio.animalSound('horse'); ud.horse.celebrate(); UI.showHorseCard(ud.horse, Game); Tutorial.horseOpened(ud.horse); }
     else if (ud.plot) { Audio.pop(); handlePlot(ud.plot); }
     else if (ud.animal) { Audio.animalSound(ud.animal.type); ud.animal.celebrate(); handleAnimal(ud.animal); }
     else if (ud.magictree) { Audio.pop(); harvestTree(); }

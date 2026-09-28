@@ -73,6 +73,7 @@ const Game = {
   bestStreak: 0,
   solved: 0,
   settings: { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true },
+  tutorialDone: false, // הדרכת 60 השניות הראשונות
   mastery: 0,        // שליטה בחשבון (0..8) — מה שמזיז את הקושי
   recent: [],        // 5 התוצאות האחרונות: 1=ניסיון ראשון, 0=בעזרה
   typeStats: {},     // {type: {c, w}} — דיוק לפי סוג תרגיל
@@ -226,7 +227,7 @@ const Game = {
         coins: this.coins, xp: this.xp, level: this.level, stars: this.stars,
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
-        typeStats: this.typeStats, mastery: this.mastery, recent: this.recent, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
+        typeStats: this.typeStats, tutorialDone: this.tutorialDone, mastery: this.mastery, recent: this.recent, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
         upgrades: this.upgrades, expansion: this.expansion, decorPos: this.decorPos, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
@@ -251,6 +252,8 @@ const Game = {
     // שמירה ישנה בלי שליטה: מתחילים מהקושי שהיה לה (רמה/2), והמנגנון יתקן מכאן
     this.mastery = Number.isFinite(d.mastery) ? d.mastery : Math.min(8, Math.floor((d.level || 1) / 2));
     this.recent = d.recent || [];
+    // שחקנית ותיקה לא צריכה הדרכה
+    this.tutorialDone = d.tutorialDone ?? ((d.level || 1) > 1 || (d.solved || 0) > 0);
     this.quests = d.quests || [];
     this.questDate = d.questDate || '';
     this.spinDate = d.spinDate || '';
@@ -280,7 +283,7 @@ const Game = {
     this.coins = 40; this.xp = 0; this.level = 1; this.stars = 0;
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
     this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true };
-    this.typeStats = {}; this.mastery = 0; this.recent = []; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
+    this.typeStats = {}; this.tutorialDone = false; this.mastery = 0; this.recent = []; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
     this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }
