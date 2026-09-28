@@ -1,6 +1,7 @@
 // world.js — עולם תלת-ממד: רנדרר, מצלמה, אור, שמיים, קרקע, גדר, תפאורה, חלקיקים, בחירה
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Models3D } from './models3d.js';
 
 const World = {
   renderer: null, scene: null, camera: null, controls: null,
@@ -26,6 +27,7 @@ const World = {
     this.maxAniso = this.renderer.capabilities.getMaxAnisotropy();
 
     this.scene = new THREE.Scene();
+    Models3D.scene = this.scene;
     this.clock = new THREE.Clock();
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -285,6 +287,7 @@ const World = {
     const sp = new THREE.Sprite(mat);
     sp.center.set(0.5, 0.0);
     sp.scale.set(height, height, 1);
+    Models3D.attach(sp, url, height);   // יש מודל תלת-ממדי לציור הזה? הוא יחליף אותו
     return sp;
   },
 
@@ -571,6 +574,7 @@ const World = {
     this.controls.update();
     this._updateDayNight(dt);
     this._updateWeather(dt);
+    Models3D.sync(dt);
 
     // עננים נעים
     for (const cl of this.clouds) {

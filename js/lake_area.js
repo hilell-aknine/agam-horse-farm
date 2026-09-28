@@ -135,10 +135,11 @@ export function buildLake(deps) {
   // ===== 7) אנימציית רקע עדינה: אדוות מים, נדנוד סירה ומרקרי דיג =====
   deps.onUpdate((t, dt) => {
     // אדווה עדינה: פעימת קנה-מידה קלה של טלאי המים
+    // (באג ישן: scale.x=1 דרס את רוחב האגם ל-2 יחידות — פס כחול דק. מכפילים את הגודל המקורי.)
     if (water && water.scale) {
-      const ripple = 1 + Math.sin(t * 1.2) * 0.012;
-      water.scale.x = ripple;
-      water.scale.z = 1 + Math.cos(t * 1.0) * 0.012;
+      water.userData.base ??= { x: water.scale.x, y: water.scale.y };
+      water.scale.x = water.userData.base.x * (1 + Math.sin(t * 1.2) * 0.012);
+      water.scale.y = water.userData.base.y * (1 + Math.cos(t * 1.0) * 0.012);
     }
     // הסירה עולה ויורדת בעדינות עם הגלים
     if (boat) boat.position.y = boatBaseY + Math.sin(t * 1.5) * 0.12;

@@ -215,7 +215,7 @@ class Horse {
 
 const Horses = {
   list: [],
-  pilot3D: 1,   // כמה סוסים ראשונים מקבלים מודל תלת-ממדי (ניסיון: רק הראשון)
+  pilot3D: Infinity,   // כל הסוסים תלת-ממדיים (הניסיון עם סוס אחד אושר)
   add(opts) { const h = new Horse(opts); this.list.push(h); if (this.list.length <= this.pilot3D) h.enable3D(); return h; },
   remove(h) { const i = this.list.indexOf(h); if (i >= 0) this.list.splice(i, 1); h.dispose(); },
   getById(id) { return this.list.find(h => h.id === id); },

@@ -76,7 +76,7 @@ class Horse3D {
     s.position.y = -box.min.y * k;
   }
 
-  // סגנון מצויר: צביעה בשלושה גוונים שטוחים (toon) + קו מתאר כהה, כדי שהסוס ישב טוב ליד הציורים
+  // צביעה לפי צבע הסוס במשחק
   _paint() {
     const c = this.horse.color;
     this.root.traverse(o => {
@@ -87,10 +87,12 @@ class Horse3D {
         if (m.name === 'Main') col = BODY[c] ?? BODY.brown;
         else if (m.name === 'Main_Light') col = new THREE.Color(BODY[c] ?? BODY.brown).offsetHSL(0, -0.05, 0.12).getHex();
         else if (m.name === 'Hair') col = HAIR[c] ?? HAIR.brown;
-        return new THREE.MeshToonMaterial({ color: col, gradientMap: toonRamp(), name: m.name });
+        // מט, כמו שאר מודלי העולם (אותו יוצר, אותו סגנון)
+        const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.85, metalness: 0, name: m.name });
+        mat.emissive.copy(mat.color).multiplyScalar(0.32);   // כמו שאר המודלים (models3d.js)
+        return mat;
       });
       o.material = out.length === 1 ? out[0] : out;
-      if (o.isSkinnedMesh) this._outline(o);
     });
   }
 
