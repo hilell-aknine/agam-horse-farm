@@ -620,6 +620,7 @@ function handleAction(type, horse) {
       if (horse.grow()) { UI.toast('🎉 ' + horse.name + ' גדל/ה!', true); Audio.fanfare(); }
     }
     horse.celebrate();
+    if (type === 'feed') horse.eat();
     const fx = { feed: 'apple', brush: 'bubble', play: 'ball', grow: 'sparkle' }[type] || 'heart';
     // פידבק ויזואלי מומחש — אמוji ענק של הפעולה קופץ ליד הסוס
     const bigIcon = { feed: '🥕', brush: '🧼', play: '🎾', grow: '🌟' }[type] || '❤️';

@@ -1,5 +1,6 @@
 // horses.js — סוסים: שלטים בעברית, תנועה חופשית, סטטיסטיקות, גדילה
 import { World, THREE } from './world.js';
+import { Horse3D } from './horse3d.js';
 
 const NAMES = ['כוכב', 'ברק', 'סוכר', 'ענן', 'פרח', 'יהלום', 'נסיכה', 'אלוף',
   'דבש', 'תות', 'שלג', 'זהבה', 'רוח', 'נמר', 'מלכה', 'אגוז', 'קפיץ', 'חלום'];
@@ -115,13 +116,29 @@ class Horse {
     this._curTex = this._tex();
     this.sprite.scale.set(this._height(), this._height(), 1);
     this.label.position.y = this._height() + 0.6;
+    if (this.h3d) { this.h3d.grow(); this._placeLabel3D(); }
     this.shadow.scale.set(this._height() * 0.42 * 2 / 3.2, 1, this._height() * 0.42 * 2 / 3.2);
     return true;
   }
 
   mood() { return Math.round((this.hunger + this.happy + this.clean) / 3); }
 
-  celebrate() { this._hop = 0.6; }   // קפיצת-שמחה
+  celebrate() { this._hop = 0.6; if (this.h3d) this.h3d.once('jump'); }   // קפיצת-שמחה
+  // האכלה: בסוס תלת-ממדי — מוריד את הראש ואוכל; בציור — קפיצת שמחה כמו קודם
+  eat() { if (this.h3d) this.h3d.once('eat', 3.2); else this.celebrate(); }
+
+  // מחליף את הציור השטוח בסוס תלת-ממדי. הציור נשאר שקוף בשביל הנגיעה (אותו אזור לחיצה).
+  enable3D() {
+    if (this.h3d) return;
+    this.h3d = new Horse3D(this);
+    this.h3d.init().then(() => {
+      this.sprite.material.opacity = 0;
+      this.sprite.material.depthWrite = false;
+      if (this.shadow) this.shadow.visible = false;   // למודל יש צל אמיתי מהשמש
+      this._placeLabel3D();
+    }).catch(() => { this.h3d = null; });              // אין מודל → נשארים עם הציור
+  }
+  _placeLabel3D() { this.label.position.y = (this.stage === 'adult' ? 3.8 : 3.8 * 0.72) + 0.8; }
 
   update(dt) {
     // דעיכת סטטיסטיקות איטית — עם רצפה גבוהה כדי שהסוס לעולם לא ייראה מוזנח (ללא תחושת כישלון)
@@ -147,6 +164,7 @@ class Horse {
     }
     this._sleeping = sleeping;
     this._moving = moving;
+    if (this.h3d) this.h3d.update(dt, { moving, sleeping, dir: moving ? to : null });
 
     // קפיצה עדינה + נשימה + כיוון פנים + קפיצת-שמחה
     this.phase += dt * 3;
@@ -197,7 +215,8 @@ class Horse {
 
 const Horses = {
   list: [],
-  add(opts) { const h = new Horse(opts); this.list.push(h); return h; },
+  pilot3D: 1,   // כמה סוסים ראשונים מקבלים מודל תלת-ממדי (ניסיון: רק הראשון)
+  add(opts) { const h = new Horse(opts); this.list.push(h); if (this.list.length <= this.pilot3D) h.enable3D(); return h; },
   remove(h) { const i = this.list.indexOf(h); if (i >= 0) this.list.splice(i, 1); h.dispose(); },
   getById(id) { return this.list.find(h => h.id === id); },
   update(dt) { for (const h of this.list) h.update(dt); },
