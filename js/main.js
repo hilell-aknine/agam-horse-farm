@@ -522,7 +522,8 @@ const Tutorial = {
     const h = Horses.list[0];
     World.travelTo(h.group.position.x, h.group.position.z, 16);
     UI.setTip('👇 געי ב' + h.name);
-    setTimeout(() => Audio.speak('בואי נכיר את ' + h.name + '. געי ב' + h.name), 600);
+    // מדברים מיד, בתוך הנגיעה על "בואי נשחק" — באייפון דיבור שמגיע באיחור בלי נגיעה נחסם
+    Audio.speak('בואי נכיר את ' + h.name + '. געי ב' + h.name);
     this._point(() => h.group.position);
   },
   // חץ קופץ מעל היעד כל שתי שניות וחצי, עד שהשלב מתקדם
