@@ -990,6 +990,7 @@ const UI = {
         <div class="auth-block" id="authBlock"></div>
         <button class="btn-report" id="reportBtn">📊 דוח להורה</button>
         <button class="btn-reset" id="resetBtn">🔄 להתחיל מחדש</button>
+        <a class="credits-link" href="assets/models/CREDITS.txt" target="_blank" rel="noopener">🧩 קרדיטים למודלים התלת-ממדיים (Quaternius ואחרים)</a>
         </div>
       </div>`;
     this.root.appendChild(ov);

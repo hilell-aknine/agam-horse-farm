@@ -4,9 +4,7 @@ horse.glb — Horse, Animated Animal Pack by Quaternius — https://poly.pizza/m
 cow.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/26zM1outCr
 sheep.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/C39AUXUUes
 pig.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/TNvG3QUFlp
-goat.glb — None (None) — None
 chicken.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/ineV9pU5VL
-duck.glb — None (None) — None
 rabbit.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/mKev485XTR
 cat.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/qKICY6xla2
 dog.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/wcWiuEqwzq
@@ -14,7 +12,6 @@ fox.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/Bc97C66HKi
 deer.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/T6Cs7tmMHJ
 turkey.glb — Kenney (CC0) — https://poly.pizza/m/oFnmWN5dCb
 peacock.glb — None (None) — None
-penguin.glb — None (None) — None
 tree.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/QVOop92WmG
 oak_tree.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/9nvGuZlbpE
 pine_tree.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/rfnxJv0Rqa
@@ -33,11 +30,8 @@ silo.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/5GhLrv5Ce3
 windmill.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/89dsFYAoX1
 well.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/QlqncKYxXb
 hay_bale.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/Yu8TOERkpw
-trough.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/XVB8vUbnZb
 water_bucket.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/83obI9bNun
-watering_can.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/KpxDpidn1Z
 feed_sack.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/VRfAODZ0Xk
-scarecrow.glb — None (None) — None
 weathervane.glb — None (None) — None
 doghouse.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/YlADpCJU8U
 farm_gate.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/JfSPlkPhRD
@@ -47,15 +41,23 @@ bench.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/jLxjFxFRpw
 lamp_post.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/Bq1Qj4DAre
 cone.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/lAx8JytxGD
 cottage.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/he3p42mUTH
-bakery.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/x3ZcGn3jr4
-balloons.glb — None (None) — None
 gem.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/PJnKvWluqs
 carrot.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/l4YmYv8hFK
 wheat.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/lPspzfC8Pu
-strawberry.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/TSbIxkDtxF
 corn.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/IhhB7kGaAQ
 pumpkin.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/bvLvqnU1jX
 apple.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/3VXWnjDOEw
 shopkeeper.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/7pn3R6hPvE
-vet.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/JFrLIKqvCH
-baker.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/Yg2bQZO6Hj
+
+# Added 2026-09-29 (CC-BY requires credit — keep this list with the game)
+goat.glb — jeremy (CC-BY 3.0) — https://poly.pizza/m/c5VKFNc_wsz
+duck.glb — jeremy (CC-BY 3.0) — https://poly.pizza/m/2KHEgw1ztVI
+penguin.glb — jeremy (CC-BY 3.0) — https://poly.pizza/m/9Ift-39Akov
+scarecrow.glb — Poly by Google (CC-BY 3.0) — https://poly.pizza/m/7qFs_DjjuVp
+balloons.glb — Jarlan Perez (CC-BY 3.0) — https://poly.pizza/m/eRag_AC3KiS
+trough.glb — Oliver Herklotz (CC-BY 3.0) — https://poly.pizza/m/eWOPxWJkqL3
+watering_can.glb — CreativeTrio (CC0 1.0) — https://poly.pizza/m/b2R90QehIt
+bakery.glb — Zsky (CC-BY 3.0) — https://poly.pizza/m/wLLO1TC0hy
+strawberry.glb — Kenney (CC0 1.0) — https://poly.pizza/m/xT1XIhtdju
+vet.glb — jeremy (CC-BY 3.0) — https://poly.pizza/m/0N-0gZmlVOb
+baker.glb — J-Toastie (CC-BY 3.0) — https://poly.pizza/m/6cjgeTS8Pl

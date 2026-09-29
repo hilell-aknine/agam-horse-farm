@@ -136,8 +136,17 @@ class Horse3D {
     this.mixer.update(dt);
     if (this.oneShot > 0) { this.oneShot -= dt; }
     else if (sleeping) this.play('sleep', 0.6);
-    else if (moving) this.play('walk');
-    else this.play('idle');
+    else if (moving) { this.play('walk'); this.idleFor = 0; }
+    else {
+      this.play('idle');
+      // חיים בעמידה: מדי כמה שניות הסוס מלחך דשא או מחליף תנוחה
+      this.idleFor = (this.idleFor || 0) + dt;
+      this.nextExtra ??= 3 + Math.random() * 6;
+      if (this.idleFor > this.nextExtra) {
+        this.idleFor = 0; this.nextExtra = 5 + Math.random() * 9;
+        this.once(Math.random() < 0.6 ? 'eat' : 'idle2');
+      }
+    }
     // פונה לכיוון ההליכה, בסיבוב רך
     if (moving && dir && (dir.x || dir.z)) {
       const want = Math.atan2(dir.x, dir.z);

@@ -17,20 +17,24 @@ const HORSE_BROWN = { Main: 0x9a5b2e, Main_Light: 0xc08a5c, Hair: 0x4a2a17, Muzz
 const ANIM = { idle: 'Idle', walk: 'Walk' };
 const MANIFEST = {
   // --- חיות (שלד + אנימציות) ---
-  'cow.png':      { file: 'cow.glb', fit: 0.8, anim: ANIM },
-  'sheep.png':    { file: 'sheep.glb', fit: 0.75, anim: ANIM },
-  'pig.png':      { file: 'pig.glb', fit: 0.7, anim: ANIM },
-  'chicken.png':  { file: 'chicken.glb', fit: 1.0, anim: ANIM },
-  'rabbit.png':   { file: 'rabbit.glb', fit: 1.0, anim: ANIM },
-  'cat.png':      { file: 'cat.glb', fit: 1.0, anim: ANIM },
-  'dog.png':      { file: 'dog.glb', fit: 0.95, anim: ANIM },
-  'fox.png':      { file: 'fox.glb', fit: 0.75, anim: ANIM },
-  'deer.png':     { file: 'deer.glb', fit: 0.85, anim: ANIM },
+  'cow.png':      { file: 'cow.glb', fit: 0.8, anim: ANIM, react: ['Jump_toIdle'], extra: ['Eating', 'Idle_Headlow', 'Idle_2'] },
+  'sheep.png':    { file: 'sheep.glb', fit: 0.75, anim: ANIM, react: ['Jump'], extra: ['Jump'] },
+  'pig.png':      { file: 'pig.glb', fit: 0.7, anim: ANIM, react: ['Jump'], extra: ['Jump'] },
+  'chicken.png':  { file: 'chicken.glb', fit: 1.0, anim: ANIM, react: ['Dance', 'Yes', 'Jump'], extra: ['Yes'] },
+  'rabbit.png':   { file: 'rabbit.glb', fit: 1.0, anim: ANIM, react: ['Jump'], extra: ['Jump'] },
+  'cat.png':      { file: 'cat.glb', fit: 1.0, anim: ANIM, react: ['Idle_Eating'], extra: ['Idle_Eating'] },
+  'dog.png':      { file: 'dog.glb', fit: 0.95, anim: ANIM, react: ['Jump_ToIdle', 'Gallop_Jump'], extra: ['Idle_2', 'Idle_2_HeadLow', 'Eating'] },
+  'fox.png':      { file: 'fox.glb', fit: 0.75, anim: ANIM, react: ['Jump_ToIdle'], extra: ['Idle_2', 'Idle_2_HeadLow'] },
+  'deer.png':     { file: 'deer.glb', fit: 0.85, anim: ANIM, react: ['Jump_toIdle'], extra: ['Eating', 'Idle_Headlow', 'Idle_2'] },
   'turkey.png':   { file: 'turkey.glb', fit: 0.75 },
+  // בלי אנימציות: כשהן זזות הן קופצות ופונות לכיוון (ראו sync)
+  'goat.png':     { file: 'goat.glb', fit: 0.8, colors: { '455A64': 0xf2ede2 } },
+  'duck.png':     { file: 'duck.glb', fit: 0.7 },
+  'penguin.png':  { file: 'penguin.glb', fit: 0.8 },
   // --- דמויות ---
-  'shopkeeper.png': { file: 'shopkeeper.glb', fit: 0.85, anim: ANIM },
-  'npc_vet.png':    { file: 'vet.glb', fit: 0.85, anim: ANIM },
-  'npc_baker.png':  { file: 'baker.glb', fit: 0.85, anim: ANIM },
+  'shopkeeper.png': { file: 'shopkeeper.glb', fit: 0.85, anim: ANIM, react: ['Wave'], extra: ['Interact'] },
+  'npc_vet.png':    { file: 'vet.glb', fit: 0.85 },   // רופאה עם סטטוסקופ (בלי שלד — עומדת במקום בכפר)
+  'npc_baker.png':  { file: 'baker.glb', fit: 0.85, anim: ANIM, react: ['Jump'] },
   // --- טבע ---
   'tree.png':         { file: 'tree.glb', fit: 0.95, spin: true, sway: true },
   'oak_tree.png':     { file: 'oak_tree.glb', fit: 0.95, spin: true, sway: true },
@@ -51,7 +55,7 @@ const MANIFEST = {
   'hay_bale.png':     { file: 'hay_bale.glb', fit: 0.7, spin: true },
   'trough.png':       { file: 'trough.glb', fit: 0.7 },
   'water_bucket.png': { file: 'water_bucket.glb', fit: 0.7 },
-  'watering_can.png': { file: 'watering_can.glb', fit: 0.7 },
+  'watering_can.png': { file: 'watering_can.glb', fit: 0.6, tint: 0x4caf50 },
   'feed_sack.png':    { file: 'feed_sack.glb', fit: 0.4 },
   'doghouse.png':     { file: 'doghouse.glb', fit: 0.8 },
   'farm_gate.png':    { file: 'farm_gate.glb', fit: 0.6 },
@@ -63,12 +67,14 @@ const MANIFEST = {
   'cottage.png':      { file: 'cottage.glb', fit: 0.85 },
   'bakery.png':       { file: 'bakery.glb', fit: 0.85 },
   'gem.png':          { file: 'gem.glb', fit: 0.7 },
+  'scarecrow.png':    { file: 'scarecrow.glb', fit: 0.9 },
+  'balloons.png':     { file: 'balloons.glb', fit: 0.9, sway: true },
   // אין מודל לבריכה: מים שטוחים על הקרקע (ציור עומד נראה כמו פס כחול מהצד)
   'pond.png':         { water: true },
   // --- גידולים (הציור גדל בשדה — המודל גדל איתו) ---
   'carrot.png':     { file: 'carrot.glb', fit: 0.8, spin: true },
   'wheat.png':      { file: 'wheat.glb', fit: 0.85, spin: true, sway: true },
-  'strawberry.png': { file: 'strawberry.glb', fit: 0.75, spin: true },
+  'strawberry.png': { file: 'strawberry.glb', fit: 0.6, spin: true },
   'corn.png':       { file: 'corn.glb', fit: 0.9, spin: true, sway: true },
   'pumpkin.png':    { file: 'pumpkin.glb', fit: 0.7, spin: true },
   'apple.png':      { file: 'apple.glb', fit: 0.9, spin: true },
@@ -153,6 +159,8 @@ const Models3D = {
         const arr = (Array.isArray(o.material) ? o.material : [o.material]).map(m => {
           // colors: צבע לפי שם חומר (אותו מודל משמש כמה חיות/צבעים) — עותק כדי לא לצבוע מופעים אחרים
           if (def.colors && def.colors[m.name] != null) { m = m.clone(); m.color.setHex(def.colors[m.name]); }
+          // tint: צבע אחיד במקום טקסטורה (למשל כד השקיה שיצא שחור)
+          if (def.tint != null) { m = m.clone(); m.map = null; m.color.setHex(def.tint); m.needsUpdate = true; }
           if ('metalness' in m) { m.metalness = 0; m.roughness = Math.max(m.roughness ?? 1, 0.75); }
           brighten(m);
           return m;
@@ -171,6 +179,7 @@ const Models3D = {
       wrap.rotation.y = link.yaw;
       if (g.animations && g.animations.length) {
         link.mixer = new THREE.AnimationMixer(root);
+        link.clips = g.animations;
         const pick = (name) => name && (g.animations.find(c => c.name === name || c.name.endsWith('|' + name))
           || g.animations.find(c => c.name.includes(name) && !/Gun|Sword|Attack|Death|Punch|HitReact/.test(c.name)));
         for (const k of ['idle', 'walk', 'run']) {
@@ -182,6 +191,27 @@ const Models3D = {
       link.model = wrap;
       sp.material.visible = false;          // הציור נשאר לנגיעה, רק לא מצויר
     }).catch(() => { /* אין מודל → הציור נשאר */ });
+  },
+
+  // אנימציה חד-פעמית לפי שם קליפ (תגובה לנגיעה / חיים בעמידה), ואז חזרה למצב הרגיל
+  _once(L, name) {
+    const clip = L.clips && L.clips.find(c => c.name === name || c.name.endsWith('|' + name));
+    if (!clip) return false;
+    const a = L.mixer.clipAction(clip);
+    a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true;
+    a.reset().fadeIn(0.15).play();
+    if (L.cur && L.cur !== a) L.cur.fadeOut(0.15);
+    L.cur = a;
+    L.oneShot = clip.duration;
+    return true;
+  },
+
+  // נגיעה בציור (החיה/הדמות) → תגובה אקראית מתוך react
+  react(sp) {
+    const L = links.find(l => l.sp === sp);
+    if (!L || !L.mixer || !L.def.react) return;
+    const r = L.def.react;
+    this._once(L, r[Math.floor(Math.random() * r.length)]);
   },
 
   _play(link, name) {
@@ -228,8 +258,40 @@ const Models3D = {
           }
         }
         L.last = (L.last || new THREE.Vector3()).copy(p);
-        this._play(L, moving ? (L.actions.walk ? 'walk' : 'run') : 'idle');
+        if (L.oneShot > 0 && !moving) { L.oneShot -= dt; }
+        else {
+          L.oneShot = 0;
+          this._play(L, moving ? (L.actions.walk ? 'walk' : 'run') : 'idle');
+          // חיים בעמידה: מדי כמה שניות משהו קטן (ללחך דשא, להוריד ראש, לנפנף)
+          if (!moving && L.def.extra) {
+            L.idleFor = (L.idleFor || 0) + dt;
+            L.nextExtra ??= 4 + Math.random() * 8;
+            if (L.idleFor > L.nextExtra) {
+              L.idleFor = 0; L.nextExtra = 5 + Math.random() * 10;
+              const e = L.def.extra; this._once(L, e[Math.floor(Math.random() * e.length)]);
+            }
+          } else L.idleFor = 0;
+        }
         L.mixer.update(dt);
+      } else if (L.last || L.def.anim === undefined) {
+        // מודל בלי שלד שזז (עז, ברווז): קפיצות קטנות ופנייה לכיוון ההליכה, במקום החלקה
+        let moving = false;
+        if (L.last) {
+          const dx = p.x - L.last.x, dz = p.z - L.last.z;
+          moving = Math.hypot(dx, dz) / Math.max(dt, 1e-3) > 0.25;
+          if (moving) {
+            const want = Math.atan2(dx, dz) + (L.def.yaw || 0);
+            let d = want - L.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+            L.yaw += d * Math.min(1, dt * 6); L.model.rotation.y = L.yaw;
+            L.hop = (L.hop || 0) + dt * 9;
+            L.model.position.y += Math.abs(Math.sin(L.hop)) * h * 0.08;
+          }
+        }
+        L.last = (L.last || new THREE.Vector3()).copy(p);
+        if (!moving && L.def.sway) {
+          const t = performance.now() / 1000 + (L.phase ??= Math.random() * 6);
+          L.model.rotation.z = Math.sin(t * 1.3) * 0.02;
+        }
       } else if (L.def.sway) {
         // נדנוד עדין ברוח לעצים ושיחים
         const t = performance.now() / 1000 + (L.phase ??= Math.random() * 6);
@@ -239,6 +301,7 @@ const Models3D = {
   },
 
   define(entries) { Object.assign(MANIFEST, entries); },
+  _debugLinks() { return links; },   // לבדיקות אוטומטיות
   manifest() { return MANIFEST; }
 };
 

@@ -1,6 +1,7 @@
 // main.js — מקשר הכל: עולם, סוסים, שדות, חנות, ממשק, מצב ולולאת המשחק
 import { World, THREE } from './world.js';
 import { Horses } from './horses.js';
+import { Models3D } from './models3d.js';
 import { Fields } from './fields.js';
 import { Animals } from './animals.js';
 import { Cloud } from './cloud.js';
@@ -1010,6 +1011,7 @@ canvas.addEventListener('pointerup', (e) => {
     const hit = World.pickAt(e.clientX, e.clientY);
     if (!hit) return;
     const ud = hit.object.userData;
+    Models3D.react(hit.object);   // חיה/דמות תלת-ממדית מגיבה לנגיעה
     if (ud.horse) { Audio.animalSound('horse'); ud.horse.celebrate(); UI.showHorseCard(ud.horse, Game); Tutorial.horseOpened(ud.horse); }
     else if (ud.plot) { Audio.pop(); handlePlot(ud.plot); }
     else if (ud.animal) { Audio.animalSound(ud.animal.type); ud.animal.celebrate(); handleAnimal(ud.animal); }
