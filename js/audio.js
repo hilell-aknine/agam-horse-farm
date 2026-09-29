@@ -25,9 +25,33 @@ const Audio = {
     if (window.speechSynthesis) {
       window.speechSynthesis.onvoiceschanged = () => this._loadVoice();
     }
+    this._installUnlock();
   },
 
-  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  // אייפון/אייפד: 'interrupted' (אחרי יציאה מהאפליקציה) הוא לא 'suspended' — הבדיקה הישנה לא העירה אותו
+  resume() { if (this.ctx && this.ctx.state !== 'running') { try { this.ctx.resume(); } catch (e) {} } },
+
+  // שחרור שמע בנגיעה הראשונה (ובכל נגיעה אחריה, אם השמע "נרדם"):
+  // 1. audioSession=playback — מתג השקט של האייפון לא משתיק את המשחק (Safari 16.4+)
+  // 2. צליל ריק בתוך הנגיעה — iOS דורש שהשמע יתחיל בתוך מחווה של המשתמש
+  // 3. משפט ריק — משחרר את ההקראה, כדי שהקראה שמגיעה באיחור (הדרכה) לא תיחסם
+  _installUnlock() {
+    const unlock = () => {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+      this.resume();
+      if (this._unlocked) return;
+      this._unlocked = true;
+      try {
+        const b = this.ctx.createBuffer(1, 1, 22050), s = this.ctx.createBufferSource();
+        s.buffer = b; s.connect(this.ctx.destination); s.start(0);
+      } catch (e) {}
+      try {
+        if (window.speechSynthesis) { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); }
+      } catch (e) {}
+    };
+    ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, unlock, { capture: true, passive: true }));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.resume(); });
+  },
 
   _loadVoice() {
     if (!window.speechSynthesis) return;
@@ -103,12 +127,14 @@ const Audio = {
   speak(text) {
     if (!this.voiceOn || !window.speechSynthesis || !text) return;
     try {
-      window.speechSynthesis.cancel();
+      const ss = window.speechSynthesis;
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'he-IL';
       if (this.heVoice) u.voice = this.heVoice;
       u.rate = 0.92; u.pitch = 1.05;
-      window.speechSynthesis.speak(u);
+      // באג ספארי: speak מיד אחרי cancel נבלע בשקט. עוצרים רק אם משהו באמת מדבר, ומחכים רגע.
+      if (ss.speaking || ss.pending) { ss.cancel(); setTimeout(() => ss.speak(u), 80); }
+      else ss.speak(u);
     } catch (e) { /* ignore */ }
   },
 
