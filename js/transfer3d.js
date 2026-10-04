@@ -10,9 +10,8 @@ const word = (n) => WORDS[n - 1] || String(n);
 
 const CAM_DIST = 8.2;          // קרוב מהרגיל (12) כדי שגזר יהיה גדול מספיק לאצבע של ילדה
 const TROUGH_FROM_HORSE = 4.2; // הסוס עומד מאחורי השוקת, והגזרים מולה — הכל בתוך המסגרת
-const SLOT_X = [1.95, 1.17, 0.39, -0.39, -1.17, -1.95];   // מימין לשמאל, כמו שקוראים
-const SLOT_Z = [0.5, -0.5];                               // שורה קדמית ואז אחורית
-const PILE_Z = [2.35, 3.4];
+// הערוגה עומדת ברצועת הדשא בין גינת הירק (x עד -3.2) למגרש הרכיבה (x מ-1.6), כדי לא לכסות שדות
+const BED_X = -0.8;
 
 // --- חומרים: אותו מראה מט וזוהר עדין כמו שאר המודלים (models3d.js) ---
 function mat(color, glow = 0.28) {
@@ -57,6 +56,49 @@ function makeTrough() {
   return shadowed(g);
 }
 
+// שתיל: גוש אדמה קטן, גבעול ושני עלים. נקודת האפס בתחתית (עומד על הקרקע)
+function makeSeedling() {
+  const g = new THREE.Group();
+  const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.2, 8), M('plug', 0x6b4423));
+  plug.position.y = 0.1; g.add(plug);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.34, 5), M('stem', 0x5cb85c));
+  stem.position.y = 0.36; g.add(stem);
+  for (const sgn of [1, -1]) {
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), M('sprout', 0x7ccf4f));
+    leaf.scale.set(1, 0.32, 0.6);
+    leaf.position.set(0.15 * sgn, 0.52, 0);
+    leaf.rotation.z = -0.45 * sgn;
+    g.add(leaf);
+  }
+  return shadowed(g);
+}
+
+// ערוגה: מסגרת עץ נמוכה מלאה אדמה, 3 שורות של 4 גומות
+function makeBed() {
+  const g = new THREE.Group();
+  const wood = M('wood', 0xa0683a), soil = M('soil', 0x5e3719);
+  const box = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); };
+  box(3.6, 0.36, 2.4, soil, 0, 0.2, 0);
+  box(3.9, 0.3, 0.15, wood, 0, 0.3, 1.27);
+  box(3.9, 0.42, 0.15, wood, 0, 0.36, -1.27);
+  box(0.15, 0.36, 2.4, wood, 1.87, 0.33, 0);
+  box(0.15, 0.36, 2.4, wood, -1.87, 0.33, 0);
+  const hole = M('hole', 0x3f240f);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 10), hole);
+    h.position.set((1.5 - c) * 0.78, 0.385, (1 - r) * 0.62); g.add(h);
+  }
+  return shadowed(g);
+}
+
+// לכל סוג משימה: הפריט, המכל, סידור המשבצות והערימה
+const KINDS = {
+  feed:  { make: makeCarrot, container: makeTrough, cols: 6, rowZ: [0.5, -0.5], slotY: 0.78, inScale: 0.85,
+           pileScale: 1, pileY: 0.3, pileCols: 6, pileDX: 1.35, pileZ: [2.35, 3.4], labelY: 0.75, markY: 0.57 },
+  plant: { make: makeSeedling, container: makeBed, cols: 4, rowZ: [0.62, 0, -0.62], slotY: 0.38, inScale: 1,
+           pileScale: 1.3, pileY: 0, pileCols: 4, pileDX: 1.25, pileZ: [2.2, 3.2, 4.2], labelY: 1.05, markY: 0.4 }
+};
+
 // משבצת מסומנת בקש (פיגום): עיגול בהיר שמהבהב כשהוא הבא בתור
 function makeSlotMark() {
   const m = new THREE.Mesh(new THREE.CircleGeometry(0.3, 24),
@@ -85,8 +127,13 @@ function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.
 const Transfer3D = {
   active: null,
 
-  // אפשר לשחק בעולם רק כשיש סוס חי בסצנה
-  canRun(ctx) { return !!(ctx && ctx.horse && ctx.horse.group && ctx.horse.group.parent && World.scene); },
+  // אפשר לשחק בעולם רק כשהסוס/השדה באמת בסצנה
+  canRun(ctx) {
+    if (!ctx || !World.scene) return false;
+    if (ctx.horse) return !!(ctx.horse.group && ctx.horse.group.parent);
+    if (ctx.plot) return !!(ctx.plot.group && ctx.plot.group.parent);
+    return false;
+  },
 
   // בחירה לפי מרכז הגזר הקרוב ביותר במסך (ולא קרן תלת-ממדית): במבט מלמעלה אזורי נגיעה
   // תלת-ממדיים חופפים, ונגיעה בגזר בשורה האחורית נתפסה ע"י הגזר שלפניו
@@ -107,54 +154,76 @@ const Transfer3D = {
 
   start(task, ctx, onDone) {
     if (this.active) this._cleanup(true);
-    const horse = ctx.horse;
-    const { target, prefilled, mode } = task;
+    const horse = ctx.horse || null, plot = ctx.plot || null;
+    const K = KINDS[horse ? 'feed' : 'plant'];
+    const { target, prefilled } = task;
     const S = this.active = {
-      task, horse, onDone, attempts: 0, scaffold: task.scaffold, finished: false,
+      task, horse, plot, K, onDone, attempts: 0, scaffold: task.scaffold, finished: false,
       pile: [], box: [], labels: [], marks: [], t: 0
     };
 
-    // --- הצבה: לפי כיוון המבט של המצלמה (לא מיקומה — היא עוד זזה), השוקת בין הסוס לילדה והגזרים מולה ---
-    const hp = horse.group.position;
+    // --- הצבה: לפי כיוון המבט של המצלמה (לא מיקומה — היא עוד זזה); המכל באמצע והערימה מולו ---
     const dir = World.camera.position.clone().sub(World.controls.target); dir.y = 0;
     if (dir.lengthSq() < 0.01) dir.set(0, 0, 1);
     dir.normalize();
     const root = new THREE.Group();
-    const center = hp.clone().addScaledVector(dir, TROUGH_FROM_HORSE); center.y = 0;
-    const R = (World.fenceR || 15) - 7;                   // הגזרים והמצלמה לא נתקעים בגדר
-    const d = Math.hypot(center.x, center.z);
-    if (d > R) { center.x *= R / d; center.z *= R / d; }
+    let center;
+    if (horse) {
+      center = horse.group.position.clone().addScaledVector(dir, TROUGH_FROM_HORSE); center.y = 0;
+      const R = (World.fenceR || 15) - 7;                 // הגזרים והמצלמה לא נתקעים בגדר
+      const d = Math.hypot(center.x, center.z);
+      if (d > R) { center.x *= R / d; center.z *= R / d; }
+    } else {
+      center = new THREE.Vector3(BED_X, 0, Math.min(5, Math.max(0.3, plot.pos.z)));
+    }
     root.position.copy(center);
     root.rotation.y = Math.atan2(dir.x, dir.z);            // z מקומי = אל המצלמה, x מקומי = ימינה במסך
     World.scene.add(root);
     S.root = root; S.dir = dir;
 
-    S.trough = makeTrough(); root.add(S.trough);
-    // נקודת אכילה: הסוס מאחורי השוקת, הראש מעליה
-    S.eatLocal = new THREE.Vector3(0, 0, horse.stage === 'adult' ? -2.5 : -2.0);
+    root.add(K.container());
 
-    // גזרים שכבר בשוקת (מצב "כמה חסר") — לא זזים
+    // פריטים שכבר במכל (מצב "כמה חסר") — לא זזים
     for (let i = 0; i < prefilled; i++) {
-      const c = makeCarrot(); c.userData.pre = true;
-      root.add(c); S.box.push(c); c.position.copy(this._slot(i)); c.scale.setScalar(0.85);
+      const c = K.make(); c.userData.pre = true;
+      root.add(c); S.box.push(c); c.position.copy(this._slot(i)); c.scale.setScalar(K.inScale);
     }
-    // ערימה: מספיק גזרים כדי שלא יהיה אפשר "לנחש" לפי מה שנשאר
+    // ערימה: מספיק פריטים כדי שלא יהיה אפשר "לנחש" לפי מה שנשאר. שורות מאוזנות, מימין לשמאל
     const pileN = Math.min(12, Math.max(6, target - prefilled + 3));
+    const rows = Math.min(K.pileZ.length, Math.ceil(pileN / K.pileCols));
     S.pileHome = [];
-    const row1 = Math.ceil(pileN / 2);
-    for (let i = 0; i < pileN; i++) {
-      const r = i < row1 ? 0 : 1, k = r ? i - row1 : i, n = r ? pileN - row1 : row1;
-      S.pileHome.push(new THREE.Vector3((k - (n - 1) / 2) * -1.35, 0.3, PILE_Z[r]));
+    for (let r = 0, placed = 0; r < rows; r++) {
+      const n = Math.ceil((pileN - placed) / (rows - r));
+      for (let k = 0; k < n; k++) S.pileHome.push(new THREE.Vector3((k - (n - 1) / 2) * -K.pileDX, K.pileY, K.pileZ[r]));
+      placed += n;
     }
     for (let i = 0; i < pileN; i++) {
-      const c = makeCarrot();
+      const c = K.make();
       c.rotation.y = (Math.random() - 0.5) * 0.6;
       c.position.copy(S.pileHome[i]);
+      c.scale.setScalar(K.pileScale);
       c.userData.home = i; c.userData.phase = i * 0.7;
       root.add(c); S.pile.push(c);
     }
     this._renderMarks();
+    const pileBack = K.pileZ[rows - 1];
 
+    if (horse) this._horseWaits(S, center);
+
+    // מצלמה: קרוב. המרכז שלה מרחף 1.5 מעל הקרקע, ולכן מכוונים מעבר לאמצע כדי שהמכל והערימה יישבו במרכז המסך
+    S.prevMin = World.controls.minDistance;
+    World.controls.minDistance = Math.min(S.prevMin, CAM_DIST - 0.5);
+    const focus = root.localToWorld(new THREE.Vector3(0, 0, pileBack / 2 + 2.0));
+    World.travelTo(focus.x, focus.z, CAM_DIST);
+    this._clearView(root.localToWorld(new THREE.Vector3(0, 0, pileBack + 0.8)), dir);
+
+    this._ui();
+  },
+
+  _horseWaits(S, center) {
+    const horse = S.horse, root = S.root, hp = horse.group.position;
+    // נקודת אכילה: הסוס מאחורי השוקת, הראש מעליה
+    S.eatLocal = new THREE.Vector3(0, 0, horse.stage === 'adult' ? -2.5 : -2.0);
     // הסוס ניגש לעמוד מאחורי השוקת, מחכה ומסתכל עלייך
     horse.hold = true;
     horse.lookAt(center);
@@ -169,16 +238,6 @@ const Transfer3D = {
         horse.walkTo(side, () => { if (this.active === S && !S.finished) horse.walkTo(back, () => { if (this.active === S && !S.finished) horse.walkTo(wait, () => {}); }); });
       } else horse.walkTo(wait, () => {});
     }
-
-    // מצלמה: קרוב, ממורכזת בין השוקת לגזרים
-    S.prevMin = World.controls.minDistance;
-    World.controls.minDistance = Math.min(S.prevMin, CAM_DIST - 0.5);
-    // מרכז המצלמה מרחף 1.5 מעל הקרקע, ולכן מכוונים רחוק יותר כדי שהשוקת והערימה יישבו באמצע המסך
-    const focus = root.localToWorld(new THREE.Vector3(0, 0, 3.7));
-    World.travelTo(focus.x, focus.z, CAM_DIST);
-    this._clearView(root.localToWorld(new THREE.Vector3(0, 0, PILE_Z[1] + 0.8)), dir);
-
-    this._ui();
   },
 
   // המצלמה קרובה ולעיתים מאחורי הגדר: פריטים קטנים שעומדים בינה לבין הגזרים (שער, ספסל, שיח)
@@ -200,12 +259,16 @@ const Transfer3D = {
         continue;
       }
       box.setFromObject(o).getSize(size);
-      if (Math.max(size.x, size.z) > 7) continue;
+      if (Math.max(size.x, size.z) > 7 || size.y < 1.1) continue;   // גדר שלמה/קרקע לא; עמודים נמוכים לא מסתירים
       o.visible = false; S.hidden.push(o);
     }
   },
 
-  _slot(i) { return new THREE.Vector3(SLOT_X[i % 6], 0.78, SLOT_Z[Math.floor(i / 6)] || 0); },
+  // משבצת i במכל: מימין לשמאל (כמו שקוראים), שורה קדמית קודם
+  _slot(i) {
+    const K = this.active.K, c = i % K.cols, r = Math.floor(i / K.cols);
+    return new THREE.Vector3(((K.cols - 1) / 2 - c) * 0.78, K.slotY, K.rowZ[r] ?? 0);
+  },
 
   // --- ממשק קטן: בועת שאלה למעלה וכפתור "זהו" למטה. השאר — החווה ---
   _ui() {
@@ -249,7 +312,7 @@ const Transfer3D = {
       if (this.inBox() >= 12) { Audio.wrong(); return; }
       S.pile.splice(iPile, 1);
       S.box.push(c);
-      this._fly(c, this._slot(S.box.length - 1), 0.85);
+      this._fly(c, this._slot(S.box.length - 1), S.K.inScale);
       Audio.pop();
       if (S.scaffold) Audio.speak(word(this.inBox()));
       this._renderMarks();
@@ -259,9 +322,9 @@ const Transfer3D = {
       if (iBox < 0 || c.userData.pre) return;
       S.box.splice(iBox, 1);
       S.pile.push(c);
-      this._fly(c, S.pileHome[c.userData.home], 1);
-      // שאר הגזרים בשוקת מתיישרים — אין חורים באמצע, קל לספור
-      S.box.forEach((b, i) => { if (b !== c) this._fly(b, this._slot(i), 0.85, 0.25, 0.3); });
+      this._fly(c, S.pileHome[c.userData.home], S.K.pileScale);
+      // שאר הפריטים במכל מתיישרים — אין חורים באמצע, קל לספור
+      S.box.forEach((b, i) => { if (b !== c) this._fly(b, this._slot(i), S.K.inScale, 0.25, 0.3); });
       Audio.pop();
       this._renderMarks();
     }
@@ -282,7 +345,7 @@ const Transfer3D = {
     // הספירה מופיעה על הגזרים עצמם — לומדים מהטעות, לא מקבלים ציון
     S.box.forEach((c, i) => {
       const sp = numberSprite(i + 1);
-      sp.position.copy(this._slot(i)).add(new THREE.Vector3(0, 0.75, 0));
+      sp.position.copy(this._slot(i)).add(new THREE.Vector3(0, S.K.labelY, 0));
       S.root.add(sp); S.labels.push(sp);
     });
     const diff = Math.abs(n - target);
@@ -296,7 +359,7 @@ const Transfer3D = {
       S.scaffold = true;
       while (this.inBox() > target) {
         const c = [...S.box].reverse().find(b => !b.userData.pre); if (!c) break;
-        S.box.splice(S.box.indexOf(c), 1); S.pile.push(c); this._fly(c, S.pileHome[c.userData.home], 1);
+        S.box.splice(S.box.indexOf(c), 1); S.pile.push(c); this._fly(c, S.pileHome[c.userData.home], S.K.pileScale);
       }
       S.doneBtn.classList.add('hidden');
       this._renderMarks();
@@ -311,7 +374,7 @@ const Transfer3D = {
     if (!S.scaffold) return;
     for (let i = this.inBox(); i < S.task.target; i++) {
       const m = makeSlotMark();
-      m.position.copy(this._slot(i)); m.position.y = 0.57;
+      m.position.copy(this._slot(i)); m.position.y = S.K.markY;
       m.userData.next = i === this.inBox();
       S.root.add(m); S.marks.push(m);
     }
@@ -333,8 +396,9 @@ const Transfer3D = {
     S.doneBtn.classList.add('hidden');
     S.msg.textContent = '🎉 כל הכבוד!';
     S.msg.classList.remove('hidden');
-    // הגזרים שנשארו בערימה נעלמים בעדינות — כל העין על השוקת
+    // מה שנשאר בערימה נעלם בעדינות — כל העין על המכל
     S.pile.forEach(c => { c.userData.fade = 1; });
+    if (!S.horse) { this._plantSuccess(S); return; }
     const horse = S.horse;
     horse.hold = false;
     const eat = S.root.localToWorld(S.eatLocal.clone());
@@ -347,6 +411,18 @@ const Transfer3D = {
       const done = S.onDone; S.onDone = null;
       done && done({ correct: true, firstTry });
     });
+  },
+
+  // שתילה: השתילים קופצים אחד אחד מהערוגה אל השדה שנבחר, ורק אז השדה נשתל
+  _plantSuccess(S) {
+    const p = S.plot.pos;
+    S.hops = S.box.map((c, i) => {
+      const w = new THREE.Vector3(p.x + ((i % 4) - 1.5) * 0.42, 0.4, p.z + (Math.floor(i / 4) - 1) * 0.5);
+      return { c, at: 0.5 + i * 0.22, to: S.root.worldToLocal(w), done: false };
+    });
+    S.planting = 0;
+    const mid = S.root.localToWorld(new THREE.Vector3(0, 0, 0)).add(p).multiplyScalar(0.5);
+    World.travelTo(mid.x, mid.z, 11);          // שהשדה והערוגה ייכנסו יחד למסגרת
   },
 
   cancel() {
@@ -407,7 +483,24 @@ const Transfer3D = {
       } else if (S.pile.includes(c) && !S.finished) {
         // הערימה "נושמת" בגל עדין — מזמינה לגעת
         const ph = S.t * 2.2 - c.userData.phase;
-        c.position.y = 0.3 + Math.max(0, Math.sin(ph)) * 0.12;
+        c.position.y = S.K.pileY + Math.max(0, Math.sin(ph)) * 0.12;
+      }
+    }
+    // שתילה: כל שתיל קופץ בקשת גבוהה לשדה ונבלע באדמה; כשכולם נחתו — השדה נשתל
+    if (S.planting != null) {
+      S.planting += dt;
+      for (const h of S.hops) {
+        if (!h.done && S.planting >= h.at) { h.done = true; this._fly(h.c, h.to, 0.6, 0.75, 3.2); Audio.pop(); }
+      }
+      const last = S.hops.length ? S.hops[S.hops.length - 1].at : 0;
+      if (S.planting > last + 0.9 && S.onDone) {
+        S.hops.forEach(h => { h.c.visible = false; });
+        if (S.ui) { S.ui.remove(); S.ui = null; }
+        document.body.classList.remove('t3-on');
+        const done = S.onDone; S.onDone = null;
+        done({ correct: true, firstTry: S.attempts === 0 });
+        this._cleanup(false);
+        return;
       }
     }
     // הסוס אוכל: גזר אחרי גזר מתכווץ ונעלם מהשוקת

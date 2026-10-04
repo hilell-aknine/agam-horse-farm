@@ -600,8 +600,8 @@ function askProblem(actionType, onCorrect, harder, task) {
     const done = (res) => {
       if (res.correct) { Game.recordResult(t.type, res.firstTry); questBump('solve'); onCorrect(res); }
     };
-    // האכלת סוס: החשבון קורה בתוך החווה (גזרים ושוקת אמיתיים). אחרת — החלון הרגיל
-    if (t.horse && Transfer3D.canRun({ horse: t.horse })) Transfer3D.start(t, { horse: t.horse }, done);
+    // האכלה ושתילה: החשבון קורה בתוך החווה (גזרים לשוקת, שתילים לערוגה). אחרת — החלון הרגיל
+    if (Transfer3D.canRun(t)) Transfer3D.start(t, { horse: t.horse, plot: t.plot }, done);
     else UI.askTransfer(t, actionType, done);
     return;
   }
@@ -902,7 +902,8 @@ function handlePlot(plot) {
 function startPlant(plot, cropKey) {
   const def = CROPS[cropKey];
   if (!Game.canAfford(def.seedCost)) { notEnough(def.seedCost); return; }
-  const task = { who: { name: 'השדה', img: 'assets/' + def.asset }, item: '🌱', itemName: 'זרעים', box: 'ערוגה', verb: 'שתלי' };
+  const task = { who: { name: 'השדה', img: 'assets/' + def.asset }, plot, item: '🌱', itemName: 'שתילים', box: 'ערוגה', verb: 'שתלי' };
+  if (Tutorial.step === 'plant') clearInterval(Tutorial._timer);   // החץ מעל השדה מפריע כשהערוגה פתוחה
   askProblem('plant', (res) => {
     if (!Game.spend(def.seedCost)) return;
     plot.plant(Object.assign({ key: cropKey }, def), nowMs());
