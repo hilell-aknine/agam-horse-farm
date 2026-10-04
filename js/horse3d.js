@@ -147,9 +147,10 @@ class Horse3D {
         this.once(Math.random() < 0.6 ? 'eat' : 'idle2');
       }
     }
-    // פונה לכיוון ההליכה, בסיבוב רך
-    if (moving && dir && (dir.x || dir.z)) {
-      const want = Math.atan2(dir.x, dir.z);
+    // פונה לכיוון ההליכה, בסיבוב רך. בעמידה — אל נקודת המבט אם יש (השוקת במשימת האכלה)
+    const face = moving ? dir : this.lookDir;
+    if (face && (face.x || face.z)) {
+      const want = Math.atan2(face.x, face.z);
       let d = want - this.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
       this.yaw += d * Math.min(1, dt * 6);

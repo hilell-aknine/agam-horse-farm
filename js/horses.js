@@ -121,6 +121,17 @@ class Horse {
     return true;
   }
 
+  // משימת השוקת: הסוס עומד ומחכה (hold), מסתכל לנקודה, וניגש אליה כשמבקשים
+  lookAt(p) {
+    this._lookAt = p ? new THREE.Vector3(p.x, 0, p.z) : null;
+    if (!p && this.h3d) this.h3d.lookDir = null;
+  }
+  walkTo(p, onArrive) {
+    this.target = new THREE.Vector3(p.x, 0, p.z);
+    this.wait = 0;
+    this._arrive = onArrive; this._arriveT = 5;     // לא מחכים לנצח (סוס ישן בלילה לא זז)
+  }
+
   mood() { return Math.round((this.hunger + this.happy + this.clean) / 3); }
 
   celebrate() { this._hop = 0.6; if (this.h3d) this.h3d.once('jump'); }   // קפיצת-שמחה
@@ -148,8 +159,12 @@ class Horse {
 
     // תנועה אל היעד
     const pos = this.group.position;
+    if (this.hold && !this._arrive) { this.target.copy(pos); this.wait = 1; }
     const to = this.target.clone().sub(pos); to.y = 0;
     const d = to.length();
+    if (this._arrive && (d <= 0.3 || (this._arriveT -= dt) <= 0)) {
+      const cb = this._arrive; this._arrive = null; this.target.copy(pos); this.wait = 5; cb();
+    }
     // סוס חום גדול "ישן" בלילה — נשאר במקום
     const sleeping = this.color === 'brown' && this.stage === 'adult' && isNightNow();
     const moving = !sleeping && d > 0.3 && this.wait <= 0;
@@ -164,7 +179,10 @@ class Horse {
     }
     this._sleeping = sleeping;
     this._moving = moving;
-    if (this.h3d) this.h3d.update(dt, { moving, sleeping, dir: moving ? to : null });
+    if (this.h3d) {
+      if (this._lookAt) { const l = this._lookAt.clone().sub(pos); l.y = 0; this.h3d.lookDir = l.lengthSq() > 0.01 ? l : null; }
+      this.h3d.update(dt, { moving, sleeping, dir: moving ? to : null });
+    }
 
     // קפיצה עדינה + נשימה + כיוון פנים + קפיצת-שמחה
     this.phase += dt * 3;

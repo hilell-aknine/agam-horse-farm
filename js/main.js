@@ -2,6 +2,7 @@
 import { World, THREE } from './world.js';
 import { Horses } from './horses.js';
 import { Models3D } from './models3d.js';
+import { Transfer3D } from './transfer3d.js';
 import { Fields } from './fields.js';
 import { Animals } from './animals.js';
 import { Cloud } from './cloud.js';
@@ -596,9 +597,12 @@ function askProblem(actionType, onCorrect, harder, task) {
   const focus = Math.random() < 0.35 ? Game.weakType() : null;
   if (task && !focus && (!Game.tutorialDone || Math.random() < 0.75)) {
     const t = Object.assign(makeTransferTask(Game.difficulty() + (harder ? 1 : 0)), task);
-    UI.askTransfer(t, actionType, (res) => {
+    const done = (res) => {
       if (res.correct) { Game.recordResult(t.type, res.firstTry); questBump('solve'); onCorrect(res); }
-    });
+    };
+    // האכלת סוס: החשבון קורה בתוך החווה (גזרים ושוקת אמיתיים). אחרת — החלון הרגיל
+    if (t.horse && Transfer3D.canRun({ horse: t.horse })) Transfer3D.start(t, { horse: t.horse }, done);
+    else UI.askTransfer(t, actionType, done);
     return;
   }
   const problem = generateProblem(Game.difficulty() + (harder ? 1 : 0), focus);
@@ -612,7 +616,7 @@ function askProblem(actionType, onCorrect, harder, task) {
 function handleAction(type, horse) {
   UI.closeHorseCard();
   const task = type === 'feed'
-    ? { who: { name: horse.name, img: horse._tex() }, item: '🥕', itemName: 'גזרים', box: 'שוקת', verb: 'תני ל' + horse.name }
+    ? { who: { name: horse.name, img: horse._tex() }, horse, item: '🥕', itemName: 'גזרים', box: 'שוקת', verb: 'תני ל' + horse.name }
     : null;
   askProblem(type, (res) => {
     if (type === 'feed') { horse.hunger = 100; horse.feedCount++; }
@@ -1009,6 +1013,12 @@ canvas.addEventListener('pointerup', (e) => {
   const dt = performance.now() - downT;
   if (moved < 14 && dt < 900) {   // ילדה לוחצת לאט — 450ms פספס לחיצות מכוונות
     Audio.resume();
+    // בזמן משימת השוקת נגיעה מזיזה גזרים בלבד (לא פותחת סוסים/שדות)
+    if (Transfer3D.active) {
+      const c = Transfer3D.pickAt(e.clientX, e.clientY);
+      if (c) Transfer3D.tap(c);
+      return;
+    }
     const hit = World.pickAt(e.clientX, e.clientY);
     if (!hit) return;
     const ud = hit.object.userData;
@@ -1044,6 +1054,7 @@ function loop() {
   Fields.update(nowMs(), dt);
   Animals.update(nowMs(), dt);
   updateMagicTree();
+  Transfer3D.update(dt);
   const t = performance.now() / 1000;
   for (let i = 0; i < areaUpdaters.length; i++) areaUpdaters[i](t, dt);
   World.render();
