@@ -20,6 +20,9 @@ const ACTIONS = {
   buy:     { icon: '🛒', label: 'לקנות' },
   field:   { icon: '🟫', label: 'שדה חדש' },
   race:    { icon: '🏁', label: 'מירוץ' },
+  jump:    { icon: '🐎', label: 'משוכה' },
+  sell:    { icon: '💰', label: 'למכור' },
+  birth:   { icon: '🍼', label: 'גור חדש' },
   ride:    { icon: '🎡', label: 'רכיבה' },
   game:    { icon: '🎯', label: 'משחק' },
   treat:   { icon: '🍭', label: 'ממתק' }
@@ -312,10 +315,18 @@ const UI = {
           <button class="act" data-act="play"><span class="act-ic">🎾</span><span class="act-lbl">לשחק</span></button>
           ${growBtn}
         </div>
+        ${horse.birthReady ? `<button class="birth-btn" id="birthBtn">🍼 הפתעה! ל${horse.name} נולד סייח</button>` : ''}
+        <button class="ride-btn ${horse.stage === 'adult' ? '' : 'locked'}" id="rideBtn">🏇 ${horse.stage === 'adult' ? 'לרכוב על ' + horse.name + ' במסלול' : 'כשיגדל אפשר לרכוב'}</button>
         <button class="dress-btn" id="dressBtn">👒 להלביש את ${horse.name}</button>
       </div>`;
     this.root.appendChild(ov);
     ov.querySelector('#dressBtn').onclick = () => { Audio.click(); this.chooseAccessory(horse); };
+    ov.querySelector('#rideBtn').onclick = () => {
+      if (horse.stage !== 'adult') { Audio.wrong(); Audio.speak('אני עוד קטן. האכילי אותי ואז אגדל, ונוכל לרכוב'); return; }
+      Audio.click(); this.closeHorseCard(); this.handlers.onRide && this.handlers.onRide(horse);
+    };
+    const bb = ov.querySelector('#birthBtn');
+    if (bb) bb.onclick = () => { Audio.click(); this.closeHorseCard(); this.handlers.onHorseBirth && this.handlers.onHorseBirth(horse); };
     ov.querySelector('#closeCard').onclick = () => { Audio.click(); this.closeHorseCard(); };
     ov.onclick = (e) => { if (e.target === ov) this.closeHorseCard(); };
     ov.querySelectorAll('.act').forEach(b => {
@@ -358,6 +369,7 @@ const UI = {
           <button class="shop-tab" data-tab="upgrades">🏠 שדרוגים</button>
           <button class="shop-tab" data-tab="fields">🟫 שדה</button>
           <button class="shop-tab" data-tab="expand">🏞️ הרחבה</button>
+          <button class="shop-tab sell-tab" data-tab="sell">💰 מכירה</button>
         </div>
         <div class="shop-grid shelf" id="shopGrid"></div>
       </div>`;
@@ -366,7 +378,7 @@ const UI = {
     ov.onclick = (e) => { if (e.target === ov) this.closeShop(); };
     const grid = ov.querySelector('#shopGrid');
     const bubble = ov.querySelector('#keeperBubble');
-    const lines = { decor: 'קישוטים יפים לחווה! 🌳', equipment: 'הציוד הכי טוב! 🚜', animals: 'חיות חמודות 🐔', horses: 'סוסים נהדרים! 🐴', upgrades: 'שדרוגים לאסם! 🏠', fields: 'עוד שדה לגדל בו 🟫', expand: 'רוצה חווה יותר גדולה? 🏞️' };
+    const lines = { decor: 'קישוטים יפים לחווה! 🌳', equipment: 'הציוד הכי טוב! 🚜', animals: 'חיות חמודות 🐔', horses: 'סוסים נהדרים! 🐴', upgrades: 'שדרוגים לאסם! 🏠', fields: 'עוד שדה לגדל בו 🟫', expand: 'רוצה חווה יותר גדולה? 🏞️', sell: 'מה תרצי למכור לי? אני קונה בחצי מחיר 💰' };
     const keeperSay = (t) => { if (bubble) bubble.textContent = t; Audio.speak(t); };
     const tabs = ov.querySelectorAll('.shop-tab');
     const render = (tab) => {
@@ -400,6 +412,10 @@ const UI = {
           grid.appendChild(this._shopCard('assets/hay_bale.png', 'שדה חדש לשתילה', cost, game.coins >= cost,
             () => { this.closeShop(); this.handlers.onBuyField && this.handlers.onBuyField(); }, '🟫'));
         }
+      } else if (tab === 'sell') {
+        const list = (this.handlers.getSellables && this.handlers.getSellables()) || [];
+        if (!list.length) grid.innerHTML = '<div class="shop-empty">עוד אין לך מה למכור 😊<br>קני קישוטים או חיות, ואז אפשר למכור אותם כאן</div>';
+        list.forEach(it => grid.appendChild(this._sellCard(it)));
       } else if (tab === 'expand') {
         if (!game.canExpandFarm()) {
           grid.innerHTML = '<div class="shop-empty">🎉 החווה שלך בגודל הכי גדול!</div>';
@@ -434,6 +450,31 @@ const UI = {
       Audio.click(); onBuy();
     };
     return c;
+  },
+
+  // כרטיס מכירה: נגיעה ראשונה שואלת "בטוחה?", נגיעה שנייה מוכרת — שלא תמכור בטעות
+  _sellCard(it) {
+    const c = el('div', 'shop-item sell-item');
+    c.innerHTML = `
+      <div class="shop-thumb">${it.icon ? `<span class="thumb-emoji">${it.icon}</span>` : ''}<img src="${it.img}" onerror="this.style.display='none'"></div>
+      <div class="shop-name">${it.name}${it.count > 1 ? ' <span class="sell-n">×' + it.count + '</span>' : ''}</div>
+      <button class="buy-btn sell-btn">💰 +${it.price}</button>`;
+    const b = c.querySelector('.sell-btn');
+    b.onclick = () => {
+      if (!b.classList.contains('sure')) {
+        Audio.click(); b.classList.add('sure'); b.textContent = '✔ בטוחה? געי שוב';
+        Audio.speak('למכור ' + it.say + '? געי שוב כדי למכור');
+        setTimeout(() => { if (b.isConnected) { b.classList.remove('sure'); b.textContent = '💰 +' + it.price; } }, 4000);
+        return;
+      }
+      Audio.click(); this.closeShop(); this.handlers.onSell && this.handlers.onSell(it);
+    };
+    return c;
+  },
+
+  openShopTab(tab) {
+    const t = document.querySelector('#shopOv .shop-tab[data-tab="' + tab + '"]');
+    if (t) t.click();
   },
 
   closeShop() { const s = document.getElementById('shopOv'); if (s) s.remove(); },
@@ -498,7 +539,8 @@ const UI = {
       <h2>🎯 כיף ופרסים</h2>
       <button class="fun-opt" id="optQuests">📋 משימות היום</button>
       <button class="fun-opt" id="optSpin">🎡 גלגל המזל</button>
-      <button class="fun-opt" id="optRace">🏁 מירוץ סוסים</button>
+      <button class="fun-opt" id="optStory">📜 הסיפור של החווה</button>
+      <button class="fun-opt" id="optRace">🏇 מסלול הרכיבה</button>
       <button class="fun-more" id="optMore">עוד משחקים ⬇</button>
       <div class="fun-rest hidden" id="funRest">
       <button class="fun-opt" id="optDeliver">🚚 משלוח לשוק</button>
@@ -513,6 +555,7 @@ const UI = {
     ov.querySelector('#optQuests').onclick = () => { Audio.click(); close(); this.openQuests(g); };
     ov.querySelector('#optSpin').onclick = () => { Audio.click(); close(); this.openSpin(); };
     ov.querySelector('#optRace').onclick = () => { Audio.click(); close(); this.handlers.onRace && this.handlers.onRace(); };
+    ov.querySelector('#optStory').onclick = () => { Audio.click(); close(); this.handlers.onStory && this.handlers.onStory(); };
     ov.querySelector('#optDeliver').onclick = () => { Audio.click(); close(); this.handlers.onDelivery && this.handlers.onDelivery(); };
     ov.querySelector('#optContest').onclick = () => { Audio.click(); close(); this.handlers.onContest && this.handlers.onContest(); };
     ov.querySelector('#optPhoto').onclick = () => { Audio.click(); close(); this.handlers.onPhoto && this.handlers.onPhoto(); };

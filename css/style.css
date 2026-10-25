@@ -472,3 +472,86 @@ canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-a
 .t3-done{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));right:max(16px,env(safe-area-inset-right));padding:12px 30px;}
 .t3-ui .hidden{display:none;}
 @media (max-height:430px){.t3-bubble{font-size:18px;padding:6px 10px;}.t3-msg{top:64px;font-size:17px;}.t3-done{font-size:22px;padding:8px 28px;}}
+
+/* ---- סיפור החווה ---- */
+.story-chip{position:absolute;top:112px;right:12px;z-index:12;pointer-events:auto;display:flex;align-items:center;gap:6px;
+  background:linear-gradient(160deg,#fffdf7,#ffe8b8);border:3px solid #fff;border-radius:18px;padding:6px 12px;
+  box-shadow:var(--shadow);font-weight:900;color:var(--petrol);font-size:16px;direction:rtl;}
+.story-chip .sc-ic{font-size:24px;}
+.story-chip .sc-dots{display:flex;gap:3px;}
+.story-chip .sc-dots i{width:10px;height:10px;border-radius:50%;background:#e7d8b0;display:block;}
+.story-chip .sc-dots i.on{background:var(--green);}
+.story-chip.glow{animation:storyGlow 1.6s infinite;}
+@keyframes storyGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,207,77,.9),var(--shadow);}50%{box-shadow:0 0 0 10px rgba(255,207,77,0),var(--shadow);}}
+body.riding .story-chip,body.inside .story-chip{display:none;}
+.story-card{width:min(470px,95vw);max-height:90vh;overflow-y:auto;direction:rtl;}
+.story-head{display:flex;align-items:center;gap:12px;margin:4px 0 10px;}
+.story-head img{width:76px;height:76px;object-fit:contain;flex:none;}
+.story-head h2{font-family:'Fredoka';color:var(--petrol);margin:2px 0;font-size:26px;}
+.story-num{font-size:13px;font-weight:700;color:var(--teal);}
+.story-card > h2{font-family:'Fredoka';text-align:center;color:var(--petrol);margin:4px 0 10px;}
+.story-bubble{position:relative;background:#fff;border-radius:18px;padding:12px 14px 12px 54px;font-size:18px;line-height:1.5;
+  color:var(--petrol);font-weight:700;box-shadow:0 3px 0 #e7d8b0;margin-bottom:12px;}
+.story-say{position:absolute;left:8px;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;background:#fff3cf;font-size:18px;}
+.story-step{display:flex;align-items:center;gap:10px;background:#fff;border-radius:16px;padding:8px 12px;margin:7px 0;box-shadow:0 3px 0 #e7d8b0;}
+.story-step.done{background:#e8f8e6;}
+.ss-ic{font-size:28px;flex:none;}
+.ss-t{flex:1;font-weight:700;color:var(--petrol);font-size:17px;}
+.ss-n{font-weight:900;color:var(--teal);font-size:16px;}
+.ss-go{flex:none;width:48px;height:48px;border-radius:50%;font-size:24px;background:linear-gradient(160deg,#ffb14d,#ff8a3d);box-shadow:0 4px 0 #d9722a;}
+.ss-go:active{transform:translateY(3px);box-shadow:0 1px 0 #d9722a;}
+.story-reward{text-align:center;font-weight:700;color:#a07400;background:#fff3cf;border-radius:14px;padding:7px;margin:10px 0;}
+.story-reward.big{font-size:20px;}
+.story-party{text-align:center;font-size:64px;animation:bounce 1.4s infinite;}
+.story-card .btn-big{display:block;width:100%;margin-top:10px;}
+
+/* ---- כרטיס סוס: רכיבה וגורים ---- */
+.ride-btn,.birth-btn{display:block;width:100%;margin-top:10px;padding:12px;border-radius:18px;font-size:19px;font-weight:900;color:#fff;
+  background:linear-gradient(160deg,#4fb3c2,#1d8a99);box-shadow:0 5px 0 #126370;}
+.ride-btn.locked{background:#cfc7b4;box-shadow:0 5px 0 #a99f88;}
+.birth-btn{background:linear-gradient(160deg,#ff9cc2,#ff6f9f);box-shadow:0 5px 0 #d94f80;animation:storyGlow 1.6s infinite;}
+
+/* ---- מכירה בחנות ---- */
+.shop-tab.sell-tab{background:#fff3cf;}
+.sell-btn{background:linear-gradient(160deg,#6fdc8c,#37b86a);box-shadow:0 4px 0 #2a8a4e;}
+.sell-btn.sure{background:linear-gradient(160deg,#ffb14d,#ff7a3d);box-shadow:0 4px 0 #d9722a;font-size:14px;}
+.sell-n{color:var(--teal);font-weight:900;}
+
+/* ---- רכיבה במסלול ---- */
+body.riding .hud .bottombar,body.riding .hud .left-tools,body.riding .loc-chip{display:none;}
+.ride-ui{position:fixed;inset:0;pointer-events:none;z-index:25;direction:rtl;}
+.ride-ui > *{pointer-events:auto;}
+.ride-ui .hidden{display:none !important;}
+.ride-top{position:absolute;top:max(64px,calc(env(safe-area-inset-top) + 58px));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.92);border:3px solid #fff;border-radius:22px;padding:6px 10px;box-shadow:var(--shadow);}
+.ride-exit{width:40px;height:40px;border-radius:50%;background:#ffe2e2;color:#d34a4a;font-size:18px;font-weight:900;}
+.ride-jumps{display:flex;gap:6px;direction:ltr;}
+.ride-jumps span{width:36px;height:36px;border-radius:10px;background:#f0e6cf;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--petrol);font-size:18px;}
+.ride-jumps span.star{background:#fff3b0;font-size:22px;}
+.ride-jumps span.ok{background:#dff3dc;color:#37b86a;}
+.ride-stars{font-weight:900;font-size:20px;color:#a07400;min-width:52px;text-align:center;}
+.ride-q{position:absolute;top:calc(max(64px,calc(env(safe-area-inset-top) + 58px)) + 62px);left:50%;transform:translateX(-50%);
+  width:min(460px,92vw);background:rgba(255,253,247,.96);border:4px solid #fff;border-radius:24px;padding:10px 14px;box-shadow:var(--shadow);text-align:center;}
+.ride-qtext{font-family:'Fredoka';font-size:34px;font-weight:700;color:var(--petrol);}
+.ride-vis .emoji-row{justify-content:center;}
+.ride-say{position:absolute;left:10px;top:10px;width:40px;height:40px;border-radius:50%;background:#fff3cf;font-size:18px;}
+.ride-hint{color:var(--teal);font-weight:700;font-size:17px;margin-top:4px;}
+.ride-choices{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(520px,94vw);
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:12px;}
+.ride-end{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,53,64,.25);}
+.ride-card{text-align:center;width:min(380px,92vw);}
+.ride-card h2{font-family:'Fredoka';color:var(--petrol);margin:4px 0;font-size:30px;}
+.ride-medal{font-size:70px;animation:bounce 1.4s infinite;}
+.ride-starrow{font-size:38px;letter-spacing:4px;margin:6px 0;}
+.ride-starrow .dim{filter:grayscale(1);opacity:.35;}
+.ride-prize{font-weight:900;font-size:22px;color:#a07400;margin-bottom:10px;}
+.ride-card .btn-big{display:block;width:100%;}
+@media (max-height:500px){.ride-q{top:56px;padding:6px 10px;}.ride-qtext{font-size:26px;}.ride-top{top:6px;}.ride-choices .choice{font-size:28px;padding:6px;}}
+
+/* ---- בתוך מבנה ---- */
+body.inside .hud .bottombar,body.inside #homeBtn,body.inside #mapBtn,body.inside #arrangeBtn,body.inside .loc-chip{display:none;}
+.inside-bar{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:20;pointer-events:auto;display:flex;align-items:center;gap:12px;
+  background:rgba(255,255,255,.94);border:3px solid #fff;border-radius:24px;padding:8px 10px 8px 18px;box-shadow:var(--shadow);direction:rtl;white-space:nowrap;}
+.ib-title{font-weight:900;color:var(--petrol);font-size:18px;}
+.scene-fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:60;transition:opacity .3s;}
+.scene-fade.on{opacity:1;}

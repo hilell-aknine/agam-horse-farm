@@ -6,6 +6,8 @@ const NAMES = ['כוכב', 'ברק', 'סוכר', 'ענן', 'פרח', 'יהלום
   'דבש', 'תות', 'שלג', 'זהבה', 'רוח', 'נמר', 'מלכה', 'אגוז', 'קפיץ', 'חלום'];
 const COLORS = ['brown', 'white', 'golden', 'gray', 'pink', 'black', 'spotted', 'unicorn'];
 const ROAM = 12;
+const FOAL_MS = 6 * 60 * 1000;   // סוס גדול ממליט סייח בערך כל 6 דקות משחק
+const MAX_HORSES = 8;
 
 let _id = 1;
 
@@ -58,6 +60,8 @@ class Horse {
     this.happy = opts.happy ?? 80;
     this.clean = opts.clean ?? 80;
     this.feedCount = opts.feedCount || 0;     // כמה פעמים הואכל (לגדילה)
+    this.lastBirth = opts.lastBirth || Date.now();
+    this.birthReady = false;
 
     this.group = new THREE.Group();
     const a = Math.random() * Math.PI * 2;
@@ -78,6 +82,12 @@ class Horse {
 
     World.scene.add(this.group);
     World.registerPickable(this.sprite);
+
+    // בקבוק מעל הסוס: יש הפתעה — סייח חדש מחכה
+    this.birthIcon = World.emojiSprite('🍼', 1.4);
+    this.birthIcon.center.set(0.5, 0.0);
+    this.birthIcon.visible = false;
+    this.group.add(this.birthIcon);
 
     this.accessory = opts.accessory || null;
     this.accSprite = null;
@@ -179,6 +189,9 @@ class Horse {
     }
     this._sleeping = sleeping;
     this._moving = moving;
+    this.birthReady = this.stage === 'adult' && Date.now() - this.lastBirth >= FOAL_MS && Horses.list.length < MAX_HORSES;
+    this.birthIcon.visible = this.birthReady;
+    if (this.birthReady) this.birthIcon.position.y = this.label.position.y + 0.5 + Math.abs(Math.sin(this.phase * 0.4)) * 0.3;
     if (this.h3d) {
       if (this._lookAt) { const l = this._lookAt.clone().sub(pos); l.y = 0; this.h3d.lookDir = l.lengthSq() > 0.01 ? l : null; }
       this.h3d.update(dt, { moving, sleeping, dir: moving ? to : null });
@@ -216,6 +229,7 @@ class Horse {
     const shared = World._texCache && Object.values(World._texCache).includes(map);
     if (map && !shared) map.dispose();
     this.sprite.material.dispose();
+    this.birthIcon.material.dispose();
     if (this.label.material.map) this.label.material.map.dispose();
     this.label.material.dispose();
     if (this.shadow) {
@@ -227,7 +241,7 @@ class Horse {
 
   toJSON() {
     return { id: this.id, name: this.name, color: this.color, stage: this.stage,
-      hunger: this.hunger, happy: this.happy, clean: this.clean, feedCount: this.feedCount, accessory: this.accessory };
+      hunger: this.hunger, happy: this.happy, clean: this.clean, feedCount: this.feedCount, accessory: this.accessory, lastBirth: this.lastBirth };
   }
 }
 
@@ -244,6 +258,14 @@ const Horses = {
     const used = new Set(this.list.map(h => h.name));
     const free = NAMES.filter(n => !used.has(n));
     return (free.length ? free : NAMES)[Math.floor(Math.random() * (free.length ? free.length : NAMES.length))];
+  },
+  // סייח נולד ליד אמא שלו, באותו צבע
+  birth(mom) {
+    mom.lastBirth = Date.now(); mom.birthReady = false;
+    const foal = this.add({ color: mom.color === 'rainbow' ? 'unicorn' : mom.color, stage: 'foal', name: this.randomName() });
+    foal.group.position.copy(mom.group.position).add(new THREE.Vector3(1.8, 0, 1.2));
+    foal.target.copy(foal.group.position); foal.wait = 3;
+    return foal;
   },
   toJSON() { return this.list.map(h => h.toJSON()); }
 };

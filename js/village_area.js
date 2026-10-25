@@ -24,11 +24,14 @@ export function buildVillage(deps) {
   // 3. כפר צפוף — מבנים סביב הכיכר
   // ───────────────────────────────────────────────
   // המאפייה (משמאל-מאחור) — כאן עובד האופה
-  deps.decor('assets/bakery.png', center.x - 7, center.z - 6, 7);
+  const bakery = deps.decor('assets/bakery.png', center.x - 7, center.z - 6, 7);
+  // נגיעה במבנה = נכנסים פנימה (interiors.js)
+  if (deps.enter) deps.activity(bakery, () => deps.enter('bakery'));
   // שלוש בקתות מגורים סביב הכיכר
   const roofCottage = deps.decor('assets/cottage.png', center.x + 8, center.z - 7, 6);
-  deps.decor('assets/cottage.png', center.x + 10, center.z + 4, 6);
-  deps.decor('assets/cottage.png', center.x - 11, center.z + 2, 6);
+  const cot2 = deps.decor('assets/cottage.png', center.x + 10, center.z + 4, 6);
+  const cot3 = deps.decor('assets/cottage.png', center.x - 11, center.z + 2, 6);
+  if (deps.enter) [roofCottage, cot2, cot3].forEach(c => deps.activity(c, () => deps.enter('cottage')));
   // באר מים ליד הבקתות
   deps.decor('assets/well.png', center.x + 7, center.z + 8, 2.4, true);
 

@@ -18,6 +18,9 @@ import { buildLake } from './lake_area.js';
 import { buildVillage } from './village_area.js';
 import { buildMountain } from './mountain_area.js';
 import { buildFair } from './fair_area.js';
+import { Story } from './story.js';
+import { Track3D } from './track3d.js';
+import { Interiors } from './interiors.js';
 
 const nowMs = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
@@ -77,7 +80,12 @@ UI.init({
     UI.updateHUD(Game); saveAll();
     return { ok: true, prize };
   },
-  onRace: () => startRace(),
+  onRace: () => openTrack(),
+  onRide: (horse) => openTrack(horse),
+  onHorseBirth: (horse) => horseBirth(horse),
+  onStory: () => Story.open(),
+  getSellables: () => sellables(),
+  onSell: (it) => sellItem(it),
   onDelivery: () => Mini.delivery.start(),
   onContest: () => Mini.contest.open(),
   onPhoto: () => Mini.photo.take(),
@@ -128,16 +136,20 @@ const AREAS = [
   { id: 'lake',     name: 'האגם',  emoji: '🏖️', x: 70,  z: 6,   unlock: 1 },
   { id: 'village',  name: 'הכפר',  emoji: '🏘️', x: -72, z: 0,   unlock: 3 },
   { id: 'mountain', name: 'ההר',   emoji: '🏔️', x: 0,   z: 72,  unlock: 4 },
-  { id: 'fair',     name: 'היריד', emoji: '🎪', x: 64,  z: -64, unlock: 5 }
+  { id: 'fair',     name: 'היריד', emoji: '🎪', x: 64,  z: -64, unlock: 5 },
+  { id: 'track',    name: 'מסלול הרכיבה', emoji: '🏇', x: Track3D.center.x, z: Track3D.center.z, unlock: 1 }
 ];
+// אזור שהסיפור כבר פתח נפתח גם אם הרמה עוד נמוכה — שפרק לא ייתקע על מנעול
+function syncStoryUnlocks() { AREAS.forEach(a => { if (Story.opened(a.id)) a.unlock = 1; }); }
 let currentArea = 'farm';
 function travelToArea(id) {
   const a = AREAS.find(x => x.id === id);
   if (!a) return;
   if (Game.level < a.unlock) { UI.toast('🔒 ' + a.name + ' נפתח ברמה ' + a.unlock, true); Audio.wrong(); return; }
   currentArea = id;
-  World.travelTo(a.x, a.z);
+  World.travelTo(a.x, a.z, id === 'track' ? 30 : 22);
   Game.visitArea(id);
+  Story.event('visit_' + id);
   UI.setLocation(a.emoji, a.name);
   UI.setTip(a.emoji + ' ' + a.name);
   Audio.areaAmbient(id);
@@ -147,6 +159,7 @@ function travelToArea(id) {
 function areaReward(id) {
   return (pos, res) => {
     grantReward(pos, res);
+    Story.event('act_' + id);
     if (Game.recordActivity(id)) {
       World.spawnParticles(pos, 'star', 14);
       UI.toast('⭐ משימת אזור הושלמה! כוכב בונוס', true);
@@ -182,7 +195,8 @@ function buildFarm(saved) {
   if (saved && saved.placed) saved.placed.forEach(p => placeBought(p.id, p.x, p.z, false));
   if (saved && saved.animals) saved.animals.forEach(a => {
     const def = SHOP.animals.find(s => s.id === a.type);
-    if (def) Animals.add({ id: a.id, type: a.type, asset: def.asset, scale: def.scale, produce: def.produce, region: PADDOCK, name: a.name, lastProduced: a.lastProduced });
+    if (def) Animals.add({ id: a.id, type: a.type, asset: def.asset, scale: def.scale, produce: def.produce, region: PADDOCK, name: a.name, lastProduced: a.lastProduced,
+      baby: a.baby, bornAt: a.bornAt, lastBirth: a.lastBirth, momId: a.momId });
   });
   spawnCritters();   // חיות נוף (לא נשמרות — תמיד מופיעות)
   // החלת שדרוגי אסם/חווה שנקנו
@@ -191,7 +205,7 @@ function buildFarm(saved) {
   spawnRares();       // חיות נדירות שכבר נפתחו
   initMagicTree();    // עץ הקסם
   // אזורי העולם הפתוח (יער, אגם)
-  const areaDeps = { THREE, World, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio };
+  const areaDeps = { THREE, World, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio, enter: enterBuilding };
   buildForest(Object.assign({}, areaDeps, { center: { x: 0, z: -70 }, grantReward: areaReward('forest') }));
   buildLake(Object.assign({}, areaDeps, { center: { x: 70, z: 6 }, grantReward: areaReward('lake') }));
   buildVillage(Object.assign({}, areaDeps, { center: { x: -72, z: 0 }, grantReward: areaReward('village') }));
@@ -199,6 +213,8 @@ function buildFarm(saved) {
   buildFair(Object.assign({}, areaDeps, { center: { x: 64, z: -64 }, grantReward: areaReward('fair') }));
   forestDensify();
   buildPaths();
+  buildTrack();
+  if (barnSprite) registerActivity(barnSprite, () => enterBuilding('barn'));   // נגיעה באסם = נכנסים פנימה
 }
 
 // ציפוף היער (היה דליל בחזית)
@@ -211,7 +227,7 @@ function forestDensify() {
 
 // שבילי עפר שמחברים את החווה לכל אזור
 function buildPaths() {
-  const targets = [[0, -70], [70, 6], [-72, 0], [0, 72], [64, -64]];
+  const targets = [[0, -70], [70, 6], [-72, 0], [0, 72], [64, -64], [Track3D.center.x, Track3D.center.z]];
   targets.forEach(([tx, tz]) => {
     const steps = 11;
     for (let i = 2; i < steps; i++) { World.floorPatch(tx * i / steps, tz * i / steps, 5.5, 5.5, 0xc8a878); }
@@ -221,8 +237,9 @@ function buildPaths() {
 // החלת שדרוג נראה על העולם
 function applyUpgrade(id) {
   if (id === 'barn_big') {
-    if (barnSprite) { World.scene.remove(barnSprite); barnSprite.material.dispose(); }
+    if (barnSprite) { World.unregisterPickable(barnSprite); World.scene.remove(barnSprite); barnSprite.material.dispose(); }
     barnSprite = decor('assets/barn_big.png', 0, -14, 11);
+    registerActivity(barnSprite, () => enterBuilding('barn'));
   } else if (id === 'silo') {
     decor('assets/silo.png', -9.5, -13.5, 7);
   } else if (id === 'weathervane') {
@@ -510,7 +527,12 @@ function startGame() {
   UI.setLocation('🏡', 'החווה');
   if (Game.settings.music) { Audio.musicOn = true; Audio.startMusic(); }
   UI.setTip('👆 געי בסוס או בשדה · 🛒 לחנות');
+  syncStoryUnlocks();
+  Story.refresh(); Story.show(true);
+  storyAutoSkip();
   Tutorial.start();
+  // שחקנית ותיקה שעוד לא ראתה את הפרק — רותי מספרת עליו
+  if (Game.tutorialDone && !Game.story.seen) setTimeout(() => { if (!document.querySelector('.overlay:not(.hidden)')) Story.open(); }, 1500);
 }
 
 // ---------- 60 השניות הראשונות: הדרכה קולית בלי קריאה ----------
@@ -556,11 +578,13 @@ const Tutorial = {
     Game.tutorialDone = true; saveAll();
     UI.setTip('👆 געי בסוס או בשדה · 🛒 לחנות');
     setTimeout(() => Audio.speak('מעולה! עכשיו זו החווה שלך. אפשר לטפל בסוסים, לשתול, ולקנות בחנות'), 1600);
+    setTimeout(() => { if (!document.querySelector('.overlay:not(.hidden)')) Story.open(); }, 7000);   // ואז מתחיל הסיפור
   }
 };
 
 // מעדכן התקדמות משימה ומתריע על השלמה
 function questBump(action) {
+  Story.event(action);
   const done = Game.bumpQuest(action);
   done.forEach(q => { UI.toast('✅ משימה הושלמה! +' + q.reward + ' 🪙', true); Audio.fanfare(); Audio.speak('משימה הושלמה! כל הכבוד'); });
   if (done.length) UI.updateHUD(Game);
@@ -662,6 +686,7 @@ function shopBuy(item, cat) {
     spawnAt(x, z, 'confetti', 16);
     Audio.fanfare(); Audio.speak('קנית ' + item.name);
     UI.toast('✨ קנית ' + item.name + '!', true);
+    Story.event('buy_decor');
     grantReward({ x, y: 1, z }, res);
     saveAll();
   });
@@ -728,6 +753,7 @@ function buyAnimal(item) {
     spawnAt(an.group.position.x, an.group.position.z, 'confetti', 16);
     Audio.fanfare(); Audio.speak(item.name + ' חדשה הצטרפה לחווה!');
     UI.toast('🐔 ' + item.name + ' הצטרפה!', true);
+    Story.event('buy_animal');
     grantReward({ x: an.group.position.x, y: 1, z: an.group.position.z }, res);
     saveAll();
   });
@@ -735,6 +761,12 @@ function buyAnimal(item) {
 
 function handleAnimal(a) {
   if (!a.produce) return;            // חיית נוף — אין אינטראקציה
+  if (a.birthReady) { animalBirth(a); return; }
+  if (a.baby) {
+    const left = Math.max(1, Math.ceil((1 - a.growth()) * 3));
+    UI.toast('🍼 גור קטן! עוד ' + left + ' דקות והוא יגדל', false);
+    Audio.speak('זה גור קטן. הוא עוד גדל'); return;
+  }
   if (a.ready) { collectProduce(a); }
   else {
     const s = a.remainingSec(nowMs());
@@ -856,31 +888,227 @@ function notEnough(cost) {
   Audio.wrong(); Audio.speak('צריך עוד מטבעות. פתרי עוד תרגילים!');
 }
 
-// מיני-משחק מירוץ סוסים — עונים מהר על תרגילים והסוס מתקדם לקו הסיום
-function startRace() {
-  let step = 0; const total = 6;
-  UI.raceBar(step, total);
-  Audio.speak('מירוץ! פתרי מהר כדי להגיע ראשונה');
-  const next = () => {
-    if (step >= total) {
-      UI.raceBar(total, total);
-      const prize = 25 + Game.level * 2;
-      Game.coins += prize; Game.stars += 1; Game.save();
-      Audio.fanfare();
-      setTimeout(() => { UI.raceEnd(prize); UI.updateHUD(Game); saveAll(); }, 500);
-      return;
-    }
-    const p = generateProblem(Game.difficulty());
-    UI.askMath(p, 'race', (res) => {
-      if (res.correct) {
-        Game.recordResult(p.type, res.firstTry); questBump('solve');
-        step++; UI.raceBar(step, total);
-        setTimeout(next, 250);
-      } else { UI.raceClear(); }   // ביטול → סיום שקט
-    });
-  };
-  next();
+// ---------- מסלול הרכיבה ----------
+function buildTrack() {
+  Track3D.build({
+    Game, UI,
+    onSolved: (problem, firstTry, pos) => {
+      Game.recordResult(problem.type, firstTry); questBump('solve');
+      grantReward(pos, { firstTry });
+      Game.rides.jumps++;
+      Story.event('jump'); if (firstTry) Story.event('star_jump');
+    },
+    onLap: ({ stars, perfect }) => {
+      const prize = 10 + stars * 3 + (perfect ? 10 : 0);
+      Game.addCoins(prize);
+      Game.rides.laps++;
+      if (perfect) { Game.ribbons++; Game.rides.perfect++; Story.event('perfect'); }
+      Story.event('ride');
+      UI.updateHUD(Game); saveAll();
+      return prize;
+    },
+    onExit: () => { UI.updateHUD(Game); UI.setTip('🏇 געי בסוס בחווה כדי לרכוב שוב'); }
+  });
 }
+// רכיבה: על הסוס שנבחר, או על הסוס הגדול הראשון
+function openTrack(horse) {
+  if (Game.visiting) { visitBlock(); return; }
+  if (Interiors.active) Interiors.exit();
+  const h = horse && horse.stage === 'adult' ? horse : Horses.list.find(x => x.stage === 'adult');
+  if (!h) {
+    UI.toast('🐴 צריך סוס גדול כדי לרכוב. האכילי סייח ואז גדלי אותו', true);
+    Audio.speak('צריך סוס גדול כדי לרכוב. האכילי סייח שלוש פעמים, ואז לחצי לגדול');
+    return;
+  }
+  currentArea = 'track';
+  Game.visitArea('track'); Story.event('visit_track');
+  UI.setLocation('🏇', 'מסלול הרכיבה');
+  Track3D.start(h);
+}
+
+// ---------- גורים: חיות וסוסים שהמליטו ----------
+function animalBirth(a) {
+  askProblem('birth', (res) => {
+    const baby = Animals.birth(a, nowMs());
+    spawnAt(baby.group.position.x, baby.group.position.z, 'confetti', 16);
+    World.showAction(baby.group.position.clone(), '🍼', true);
+    Audio.fanfare(); Audio.animalSound(a.type);
+    const name = (SHOP.animals.find(s => s.id === a.type) || {}).name || 'חיה';
+    Audio.speak('נולד גור ' + name + ' קטן! קוראים לו ' + baby.name);
+    UI.toast('🍼 נולד גור ' + name + '! קוראים לו ' + baby.name, true);
+    grantReward({ x: baby.group.position.x, y: 1, z: baby.group.position.z }, res);
+    Story.event('birth');
+    saveAll();
+  });
+}
+function horseBirth(mom) {
+  if (!mom.birthReady) return;
+  askProblem('birth', (res) => {
+    const foal = Horses.birth(mom);
+    foal.celebrate();
+    spawnAt(foal.group.position.x, foal.group.position.z, 'confetti', 18);
+    World.showAction(foal.group.position.clone(), '🍼', true);
+    Audio.fanfare(); Audio.animalSound('horse');
+    Audio.speak('ל' + mom.name + ' נולד סייח! קוראים לו ' + foal.name + '. האכילי אותו כדי שיגדל');
+    UI.toast('🐴 ל' + mom.name + ' נולד סייח: ' + foal.name + '!', true);
+    grantReward(foal.group.position.clone(), res);
+    Story.event('birth');
+    saveAll();
+  });
+}
+Animals.onGrown = (a) => {
+  const name = (SHOP.animals.find(s => s.id === a.type) || {}).name || 'הגור';
+  UI.toast('🎉 ' + a.name + ' ה' + name + ' גדל/ה! עכשיו יש תוצרת', true);
+  Audio.speak(a.name + ' גדל! עכשיו הוא ייתן תוצרת');
+  a.celebrate(); saveAll();
+};
+
+// ---------- מכירה בחנות ----------
+// מקובץ לפי סוג: קישוטים/ציוד שהוצבו, וחיות משק (גורים בנפרד, במחיר נמוך יותר)
+function sellables() {
+  const out = [], byId = {};
+  placedItems.forEach(r => { byId[r.id] = (byId[r.id] || 0) + 1; });
+  Object.keys(byId).forEach(id => {
+    const it = shopItemById(id);
+    if (!it) return;
+    out.push({ kind: 'placed', key: id, name: it.name, say: it.name, img: 'assets/' + it.asset, count: byId[id], price: Math.max(1, Math.floor(it.cost / 2)) });
+  });
+  const byType = {};
+  Animals.productive().forEach(a => { const k = a.type + (a.baby ? ':baby' : ''); byType[k] = (byType[k] || 0) + 1; });
+  Object.keys(byType).forEach(k => {
+    const [type, baby] = k.split(':');
+    const def = SHOP.animals.find(s => s.id === type);
+    if (!def) return;
+    out.push({ kind: 'animal', key: type, baby: !!baby, name: (baby ? 'גור ' : '') + def.name, say: (baby ? 'גור ' : '') + def.name,
+      img: 'assets/' + def.asset, count: byType[k], price: Math.max(1, Math.floor(def.cost / (baby ? 4 : 2))) });
+  });
+  return out;
+}
+function removePlaced(rec) {
+  const sp = movableSprites.find(m => m.userData.placedRec === rec);
+  if (sp) {
+    const sh = sp.userData.placedShadow;
+    [sp, sh].forEach(o => {
+      if (!o) return;
+      World.scene.remove(o);
+      const i = placedMeshes.indexOf(o); if (i >= 0) placedMeshes.splice(i, 1);
+      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+      if (o.geometry) o.geometry.dispose();
+    });
+    movableSprites.splice(movableSprites.indexOf(sp), 1);
+  }
+  placedItems.splice(placedItems.indexOf(rec), 1);
+  return sp ? sp.position.clone() : new THREE.Vector3(0, 0, 0);
+}
+function sellItem(it) {
+  if (Game.visiting) { visitBlock(); return; }
+  askProblem('sell', (res) => {
+    let pos = null;
+    if (it.kind === 'placed') {
+      const rec = [...placedItems].reverse().find(r => r.id === it.key);
+      if (!rec) return;
+      pos = removePlaced(rec);
+    } else {
+      const list = Animals.productive().filter(a => a.type === it.key && !!a.baby === !!it.baby);
+      const a = list[list.length - 1];
+      if (!a) return;
+      pos = a.group.position.clone();
+      Animals.remove(a);
+    }
+    Game.addCoins(it.price);
+    spawnAt(pos.x, pos.z, 'coin', 14);
+    Audio.coin(); Audio.speak('מכרת ' + it.say + ' וקיבלת ' + it.price + ' מטבעות');
+    UI.toast('💰 מכרת ' + it.name + '! +' + it.price + ' 🪙', true);
+    grantReward({ x: pos.x, y: 1, z: pos.z }, res);
+    Story.event('sell');
+    saveAll();
+  });
+}
+
+// ---------- כניסה למבנים ----------
+const FAR = { x: 0, y: -60, z: 0 };   // חלקיקי התגמול "בחוץ" לא נראים מבפנים — לחדר יש חלקיקים משלו
+function enterBuilding(id) {
+  if (Track3D.active || !Interiors.has(id)) return;
+  UI.closeHorseCard();
+  Interiors.enter(id);
+}
+Interiors.init({
+  Horses,
+  ask: (type, fn) => askProblem(type, (res) => { grantReward(FAR, res); fn(res); }),
+  coins: (n) => { Game.addCoins(n); UI.toast('+' + n + ' 🪙', false); UI.updateHUD(Game); saveAll(); },
+  stallCare: (h, fx) => askProblem('brush', (res) => {
+    h.clean = 100; h.happy = 100;
+    questBump('brush');
+    grantReward(FAR, res);
+    UI.toast('🧼 ' + h.name + ' נקי ומאושר!', true);
+    Audio.animalSound('horse');
+    fx(res); saveAll();
+  }),
+  event: (e) => Story.event(e),
+  toast: (t, big) => UI.toast(t, big),
+  onEnter: (id) => { Story.event('enter_' + id); UI.setLocation('🚪', { barn: 'האסם', bakery: 'המאפייה', cottage: 'בית בכפר' }[id] || ''); },
+  onExit: () => { const a = AREAS.find(x => x.id === currentArea); if (a) UI.setLocation(a.emoji, a.name); }
+});
+
+// ---------- הסיפור: "קחי אותי" לכל שלב ----------
+function pointAt(pos, emoji = '👇') {
+  let n = 0;
+  const show = () => { World.showAction({ x: pos.x, y: pos.y || 0, z: pos.z }, emoji); if (++n < 4) setTimeout(show, 2300); };
+  setTimeout(show, 700);
+}
+function goFarm() { if (currentArea !== 'farm') travelToArea('farm'); }
+function storyGo(target) {
+  if (Interiors.active) Interiors.exit();
+  if (Track3D.active) Track3D.stop();
+  syncStoryUnlocks();
+  const near = (o, say) => { World.travelTo(o.x, o.z, 16); pointAt(o); if (say) Audio.speak(say); };
+  if (target === 'horse' || target === 'foal') {
+    goFarm();
+    const h = (target === 'foal' && Horses.list.find(x => x.stage === 'foal')) || Horses.list[0];
+    if (h) near(h.group.position, 'געי ב' + h.name);
+  } else if (target === 'field') {
+    goFarm();
+    const p = Fields.plots.find(x => x.state === 'ready') || Fields.freePlot() || Fields.plots[0];
+    if (p) near(p.pos, p.state === 'ready' ? 'השדה מוכן לקציר! געי בו' : 'געי בשדה');
+  } else if (target === 'animal' || target === 'birth') {
+    goFarm();
+    const list = Animals.productive();
+    const a = target === 'birth'
+      ? (list.find(x => x.birthReady) || Horses.list.find(x => x.birthReady))
+      : (list.find(x => x.ready) || list.find(x => !x.baby));
+    if (a) near(a.group.position, target === 'birth' ? 'יש בקבוק! געי בו' : 'געי בחיה');
+    else if (target === 'birth') { UI.toast('🍼 עוד אין גור. כשיופיע בקבוק מעל חיה או סוס, געי בו', true); Audio.speak('עוד אין גור. כשתראי בקבוק מעל חיה או סוס, געי בו'); }
+    else { openShop(); UI.openShopTab('animals'); }
+  } else if (target === 'track') openTrack();
+  else if (target === 'shop_animals') { openShop(); UI.openShopTab('animals'); }
+  else if (target === 'shop') openShop();
+  else if (target === 'sell') { openShop(); UI.openShopTab('sell'); }
+  else if (target === 'barn') { goFarm(); if (barnSprite) near(barnSprite.position, 'געי באסם כדי להיכנס פנימה'); }
+  else if (target === 'bakery') {
+    travelToArea('village');
+    setTimeout(() => { pointAt({ x: -79, z: -6, y: 3 }); Audio.speak('געי במאפייה כדי להיכנס'); }, 1500);
+  } else if (AREAS.find(a => a.id === target)) travelToArea(target);
+}
+function storyReward(r) {
+  if (r.coins) Game.addCoins(r.coins);
+  if (r.stars) Game.stars += r.stars;
+  if (r.horse === 'rainbow') {
+    const h = Horses.add({ color: 'rainbow', stage: 'adult', name: 'קשת' });
+    h.celebrate(); spawnAt(h.group.position.x, h.group.position.z, 'confetti', 20);
+  }
+  Game.save(); UI.updateHUD(Game); saveAll();
+}
+// שחקנית שכל הסוסים שלה כבר גדולים לא נתקעת על "לגדל סייח"
+function storyAutoSkip() {
+  const c = Story.chapter();
+  if (c && c.steps.some(s => s.ev === 'grow') && !Horses.list.some(h => h.stage === 'foal')) Story.event('grow');
+}
+Story.init({
+  Game, root: document.getElementById('ui'),
+  go: storyGo, reward: storyReward, toast: (t, big) => UI.toast(t, big),
+  busy: () => !!Track3D.active,
+  onChapter: () => { syncStoryUnlocks(); storyAutoSkip(); }
+});
 
 // עזר ליצירת חלקיקים בנקודת קרקע
 function spawnAt(x, z, kind, count) {
@@ -1014,6 +1242,8 @@ canvas.addEventListener('pointerup', (e) => {
   const dt = performance.now() - downT;
   if (moved < 14 && dt < 900) {   // ילדה לוחצת לאט — 450ms פספס לחיצות מכוונות
     Audio.resume();
+    if (Interiors.active) { Interiors.pick(e.clientX, e.clientY); return; }   // בתוך מבנה — רק דברים בחדר
+    if (Track3D.active) return;                                              // ברכיבה — רק הכפתורים
     // בזמן משימת השוקת נגיעה מזיזה גזרים בלבד (לא פותחת סוסים/שדות)
     if (Transfer3D.active) {
       const c = Transfer3D.pickAt(e.clientX, e.clientY);
@@ -1056,7 +1286,10 @@ function loop() {
   Animals.update(nowMs(), dt);
   updateMagicTree();
   Transfer3D.update(dt);
+  Track3D.update(dt);
+  Interiors.update(dt);
   const t = performance.now() / 1000;
+  Track3D.idle(t, dt);
   for (let i = 0; i < areaUpdaters.length; i++) areaUpdaters[i](t, dt);
   World.render();
   requestAnimationFrame(loop);

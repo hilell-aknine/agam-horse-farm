@@ -29,6 +29,9 @@
 - **cloud.js** — Supabase (esm.sh CDN), התחברות אנונימית/אימייל, pull/push (fail-safe: אם אין רשת → localStorage בלבד).
 - **מודולי-אזור:** `forest_area.js`, `lake_area.js`, `village_area.js`, `mountain_area.js`, `fair_area.js` — כל אחד `build*(deps)` שבונה אזור סביב מרכז נתון (DI: deps.decor/activity/onUpdate/askProblem/Animals/...).
 - **מודולי מיני-משחק:** `contest.js`, `delivery.js`, `photo.js` — `create*(deps)` → API.
+- **story.js** — סיפור החווה: `CHAPTERS` (8 פרקים × 3 שלבים). main שולח `Story.event(name)` (דרך `questBump` + אירועי visit_/act_/enter_/buy_/sell/ride/jump/birth). `Game.story = {ch, prog, seen}`. פרק יכול לפתוח אזור נעול (`opens`).
+- **track3d.js** — מסלול הרכיבה (אזור `track`): טבלת אורך-קשת לאליפסה, `Track3D.start(horse)` בונה סוס-רוכב נפרד (Horse3D על אובייקט מזויף) + רוכבת מפרימיטיבים, מצלמה רודפת (מבטלת זמנית את גבולות OrbitControls), השמש עוקבת אחרי הסוס בשביל צל. `Game.rides`.
+- **interiors.js** — מבנים: כל חדר הוא `THREE.Scene` נפרד ש-`World.activeScene` מחליף ברינדור. לא משתמשים שם ב-`makeBillboard` (Models3D מסנכרן רק את הסצנה הראשית) — מודלים נטענים ישירות. נגיעה בפנים עוברת ל-`Interiors.pick` בלבד.
 
 ## מודל נתונים
 - מקומי: `localStorage['agam_farm_v2']` — coins/xp/level/stars/settings/typeStats/quests/upgrades/ribbons/rares/tree/worldStats + horses/fields/placed/animals + savedAt. בנוסף `agam_farm_owner` = user_id שמחזיק את השמירה במכשיר (הגנת מכשיר משותף: הרשמה חדשה לא יורשת חווה של אחרת).

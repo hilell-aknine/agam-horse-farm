@@ -87,6 +87,8 @@ const Game = {
   rares: {},         // חיות נדירות שנפתחו {id:true}
   tree: null,        // עץ הקסם {planted, plantedAt, lastFruit}
   worldStats: { visited: {}, activities: {} },   // גילוי עולם: אילו אזורים בוקרו וכמה פעילויות בכל אחד
+  story: { ch: 0, prog: [], seen: false },        // סיפור החווה: פרק נוכחי, התקדמות בכל שלב, האם הפרק הוצג
+  rides: { laps: 0, perfect: 0, jumps: 0 },       // מסלול הרכיבה: סיבובים, סיבובים מושלמים, קפיצות
   _firstRun: true,
 
   // קושי גדל עם הגיל שנבחר ועם ההתקדמות במשחק
@@ -228,7 +230,7 @@ const Game = {
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
         typeStats: this.typeStats, tutorialDone: this.tutorialDone, mastery: this.mastery, recent: this.recent, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
-        upgrades: this.upgrades, expansion: this.expansion, decorPos: this.decorPos, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, savedAt: Date.now(),
+        upgrades: this.upgrades, expansion: this.expansion, decorPos: this.decorPos, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, story: this.story, rides: this.rides, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
       this._lastData = data;     // לשימוש שמירת-הענן
@@ -264,6 +266,8 @@ const Game = {
     this.rares = d.rares || {};
     this.tree = d.tree || null;
     this.worldStats = d.worldStats || { visited: {}, activities: {} };
+    this.story = Object.assign({ ch: 0, prog: [], seen: false }, d.story || {});
+    this.rides = Object.assign({ laps: 0, perfect: 0, jumps: 0 }, d.rides || {});
     this._snap = { horses: d.horses || [], fields: d.fields || [], placed: d.placed || [], animals: d.animals || [] };
   },
 
@@ -285,6 +289,7 @@ const Game = {
     this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true };
     this.typeStats = {}; this.tutorialDone = false; this.mastery = 0; this.recent = []; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
     this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
+    this.story = { ch: 0, prog: [], seen: false }; this.rides = { laps: 0, perfect: 0, jumps: 0 };
     this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
   }
 };

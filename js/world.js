@@ -254,7 +254,9 @@ const World = {
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2 + 0.4;
       const mt = new THREE.Mesh(new THREE.ConeGeometry(13 + (i % 3) * 4, 20 + (i % 4) * 6, 5), mtMat);
-      mt.position.set(Math.cos(a) * 100, 6, Math.sin(a) * 100);
+      // הר שנופל על מסלול הרכיבה (-42,-62) נדחק אחורה — אחרת המצלמה הרודפת נכנסת לתוכו
+      const r = Math.hypot(Math.cos(a) * 100 + 42, Math.sin(a) * 100 + 62) < 50 ? 150 : 100;
+      mt.position.set(Math.cos(a) * r, 6, Math.sin(a) * r);
       this.scene.add(mt);
     }
     // ציפורים שמרחפות (נסחפות כמו עננים)
@@ -625,7 +627,8 @@ const World = {
     return dt;
   },
 
-  render() { this.renderer.render(this.scene, this.camera); },
+  // activeScene: כשנכנסים למבנה מרנדרים את החדר במקום העולם (העולם ממשיך להתעדכן)
+  render() { this.renderer.render(this.activeScene || this.scene, this.camera); },
 
   setDayNight(on) {
     this.dayNight = on;
