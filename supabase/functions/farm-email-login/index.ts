@@ -9,6 +9,11 @@
 //   update auth.users set raw_app_meta_data = raw_app_meta_data || '{"agam_farm":true}'
 //   where email in ('...');
 //
+// 🔒 רק מיילים מורשים: הסוד FARM_ALLOWED_EMAILS (רשימה מופרדת בפסיקים). מייל שלא ברשימה → 403 not_allowed,
+// ושום משתמש לא נוצר. בלי הסוד → 500 not_configured (נכשלים סגור, לא פותחים לכולם).
+//   npx supabase secrets set FARM_ALLOWED_EMAILS="a@x.com,b@y.com"
+// אותה רשימה חייבת להופיע (כטביעות SHA-256) ב-js/allowlist.js בצד הדפדפן.
+//
 // פריסה: npx supabase functions deploy farm-email-login --no-verify-jwt
 // סודות: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY מוזרקים אוטומטית ע"י Supabase.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -44,12 +49,15 @@ Deno.serve(async (req) => {
     const url = Deno.env.get('SUPABASE_URL');
     const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const anon = Deno.env.get('SUPABASE_ANON_KEY');
-    if (!url || !service || !anon) return json({ error: 'not_configured' }, 500);   // fail loudly
+    const allowRaw = Deno.env.get('FARM_ALLOWED_EMAILS');
+    if (!url || !service || !anon || !allowRaw) return json({ error: 'not_configured' }, 500);   // fail loudly
+    const allowed = new Set(allowRaw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean));
 
     const body = await req.json().catch(() => ({}));
     const email = String(body.email || '').trim().toLowerCase();
     const name = String(body.name || '').trim().slice(0, 20);
     if (!EMAIL_RE.test(email) || email.length > 254) return json({ error: 'bad_email' }, 400);
+    if (!allowed.has(email)) return json({ error: 'not_allowed' }, 403);   // לפני כל יצירת משתמש
 
     const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
 

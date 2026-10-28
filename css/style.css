@@ -564,3 +564,5 @@ body.inside .hud .bottombar,body.inside #homeBtn,body.inside #mapBtn,body.inside
 .ib-title{font-weight:900;color:var(--petrol);font-size:18px;}
 .scene-fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:60;transition:opacity .3s;}
 .scene-fade.on{opacity:1;}
+.pick-row.on{outline:3px solid var(--gold,#D4AF37);}
+#pickScreen .friend-row{width:100%;margin:6px 0;}

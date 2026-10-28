@@ -41,30 +41,49 @@ let saveLocked = true;   // נפתח רק אחרי שה-boot בנה את החו�
 const PENDING_NAME_KEY = 'agam_pending_name';   // שם שהוקלד בכניסה, מוחל על החווה אחרי הטעינה מחדש
 let pendingLogin = null;                          // { email, mode } בין הכניסה לבחירת "לקחת את חוות האורחת?"
 
-// כניסה במייל של הורה בלבד. מחזיר { canAdopt } — מייל חדש לגמרי + יש חוות אורחת במכשיר.
-async function loginWithEmail(email, name) {
+// כניסה במייל של הורה בלבד (בלי סיסמה, רק מייל מורשה). אחריה בוחרים מי משחקת.
+// מחזיר { email, players, canAdopt } — canAdopt: יש במכשיר חוות אורחת שאפשר לתת לשחקנית חדשה.
+async function loginWithEmail(email) {
   if (!saveLocked && !Game.visiting) saveAll();   // החווה הנוכחית נשמרת למגירה שלה
   saveLocked = true;                                // מכאן ועד הטעינה מחדש — לא שומרים כלום
   let r;
-  try { r = await Cloud.loginEmail(email, name); }
+  try { r = await Cloud.loginEmail(email); }
   catch (e) { saveLocked = false; throw e; }
   email = String(email).trim().toLowerCase();
-  try { if (name) localStorage.setItem(PENDING_NAME_KEY, name); else localStorage.removeItem(PENDING_NAME_KEY); } catch (e) {}
-  let isNew = !Game.hasEmailFarm(email);
-  if (isNew && r.mode === 'cloud') {
-    if (r.created === false) isNew = false;        // החשבון כבר היה קיים בשרת
-    else if (await withTimeout(Cloud.pull(), 4000, null)) isNew = false;
+  let players = Game.players(email);
+  if (!players.length && r.mode === 'cloud') {      // מכשיר חדש לחשבון קיים: החווה בענן = השחקנית הראשונה
+    const d = await withTimeout(Cloud.pull(), 4000, null);
+    if (d) { players = [{ id: 'main', name: d.name || '' }]; Game._savePlayers(email, players); }
   }
   pendingLogin = { email, mode: r.mode };
-  return { canAdopt: isNew && Game.hasGuestFarm() };
+  return { email, players, canAdopt: Game.guestHasProgress() };
 }
-// סיום כניסה. adopt=true: חשבון חדש לוקח את חוות האורחת (רק בחשבון חדש, ורק בבחירה)
-async function finishLogin(adopt) {
+// "להחליף שחקנית" כשכבר מחוברים במייל: אותה בחירה, בלי להתנתק
+function currentPlayers() {
+  const email = Cloud.accountEmail();
+  if (!email) return null;
+  if (!saveLocked && !Game.visiting) saveAll();
+  pendingLogin = { email, mode: Cloud.loggedIn() ? 'cloud' : 'local' };
+  return { email, players: Game.players(email), canAdopt: false, current: Game.playerId() };
+}
+// סיום: choice = { pid } לשחקנית קיימת, או { newName, adopt } לשחקנית חדשה
+async function finishLogin(choice) {
   const p = pendingLogin; pendingLogin = null;
-  if (p && adopt) {
-    const adopted = Game.adoptGuestInto(p.email);
-    if (adopted && p.mode === 'cloud' && Cloud.userId) { Cloud.bindSaves(Cloud.userId); Cloud.push(adopted); await withTimeout(Cloud.flush(), 4000, null); }
+  if (!p) return;
+  saveLocked = true;
+  let pid = choice && choice.pid;
+  if (!pid) {
+    const name = String((choice && choice.newName) || '').trim();
+    pid = Game.addPlayer(p.email, name);
+    if (choice && choice.adopt) {
+      const adopted = Game.adoptGuestInto(p.email, pid);
+      if (adopted && pid === 'main' && p.mode === 'cloud' && Cloud.userId) { Cloud.bindSaves(Cloud.userId); Cloud.push(adopted); await withTimeout(Cloud.flush(), 4000, null); }
+    }
+    try { if (name) localStorage.setItem(PENDING_NAME_KEY, name); else localStorage.removeItem(PENDING_NAME_KEY); } catch (e) {}
+  } else {
+    try { localStorage.removeItem(PENDING_NAME_KEY); } catch (e) {}
   }
+  Game.setActivePlayer(p.email, pid);
   try { localStorage.removeItem(GUEST_KEY); } catch (e) {}
 }
 
@@ -136,6 +155,7 @@ UI.init({
   },
   onAuth: {
     login: loginWithEmail,
+    players: currentPlayers,
     finish: finishLogin,
     signOut: logoutToGate
   },
@@ -156,7 +176,13 @@ function enterGuest() {
 }
 // "להחליף שחקנית": מחוברת → יציאה לשער; אורחת → חזרה לשער (החווה שלה נשמרת במגירה שלה)
 function switchPlayer() {
-  if (Cloud.accountEmail()) { logoutToGate(); return; }
+  if (Cloud.accountEmail()) {   // מחוברת במייל של הורה → בוחרות שחקנית אחרת מאותו מייל (יציאה מהחשבון בתוך הבחירה)
+    const info = currentPlayers();
+    document.getElementById('titleScreen').classList.add('hidden');
+    if (UI.settingsOv) UI.settingsOv.classList.add('hidden');
+    UI.showPlayerPicker(info);
+    return;
+  }
   if (!saveLocked) saveAll();
   try { localStorage.removeItem(GUEST_KEY); } catch (e) {}
   document.getElementById('titleScreen').classList.add('hidden');
@@ -343,11 +369,24 @@ async function boot() {
     try { await withTimeout(Cloud.loginEmail(acctEmail), 4000, null); } catch (e) {}
     cloudSession = sessionMatches();
   }
+  let needPick = false;
   if (acctEmail) {
-    Game.useEmail(acctEmail, cloudSession ? Cloud.userId : null);
+    // מי משחקת? השחקנית שנבחרה אחרונה במכשיר; אם יש רק אחת — היא. אחרת → מסך בחירה.
+    const players = Game.players(acctEmail);
+    let pid = Game.activePlayer(acctEmail);
+    if (!players.some(p => p.id === pid)) pid = players.length === 1 ? players[0].id : null;
+    needPick = !pid;
+  }
+  if (acctEmail && needPick) {
+    // חווה ריקה שלא נשמרת לשום מגירה, רק כרקע למסך הבחירה
+    Game._ns = null; Game.reset(); Cloud.bindSaves(null);
+  } else if (acctEmail) {
+    const pid = Game.players(acctEmail).some(p => p.id === Game.activePlayer(acctEmail)) ? Game.activePlayer(acctEmail) : Game.players(acctEmail)[0].id;
+    const cloudMain = cloudSession && pid === 'main';   // הענן שומר חווה אחת לחשבון — של השחקנית הראשונה
+    Game.useEmail(acctEmail, cloudMain ? Cloud.userId : null, pid);
     const localData = Game.load();
     let cloudData = null;
-    if (cloudSession) {
+    if (cloudMain) {
       cloudData = await withTimeout(Cloud.pull(), 4000, null);
       Cloud.bindSaves(Cloud.userId);                   // מכאן מותר לדחוף לענן — רק לחשבון הזה
     } else Cloud.bindSaves(null);
@@ -356,15 +395,19 @@ async function boot() {
     } else if (localData) {
       saved = localData;
     } else {
-      Game.reset();                                    // חשבון בלי חווה בכלל → חווה חדשה
+      Game.reset();                                    // שחקנית בלי חווה בכלל → חווה חדשה
     }
-    if (cloudSession) await withTimeout(Cloud.fetchProfile(), 3000, null);
+    if (cloudMain) await withTimeout(Cloud.fetchProfile(), 3000, null);
     let pendingName = null;
     try { pendingName = localStorage.getItem(PENDING_NAME_KEY); localStorage.removeItem(PENDING_NAME_KEY); } catch (e) {}
+    const listed = (Game.players(acctEmail).find(p => p.id === pid) || {}).name;
     if (pendingName) Game.name = pendingName;
-    else if (!Game.name && Cloud.profileName()) Game.name = Cloud.profileName();
-    if (cloudSession && Game.name && Cloud.profileName() !== Game.name) await withTimeout(Cloud.saveProfile(Game.name, Game.level), 3000, null);
-    Game.save(); if (cloudSession) Cloud.push(Game.lastData());
+    else if (listed) Game.name = listed;
+    else if (!Game.name && cloudMain && Cloud.profileName()) Game.name = Cloud.profileName();
+    if (cloudMain && Game.name && Cloud.profileName() !== Game.name) await withTimeout(Cloud.saveProfile(Game.name, Game.level), 3000, null);
+    Game.setActivePlayer(acctEmail, pid);
+    if (Game.name && listed !== Game.name) Game.renamePlayer(acctEmail, pid, Game.name);
+    Game.save(); if (cloudMain) Cloud.push(Game.lastData());
   } else {
     Game.useGuest();
     Cloud.bindSaves(null);                             // אורחת = מקומי בלבד, בלי ענן
@@ -373,7 +416,13 @@ async function boot() {
   }
   buildFarm(saved);
   applySettings();
-  saveLocked = false;   // החווה הנכונה בנויה — מעכשיו שומרים (למגירה שלה בלבד)
+  saveLocked = needPick;   // החווה הנכונה בנויה — מעכשיו שומרים (למגירה שלה בלבד). במסך בחירה — עוד לא
+  if (needPick) {          // מחוברת במייל אבל עוד לא בחרה מי משחקת
+    pendingLogin = { email: acctEmail, mode: cloudSession ? 'cloud' : 'local' };
+    UI.showPlayerPicker({ email: acctEmail, players: Game.players(acctEmail), canAdopt: Game.guestHasProgress() });
+    readyUI();
+    return;
+  }
 
   // ---------- שער כניסה: אונליין בלי חשבון → בחירה: לשחק כאורחת או להיכנס לחשבון ----------
   // אלא אם בחרו כבר לשחק כאורחת — אז ממשיכים למשחק מקומי בלי לחסום שוב.
@@ -390,7 +439,8 @@ async function boot() {
   if (acctEmail && !Game.name) {
     UI.askPlayerName(async (name) => {
       Game.name = name; Game.save(); saveAll();
-      if (cloudSession) await Cloud.saveProfile(name, Game.level);
+      Game.renamePlayer(acctEmail, Game.playerId(), name);
+      if (cloudSession && Game.playerId() === 'main') await Cloud.saveProfile(name, Game.level);
       UI.showTitle();
     });
     readyUI();

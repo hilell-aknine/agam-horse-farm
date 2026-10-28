@@ -3,6 +3,7 @@
 // המפתח הוא anon ציבורי (בטוח בצד-לקוח, מוגן ב-RLS).
 // עולם חברתי: farm_profiles (שם+רמה לכל שחקנית) + צפייה בחוות של חברות (קריאה בלבד).
 
+import { isAllowedEmail } from './allowlist.js';
 const SUPABASE_URL = 'https://xgqetnlsesgwiypufodf.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhncWV0bmxzZXNnd2l5cHVmb2RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2Mjc5MjQsImV4cCI6MjA5NTIwMzkyNH0.0szenmLzE8nhCr-FdaqnLBCL5TjB1IuTxsWbUND0mU4';
 const TABLE = 'game_saves';
@@ -52,12 +53,15 @@ const Cloud = {
     } catch (e) { return null; }
   },
 
-  // ---------- כניסה במייל של הורה בלבד ----------
-  // אותו מייל → אותה חווה. מייל חדש → חווה חדשה. מחזיר { mode:'cloud'|'local', created, name }.
-  // הפונקציה בשרת מנפיקה session בלי לשלוח מייל. אם היא לא זמינה (לא פרוסה / אין רשת / Supabase מושהה)
-  // — נכנסים כחשבון מקומי לפי המייל, והחווה נשמרת במכשיר בלבד.
-  async loginEmail(email, name) {
+  // ---------- כניסה במייל של הורה בלבד (בלי סיסמה, רק מייל מורשה) ----------
+  // שער 1 (דפדפן): המייל חייב להיות ברשימת המורשים (allowlist.js). לא מורשה → not_allowed.
+  // שער 2 (שרת): הפונקציה farm-email-login בודקת שוב מול FARM_ALLOWED_EMAILS ומנפיקה session בלי לשלוח מייל.
+  // אם הפונקציה לא זמינה (לא פרוסה / אין רשת) — נכנסים כחשבון מקומי לפי המייל, והחווה נשמרת במכשיר בלבד.
+  // מחזיר { mode:'cloud'|'local', created }.
+  async loginEmail(email) {
     email = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('bad_email');
+    if (!(await isAllowedEmail(email))) throw new Error('not_allowed');
     let res = null;
     if (this.client) {
       try {
@@ -65,7 +69,7 @@ const Cloud = {
         res = await fetch(LOGIN_FN, {
           method: 'POST', signal: ctrl.signal,
           headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON, Authorization: 'Bearer ' + SUPABASE_ANON },
-          body: JSON.stringify({ email, name: name || '' })
+          body: JSON.stringify({ email })
         });
         clearTimeout(t);
       } catch (e) { res = null; }
@@ -76,35 +80,21 @@ const Cloud = {
       if (!error && data && data.session) {
         this.userId = data.session.user.id; this._email = data.session.user.email;
         try { localStorage.setItem(LOCAL_EMAIL_KEY, this._email.toLowerCase()); } catch (e) {}   // החשבון הפעיל במכשיר
-        if (name) await this.saveProfile(name, 1);
-        return { mode: 'cloud', created: !!j.created, name: j.name || name || '' };
+        return { mode: 'cloud', created: !!j.created };
       }
     }
-    if (res && res.status === 403) throw new Error('not_farm_account');   // מייל של מערכת אחרת על אותו שרת
+    if (res && res.status === 403) {
+      let code = 'not_farm_account';
+      try { code = (await res.json()).error || code; } catch (e) {}
+      throw new Error(code === 'not_allowed' ? 'not_allowed' : 'not_farm_account');
+    }
     if (res && res.status === 400) throw new Error('bad_email');
     try { localStorage.setItem(LOCAL_EMAIL_KEY, email); } catch (e) {}
-    return { mode: 'local', created: null, name: name || '' };
+    return { mode: 'local', created: null };
   },
   isGuest() { return !!this.userId && !this._email; },
   loggedIn() { return !!this._email; },
 
-  async signUp(email, password, name) {
-    const { data, error } = await this.client.auth.signUp({ email, password });
-    if (error) throw error;
-    // אימייל שכבר רשום (כשאישור-מייל פעיל) חוזר בלי identities ובלי session — לא חשבון חדש
-    if (!data.user || !data.session || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) {
-      throw new Error('User already registered');
-    }
-    this.userId = data.user.id; this._email = data.user.email;
-    if (name) await this.saveProfile(name, 1);
-    return data;
-  },
-  async signIn(email, password) {
-    const { data, error } = await this.client.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    this.userId = data.user.id; this._email = data.user.email;
-    return data;
-  },
   async signOut() {
     clearTimeout(this._timer); this._timer = null;
     this._saveTo = null;

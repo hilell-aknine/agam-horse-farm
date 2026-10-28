@@ -102,12 +102,11 @@ const UI = {
         <p class="game-sub">לכל חברה יש חווה משלה בעולם!</p>
         <button class="btn-big btn-play gate-play" id="agGuest">בואי נשחק! ▶</button>
         <div class="auth-note">משחקות בלי חשבון · החווה נשמרת במכשיר הזה</div>
-        <button class="btn-ghost gate-parents" id="agParents">👤 יש לי חשבון / חווה חדשה עם שם</button>
+        <button class="btn-ghost gate-parents" id="agParents">👤 כניסה במייל של אמא או אבא</button>
         <div id="parentBox" class="hidden"></div>
         <p class="credit">נבנה באהבה ע״י אבא 💙</p>
       </div>`;
     this.root.appendChild(s);
-    const msg = (t, ok) => { const m = s.querySelector('#agMsg'); m.textContent = t; m.className = 'auth-msg ' + (ok ? 'ok' : 'err'); };
     s.querySelector('#agGuest').onclick = () => { Audio.resume(); Audio.click(); this.handlers.onGuest && this.handlers.onGuest(); };
     s.querySelector('#agParents').onclick = () => {
       Audio.click();
@@ -118,42 +117,95 @@ const UI = {
     this._emailLoginForm(s.querySelector('#parentBox'));
   },
 
-  // ---------- כניסה במייל של הורה בלבד (בלי סיסמה) ----------
-  // אותו מייל → אותה חווה, מייל חדש → חווה חדשה. השם רשות (בשבילו פונים לשחקנית).
+  // ---------- כניסה במייל של הורה בלבד (בלי סיסמה, רק מייל מורשה) ----------
+  // שדה אחד: מייל. מורשה → מסך "מי משחקת?". לא מורשה → הודעה רכה, ואפשר להמשיך לשחק בלי חשבון.
   _emailLoginForm(box) {
     box.innerHTML = `
-      <input class="auth-in" data-f="name" type="text" placeholder="איך קוראים לך? (רשות)" maxlength="20" autocomplete="off">
       <input class="auth-in" data-f="email" type="email" placeholder="המייל של אמא או אבא" dir="ltr" autocomplete="email">
       <button class="btn-big btn-play" data-f="go">נכנסות לחווה! 🐴</button>
-      <div class="auth-adopt hidden" data-f="adopt">
-        <div class="auth-title">החווה ששיחקת בה עכשיו, לקחת אותה איתך?</div>
-        <button class="btn-big btn-play" data-f="yes">🐴 כן, זו החווה שלי</button>
-        <button class="btn-ghost" data-f="no">🌱 לא, חווה חדשה</button>
-      </div>
       <div class="auth-msg" data-f="msg"></div>
-      <div class="auth-note">בלי סיסמה. אותו מייל תמיד פותח את אותה חווה.</div>`;
+      <div class="auth-note">בלי סיסמה. רק מייל שאבא הוסיף לרשימה של החווה.</div>`;
     const q = (f) => box.querySelector(`[data-f="${f}"]`);
     const msg = (t, ok) => { const m = q('msg'); m.textContent = t; m.className = 'auth-msg ' + (!t ? '' : ok ? 'ok' : 'err'); };
-    const done = async (adopt) => {
-      q('yes').disabled = q('no').disabled = true;
-      try { await this.handlers.onAuth.finish(adopt); } catch (e) {}
-      msg('טוענים את החווה שלך... 🐴', true);
-      setTimeout(() => location.replace(location.pathname), 500);
-    };
-    q('yes').onclick = () => { Audio.click(); done(true); };
-    q('no').onclick = () => { Audio.click(); done(false); };
-    q('go').onclick = async () => {
+    const go = async () => {
       Audio.resume(); Audio.click();
-      const name = q('name').value.trim();
       const email = q('email').value.trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg('צריך מייל של אמא או אבא 😊'); return; }
-      q('go').disabled = true; msg('נכנסות... 🐴', true);
+      q('go').disabled = true; msg('בודקות... 🐴', true);
       try {
-        const r = await this.handlers.onAuth.login(email, name);
-        if (r && r.canAdopt) { q('go').classList.add('hidden'); q('adopt').classList.remove('hidden'); msg(''); Audio.speak('החווה ששיחקת בה עכשיו, לקחת אותה איתך?'); return; }
-        await done(false);
-      } catch (e) { q('go').disabled = false; msg(this._authErr(e)); }
+        const info = await this.handlers.onAuth.login(email);
+        msg('');
+        this.showPlayerPicker(info);
+      } catch (e) {
+        q('go').disabled = false;
+        msg(this._authErr(e));
+        if (/not_allowed/.test((e && e.message) || '')) Audio.speak('המייל הזה עוד לא ברשימה של החווה. אפשר לבקש מאבא להוסיף אותו');
+      }
     };
+    q('go').onclick = go;
+    q('email').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+  },
+
+  // ---------- מי משחקת עכשיו? (אחרי מייל של הורה) ----------
+  // info = { email, players:[{id,name}], canAdopt, current }
+  showPlayerPicker(info) {
+    const gate = document.getElementById('authScreen'); if (gate) gate.classList.add('hidden');
+    const old = document.getElementById('pickScreen'); if (old) old.remove();
+    const s = el('div', 'screen title-screen'); s.id = 'pickScreen';
+    const esc = (t) => String(t || '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+    const faces = ['👧', '👩‍🌾', '🧒', '👱‍♀️'];
+    const list = info.players || [];
+    const rows = list.map((p, i) => `
+      <button class="friend-row pick-row${p.id === info.current ? ' on' : ''}" data-pid="${esc(p.id)}">
+        <span class="friend-face">${faces[i % 4]}</span>
+        <span class="friend-name">${esc(p.name) || 'השחקנית הראשונה'}</span>
+        <span class="friend-go">▶</span>
+      </button>`).join('');
+    s.innerHTML = `
+      <div class="title-card auth-card">
+        <div class="title-emoji">🐴</div>
+        <h1 class="game-title">מי משחקת עכשיו?</h1>
+        <div class="auth-note" dir="ltr">${esc(info.email)}</div>
+        ${rows}
+        <button class="btn-ghost" data-f="new">➕ שחקנית חדשה</button>
+        <div class="hidden" data-f="newBox">
+          <input class="auth-in" data-f="name" type="text" placeholder="איך קוראים לך?" maxlength="20" autocomplete="off">
+          <div class="${info.canAdopt ? '' : 'hidden'}" data-f="adoptBox">
+            <div class="auth-title">החווה ששיחקת בה עכשיו, לקחת אותה איתך?</div>
+            <button class="btn-big btn-play" data-f="yes">🐴 כן, זו החווה שלי</button>
+            <button class="btn-ghost" data-f="no">🌱 לא, חווה חדשה</button>
+          </div>
+          <button class="btn-big btn-play ${info.canAdopt ? 'hidden' : ''}" data-f="create">יוצאות לדרך! ✨</button>
+        </div>
+        <div class="auth-msg" data-f="msg"></div>
+        <button class="btn-ghost gate-parents" data-f="out">🚪 יציאה מהמייל הזה</button>
+      </div>`;
+    this.root.appendChild(s);
+    const q = (f) => s.querySelector(`[data-f="${f}"]`);
+    const msg = (t, ok) => { const m = q('msg'); m.textContent = t; m.className = 'auth-msg ' + (!t ? '' : ok ? 'ok' : 'err'); };
+    const lockAll = () => s.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    const finish = async (choice) => {
+      lockAll(); msg('טוענים את החווה שלך... 🐴', true);
+      try { await this.handlers.onAuth.finish(choice); } catch (e) {}
+      setTimeout(() => location.replace(location.pathname), 400);
+    };
+    s.querySelectorAll('.pick-row').forEach(b => b.onclick = () => { Audio.click(); finish({ pid: b.dataset.pid }); });
+    const newName = () => {
+      const name = q('name').value.trim();
+      if (!name) { msg('איך קוראים לך? 😊'); Audio.speak('איך קוראים לך?'); q('name').focus(); return null; }
+      return name;
+    };
+    q('new').onclick = () => { Audio.click(); q('newBox').classList.remove('hidden'); q('new').classList.add('hidden'); q('name').focus(); };
+    q('create').onclick = () => { Audio.click(); const n = newName(); if (n) finish({ newName: n, adopt: false }); };
+    q('yes').onclick = () => { Audio.click(); const n = newName(); if (n) finish({ newName: n, adopt: true }); };
+    q('no').onclick = () => { Audio.click(); const n = newName(); if (n) finish({ newName: n, adopt: false }); };
+    q('out').onclick = async () => {
+      Audio.click(); lockAll();
+      if (this.handlers.onAuth && this.handlers.onAuth.signOut) await this.handlers.onAuth.signOut();
+      else { await Cloud.signOut(); location.replace(location.pathname); }
+    };
+    if (!list.length) { q('new').classList.add('hidden'); q('newBox').classList.remove('hidden'); }
+    Audio.speak(list.length ? 'מי משחקת עכשיו?' : 'איך קוראים לך?');
   },
 
   // חשבון ותיק בלי שם — שואלים פעם אחת
@@ -1097,11 +1149,10 @@ const UI = {
 
   _authErr(e) {
     const m = (e && e.message) || '';
+    if (/not_allowed/.test(m)) return 'המייל הזה עוד לא ברשימה של החווה 💙 אפשר לבקש מאבא להוסיף אותו, ובינתיים לשחק בלי חשבון';
     if (/not_farm_account/.test(m)) return 'המייל הזה שייך למערכת אחרת. נסי מייל אחר';
     if (/bad_email/.test(m)) return 'המייל לא נראה תקין, נסי שוב';
-    if (/registered|already/i.test(m)) return 'האימייל כבר רשום — נסי כניסה';
-    if (/invalid|credential/i.test(m)) return 'אימייל או סיסמה שגויים';
-    if (/least|password/i.test(m)) return 'סיסמה חייבת 6 תווים לפחות';
+    if (/no_crypto/.test(m)) return 'צריך לפתוח את המשחק מהכתובת הרגילה שלו (https) כדי להיכנס';
     return 'משהו השתבש, נסי שוב';
   },
 
@@ -1115,7 +1166,9 @@ const UI = {
       const who = nm ? `<b>${nm}</b> · ` : '';
       const where = Cloud.email() ? '' : `<div class="auth-note">החווה נשמרת במכשיר הזה (הענן עוד לא מחובר)</div>`;
       box.innerHTML = `<div class="auth-status">👤 ${who}<b dir="ltr">${acct}</b></div>${where}
-        <button class="auth-btn out" id="authOut">התנתקות (להחליף שחקנית)</button>`;
+        <button class="auth-btn in" id="authSwitch" style="width:100%;margin-bottom:8px">🔄 להחליף שחקנית</button>
+        <button class="auth-btn out" id="authOut">🚪 יציאה מהמייל</button>`;
+      box.querySelector('#authSwitch').onclick = () => { Audio.click(); this.handlers.onSwitchPlayer && this.handlers.onSwitchPlayer(); };
       box.querySelector('#authOut').onclick = async (e) => {
         Audio.click(); e.currentTarget.disabled = true; e.currentTarget.textContent = 'יוצאות...';
         if (this.handlers.onAuth && this.handlers.onAuth.signOut) await this.handlers.onAuth.signOut();
@@ -1125,7 +1178,7 @@ const UI = {
     }
     box.innerHTML = `
       <div class="auth-title">👤 משחקת בלי חשבון</div>
-      <div class="auth-note">החווה נשמרת במכשיר הזה. מייל חדש יכול לקחת את החווה הזו איתו. מייל של חשבון קיים פותח את החווה שלו (החווה הזו מחכה כאן).</div>
+      <div class="auth-note">החווה נשמרת במכשיר הזה. כניסה במייל של הורה (בלי סיסמה), ואז בוחרות מי משחקת. שחקנית חדשה יכולה לקחת את החווה הזו איתה.</div>
       <div data-f="form"></div>`;
     this._emailLoginForm(box.querySelector('[data-f="form"]'));
   },

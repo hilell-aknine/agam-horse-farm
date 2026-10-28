@@ -301,10 +301,12 @@ const Game = {
       localStorage.removeItem(LEGACY_OWNER_KEY);
     } catch (e) {}
   },
-  useGuest() { this._ns = GUEST_NS; this.name = ''; },
+  useGuest() { this._ns = GUEST_NS; this._pid = null; this.name = ''; },
   // חשבון לפי מייל. userId (אם יש session בענן) — אוסף שארית ממגירת ה-id הישנה
-  useEmail(email, userId) {
-    this._ns = emailNs(email);
+  useEmail(email, userId, pid) {
+    this._pid = pid || 'main';
+    this._ns = this.playerNs(email, this._pid);
+    if (this._pid !== 'main') return;   // שארית ה-id הישנה שייכת רק לשחקנית הראשונה
     try {
       if (userId && !localStorage.getItem(nsKey(this._ns))) {
         const old = localStorage.getItem(nsKey(userNs(userId)));
@@ -312,8 +314,39 @@ const Game = {
       }
     } catch (e) {}
   },
+  // ---------- כמה שחקניות תחת מייל הורה אחד ----------
+  // השחקנית הראשונה ('main') יושבת במגירה הוותיקה e:<email>, כך שחוות קיימות לא זזות.
+  // כל שחקנית נוספת: e:<email>#<id>. הרשימה (id+שם) ב-agam_players:<email>.
+  playerNs(email, pid) { return emailNs(email) + (pid && pid !== 'main' ? '#' + pid : ''); },
+  players(email) {
+    email = normEmail(email);
+    try {
+      const raw = localStorage.getItem('agam_players:' + email);
+      if (raw) { const list = JSON.parse(raw); if (Array.isArray(list)) return list; }
+      const main = this.peek(emailNs(email));   // חשבון מלפני ריבוי השחקניות: החווה הקיימת = השחקנית הראשונה
+      return main ? [{ id: 'main', name: main.name || '' }] : [];
+    } catch (e) { return []; }
+  },
+  _savePlayers(email, list) { try { localStorage.setItem('agam_players:' + normEmail(email), JSON.stringify(list)); } catch (e) {} },
+  addPlayer(email, name) {
+    const list = this.players(email);
+    const id = (list.length || this.hasEmailFarm(email)) ? 'p' + Date.now().toString(36) : 'main';
+    if (id === 'main' && list.some(p => p.id === 'main')) return this.addPlayer(email, name);
+    list.push({ id, name: String(name || '').trim().slice(0, 20) });
+    this._savePlayers(email, list);
+    return id;
+  },
+  renamePlayer(email, pid, name) {
+    const list = this.players(email), p = list.find(x => x.id === pid);
+    if (p) { p.name = name; this._savePlayers(email, list); }
+  },
+  activePlayer(email) { try { return localStorage.getItem('agam_active_player:' + normEmail(email)) || null; } catch (e) { return null; } },
+  setActivePlayer(email, pid) { try { if (pid) localStorage.setItem('agam_active_player:' + normEmail(email), pid); else localStorage.removeItem('agam_active_player:' + normEmail(email)); } catch (e) {} },
+  playerId() { return this._pid || null; },
   hasEmailFarm(email) { try { return !!localStorage.getItem(nsKey(emailNs(email))); } catch (e) { return false; } },
   hasGuestFarm() { try { return !!localStorage.getItem(nsKey(GUEST_NS)); } catch (e) { return false; } },
+  // חוות אורחת שבאמת שיחקו בה (לא רק נפתחה מאחורי השער) — רק אז שואלים "לקחת אותה איתך?"
+  guestHasProgress() { const d = this.peek(GUEST_NS); return !!d && ((d.solved || 0) > 0 || (d.level || 1) > 1); },
   isGuest() { return this._ns === GUEST_NS; },
   // השם שבו פונים לשחקנית. '' לאורחת → מנסחים בלי שם
   playerName() { return this.isGuest() || this.visiting ? '' : (this.name || ''); },
@@ -323,11 +356,11 @@ const Game = {
     try { const raw = localStorage.getItem(nsKey(ns)); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
   },
   // העברת חוות האורחת לחשבון חדש (רק בהרשמה חדשה). מחזיר את הנתונים שהועברו או null.
-  adoptGuestInto(email) {
+  adoptGuestInto(email, pid) {
     try {
       const raw = localStorage.getItem(nsKey(GUEST_NS));
       if (!raw || !email) return null;
-      const dst = nsKey(emailNs(email));
+      const dst = nsKey(this.playerNs(email, pid));
       if (localStorage.getItem(dst)) return null;   // לחשבון כבר יש חווה במכשיר — לא דורסים
       localStorage.setItem(dst, raw);
       localStorage.removeItem(nsKey(GUEST_NS));      // החווה עברה לחשבון, האורחת הבאה מתחילה חדשה
