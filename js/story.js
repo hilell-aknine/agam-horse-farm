@@ -6,7 +6,7 @@ import { Audio } from './audio.js';
 const CHAPTERS = [
   {
     title: 'בוקר בחווה', emoji: '🌅',
-    intro: 'בוקר טוב אגם! אני רותי. כוכב ודבש התעוררו רעבים, והשדה מחכה לזרעים. בואי נתחיל את היום!',
+    intro: 'בוקר טוב{name}! אני רותי. כוכב ודבש התעוררו רעבים, והשדה מחכה לזרעים. בואי נתחיל את היום!',
     steps: [
       { ev: 'feed', n: 2, emoji: '🥕', text: 'להאכיל סוסים', go: 'horse' },
       { ev: 'brush', n: 1, emoji: '🧼', text: 'לנקות סוס', go: 'horse' },
@@ -16,8 +16,8 @@ const CHAPTERS = [
     outro: 'איזו חוואית! הסוסים שבעים והשדה כבר ירוק.'
   },
   {
-    title: 'כוכב רוצה לגדול', emoji: '🌟',
-    intro: 'כוכב חולם לרוץ במסלול הרכיבה, אבל הוא עוד סייח קטן. אם נאכיל אותו הרבה, הוא יגדל!',
+    title: 'הסייח רוצה לגדול', emoji: '🌟',
+    intro: 'הסייח הקטן שלך חולם לרוץ במסלול הרכיבה. אם תאכילי אותו שלוש פעמים, הוא יוכל לגדול!',
     steps: [
       { ev: 'feed', n: 3, emoji: '🥕', text: 'להאכיל סוסים', go: 'horse' },
       { ev: 'grow', n: 1, emoji: '🌱', text: 'לגדל סייח לסוס גדול', go: 'foal' },
@@ -94,6 +94,16 @@ const CHAPTERS = [
   }
 ];
 
+// מה אומרים כששלב הושלם — בלשון עבר, כדי שיישמע כמו מחמאה ולא כמו הוראה ("יופי! להאכיל סוסים")
+const DONE = {
+  feed: 'האכלת את הסוסים', brush: 'ניקית את הסוס', plant: 'שתלת בשדה', grow: 'הסייח גדל לסוס גדול',
+  enter_barn: 'ביקרת באסם', ride: 'רכבת במסלול', jump: 'קפצת מעל המשוכות', play: 'שיחקת עם הסוס',
+  buy_animal: 'קנית חיה חדשה', collect: 'אספת תוצרת', harvest: 'קצרת יבול', birth: 'פגשת גור שנולד',
+  visit_forest: 'הגעת ליער', act_forest: 'גילית דברים ביער', star_jump: 'אספת כוכבים',
+  visit_lake: 'הגעת לאגם', visit_village: 'הגעת לכפר', enter_bakery: 'נכנסת למאפייה',
+  sell: 'מכרת משהו בחנות', visit_mountain: 'הגעת להר', act_mountain: 'גילית דברים בהר', perfect: 'רכבת סיבוב מושלם'
+};
+
 function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 
 const Story = {
@@ -155,7 +165,7 @@ const Story = {
 
   _stepDone(step) {
     this.deps.toast('📜 ' + step.emoji + ' ' + step.text + ' ✔', true);
-    setTimeout(() => Audio.speak('יופי! ' + step.text + '. סימנתי וי'), 900);
+    Audio.speak('יופי! ' + (DONE[step.ev] || step.text) + '. סימנתי וי בסיפור', { queue: true });
   },
 
   // ---------- כרטיס הפרק ----------
@@ -179,21 +189,24 @@ const Story = {
       </div>`;
     }).join('');
     const rw = this._rewardText(c.reward);
+    // {name} = שם השחקנית בחשבון; לאורחת פשוט בלי שם ("בוקר טוב!")
+    const pn = (this.Game.playerName && this.Game.playerName()) || '';
+    const intro = c.intro.replace(/\{name\}/g, pn ? ' ' + pn : '');
     const ov = this._card(`
       <div class="story-head"><img src="assets/shopkeeper.png" alt=""><div>
         <div class="story-num">פרק ${s.ch + 1} מתוך ${CHAPTERS.length}</div>
         <h2>${c.emoji} ${c.title}</h2></div></div>
-      <div class="story-bubble">${c.intro}<button class="story-say" aria-label="שמיעה">🔊</button></div>
+      <div class="story-bubble">${intro}<button class="story-say" aria-label="שמיעה">🔊</button></div>
       ${rows}
       <div class="story-reward">🎁 בסוף הפרק: ${rw}</div>
       <button class="btn-big btn-play story-go-all">יאללה! ▶</button>`);
-    ov.querySelector('.story-say').onclick = () => Audio.speak(c.intro);
+    ov.querySelector('.story-say').onclick = () => Audio.speak(intro);
     ov.querySelectorAll('.ss-go').forEach(b => b.onclick = () => {
       Audio.click(); this.close();
       this.deps.go(c.steps[Number(b.dataset.i)].go);
     });
     if (!s.seen) { s.seen = true; this.Game.save(); this.refresh(); }
-    Audio.speak(c.intro);
+    Audio.speak(intro);
   },
 
   _rewardText(r) {

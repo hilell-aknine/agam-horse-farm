@@ -33,26 +33,49 @@ const VISIT = (() => {
     return id ? { id, name: p.get('name') || 'חברה' } : null;
   } catch (e) { return null; }
 })();
-const OWNER_KEY = 'agam_farm_owner';   // איזה חשבון "מחזיק" את השמירה המקומית במכשיר הזה
-const LOCAL_SAVE_KEY = 'agam_farm_v2'; // מפתח השמירה המקומית (זהה ל-SAVE_KEY ב-game.js)
+// ריבוי שחקניות במכשיר אחד: לכל חשבון מגירת-שמירה משלו ולאורחת מגירה נפרדת (ראו game.js).
+// מה שנשאר כאן: מתי מותר לשמור. בזמן החלפת חשבון (יציאה/כניסה) עוצרים את כל השמירות,
+// כדי שה-autosave וה-beforeunload לא יכתבו את החווה הנוכחית למגירה או לענן של מישהי אחרת.
+let saveLocked = true;   // נפתח רק אחרי שה-boot בנה את החווה הנכונה
 
-// מכשיר משותף: אחרי הרשמה/כניסה — אם השמירה המקומית לא שייכת למשתמש הנוכחי
-// (כולל "בעלים לא ידוע" ממשחק-אורח), מוחקים אותה כדי שלא תזלוג לחשבון החדש.
-// הענן ישחזר את החווה האמיתית של המשתמש. תמיד מסמנים בעלות למשתמש הנוכחי.
-// adoptGuest: חשבון *חדש* שנפתח אחרי משחק-אורח מאמץ את חוות האורח (אין לו חווה בענן),
-// במקום למחוק אותה. בכניסה לחשבון קיים עדיין מוחקים — הענן שלו מחזיק את החווה האמיתית.
-function claimDeviceForCurrentUser(adoptGuest = false) {
-  if (!Cloud.userId) return;
-  let owner = null;
-  try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
-  let hasLocal = false;
-  try { hasLocal = !!localStorage.getItem(LOCAL_SAVE_KEY); } catch (e) {}
-  const guestFarm = hasLocal && !owner;
-  if (hasLocal && owner !== Cloud.userId && !(adoptGuest && guestFarm)) {
-    try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
-    Game.reset();
+const PENDING_NAME_KEY = 'agam_pending_name';   // שם שהוקלד בכניסה, מוחל על החווה אחרי הטעינה מחדש
+let pendingLogin = null;                          // { email, mode } בין הכניסה לבחירת "לקחת את חוות האורחת?"
+
+// כניסה במייל של הורה בלבד. מחזיר { canAdopt } — מייל חדש לגמרי + יש חוות אורחת במכשיר.
+async function loginWithEmail(email, name) {
+  if (!saveLocked && !Game.visiting) saveAll();   // החווה הנוכחית נשמרת למגירה שלה
+  saveLocked = true;                                // מכאן ועד הטעינה מחדש — לא שומרים כלום
+  let r;
+  try { r = await Cloud.loginEmail(email, name); }
+  catch (e) { saveLocked = false; throw e; }
+  email = String(email).trim().toLowerCase();
+  try { if (name) localStorage.setItem(PENDING_NAME_KEY, name); else localStorage.removeItem(PENDING_NAME_KEY); } catch (e) {}
+  let isNew = !Game.hasEmailFarm(email);
+  if (isNew && r.mode === 'cloud') {
+    if (r.created === false) isNew = false;        // החשבון כבר היה קיים בשרת
+    else if (await withTimeout(Cloud.pull(), 4000, null)) isNew = false;
   }
-  try { localStorage.setItem(OWNER_KEY, Cloud.userId); } catch (e) {}
+  pendingLogin = { email, mode: r.mode };
+  return { canAdopt: isNew && Game.hasGuestFarm() };
+}
+// סיום כניסה. adopt=true: חשבון חדש לוקח את חוות האורחת (רק בחשבון חדש, ורק בבחירה)
+async function finishLogin(adopt) {
+  const p = pendingLogin; pendingLogin = null;
+  if (p && adopt) {
+    const adopted = Game.adoptGuestInto(p.email);
+    if (adopted && p.mode === 'cloud' && Cloud.userId) { Cloud.bindSaves(Cloud.userId); Cloud.push(adopted); await withTimeout(Cloud.flush(), 4000, null); }
+  }
+  try { localStorage.removeItem(GUEST_KEY); } catch (e) {}
+}
+
+// יציאה מחשבון: שמירה אחרונה לחשבון היוצא, עצירת שמירות, ניקוי ה-session, וחזרה לשער.
+async function logoutToGate() {
+  if (!Game.visiting && !saveLocked) saveAll();
+  saveLocked = true;
+  await withTimeout(Cloud.flush(), 3000, null);
+  await Cloud.signOut();
+  try { localStorage.removeItem(GUEST_KEY); } catch (e) {}   // אחרי יציאה מראים את השער, לא נכנסים אוטומטית לאורחת
+  location.replace(location.pathname);
 }
 
 // ---------- אתחול ----------
@@ -71,6 +94,7 @@ UI.init({
   onBuyAnimal: buyAnimal,
   onBuyUpgrade: buyUpgrade,
   onDress: handleDress,
+  onPaint: handlePaint,
   onSettings: applySettings,
   onReset: resetGame,
   onSpin: () => {
@@ -90,7 +114,14 @@ UI.init({
   onContest: () => Mini.contest.open(),
   onPhoto: () => Mini.photo.take(),
   onArrange: () => toggleArrange(),
-  onHome: () => { const a = AREAS.find(x => x.id === currentArea); if (a) World.travelTo(a.x, a.z); },
+  // 🏠 = תמיד הביתה לחווה: יוצאים ממבנה/מסלול, נוסעים לחווה, ומחזירים את המצלמה למבט הפתיחה
+  onHome: () => {
+    if (Interiors.active) Interiors.exit();
+    if (Track3D.active) Track3D.stop();
+    if (currentArea !== 'farm') travelToArea('farm');
+    const farm = AREAS.find(x => x.id === 'farm');
+    if (farm) World.travelTo(farm.x, farm.z, 22, true);
+  },
   onMap: () => UI.openMap(AREAS, currentArea, travelToArea, {
     canVisit: Cloud.loggedIn(),
     loadFarms: () => Cloud.listFarms(),
@@ -104,16 +135,12 @@ UI.init({
     });
   },
   onAuth: {
-    signUp: async (email, pass, name) => {
-      await Cloud.signUp(email, pass, name);
-      claimDeviceForCurrentUser(true);   // חשבון חדש מאמץ חוות-אורח; מנקה רק שמירה של חשבון אחר
-    },
-    signIn: async (email, pass) => {
-      await Cloud.signIn(email, pass);
-      claimDeviceForCurrentUser();   // מנקה שמירה של חשבון אחר לפני ה-reload
-    }
+    login: loginWithEmail,
+    finish: finishLogin,
+    signOut: logoutToGate
   },
   onGuest: enterGuest,
+  onSwitchPlayer: switchPlayer,
   getGame: () => Game
 });
 
@@ -121,9 +148,20 @@ UI.init({
 const GUEST_KEY = 'agam_guest';
 function enterGuest() {
   try { localStorage.setItem(GUEST_KEY, '1'); } catch (e) {}
+  // החווה שמאחורי השער כבר נבנתה ממגירת האורחת (ב-boot), אז אפשר להיכנס ישר
+  if (Cloud.accountEmail() || Game.namespace() !== 'guest') { location.replace(location.pathname); return; }
   const gate = document.getElementById('authScreen');
   if (gate) gate.classList.add('hidden');
   startGame();   // ישר למשחק — בלי עוד מסך פתיחה באמצע
+}
+// "להחליף שחקנית": מחוברת → יציאה לשער; אורחת → חזרה לשער (החווה שלה נשמרת במגירה שלה)
+function switchPlayer() {
+  if (Cloud.accountEmail()) { logoutToGate(); return; }
+  if (!saveLocked) saveAll();
+  try { localStorage.removeItem(GUEST_KEY); } catch (e) {}
+  document.getElementById('titleScreen').classList.add('hidden');
+  if (UI.settingsOv) UI.settingsOv.classList.add('hidden');
+  UI.showAuthGate();
 }
 
 // אזור המכלאה — בו חיות המשק משוטטות
@@ -269,9 +307,12 @@ const withTimeout = (p, ms, fallback) => Promise.race([p, new Promise(r => setTi
 const readyUI = () => { try { window.hideLoader && window.hideLoader(); } catch (e) {} };
 
 async function boot() {
-  let localData = Game.load();
-  let saved = localData;
+  Game.migrateLegacy();                            // מפתח-שמירה ישן אחד לכולם → מגירה לכל שחקנית
   await withTimeout(Cloud.init(), 4500, false);   // לא נתקע אם אין רשת
+  // יש session שמור במכשיר אבל הספרייה עוד לא סיימה לעלות → מחכים עוד קצת, כדי לא להציג
+  // לשחקנית מחוברת את השער או את חוות האורחת
+  if (!Cloud.email() && Cloud.storedSessionEmail()) await withTimeout(Cloud.init(), 12000, false);
+  let saved = null;
 
   // ---------- מצב ביקור: צופים בחווה של חברה (קריאה בלבד) ----------
   if (VISIT) {
@@ -292,33 +333,51 @@ async function boot() {
     return;
   }
 
-  if (Cloud.ready) {
-    const loggedIn = Cloud.loggedIn();                  // משתמש עם אימייל (לא אורח)
-    // מכשיר משותף: אם השמירה המקומית שייכת לחשבון אחר — לא נוגעים בה, הענן קובע
-    let owner = null;
-    try { owner = localStorage.getItem(OWNER_KEY); } catch (e) {}
-    // בעלים שונה — או בעלים לא ידוע (משחק-אורח קודם) — השמירה המקומית אינה של המשתמש הנוכחי
-    if (loggedIn && localData && owner !== Cloud.userId) {
-      Game.reset();                                     // החווה של המשתמש הקודם שמורה בענן שלו
-      localData = null; saved = null;
-    }
-    const cloudData = await withTimeout(Cloud.pull(), 4000, null);
-    if (cloudData && (loggedIn || !localData || (cloudData.savedAt || 0) >= (localData.savedAt || 0))) {
-      Game.applyData(cloudData); saved = cloudData;     // מחובר/עדכני יותר → הענן מנצח
+  // ---------- של מי החווה? ----------
+  // חשבון (מייל של הורה) → המגירה של המייל הזה + הענן שלו אם יש session. אחרת → מגירת האורחת.
+  let acctEmail = Cloud.accountEmail();
+  const sessionMatches = () => Cloud.ready && Cloud.loggedIn() && (Cloud.email() || '').toLowerCase() === acctEmail;
+  let cloudSession = sessionMatches();
+  // חשבון מקומי וענן זמין → מנסים בשקט לחבר לענן (למשל אחרי שפונקציית הכניסה נפרסה)
+  if (acctEmail && !cloudSession && Cloud.ready) {
+    try { await withTimeout(Cloud.loginEmail(acctEmail), 4000, null); } catch (e) {}
+    cloudSession = sessionMatches();
+  }
+  if (acctEmail) {
+    Game.useEmail(acctEmail, cloudSession ? Cloud.userId : null);
+    const localData = Game.load();
+    let cloudData = null;
+    if (cloudSession) {
+      cloudData = await withTimeout(Cloud.pull(), 4000, null);
+      Cloud.bindSaves(Cloud.userId);                   // מכאן מותר לדחוף לענן — רק לחשבון הזה
+    } else Cloud.bindSaves(null);
+    if (cloudData && (!localData || (cloudData.savedAt || 0) >= (localData.savedAt || 0))) {
+      Game.applyData(cloudData); saved = cloudData;    // הענן עדכני יותר (שיחקה במכשיר אחר)
     } else if (localData) {
-      Cloud.push(Game.lastData());                      // העלאת השמירה המקומית לענן ("claim" של השמירה במכשיר)
+      saved = localData;
+    } else {
+      Game.reset();                                    // חשבון בלי חווה בכלל → חווה חדשה
     }
-    if (loggedIn) {
-      try { localStorage.setItem(OWNER_KEY, Cloud.userId); } catch (e) {}
-      await withTimeout(Cloud.fetchProfile(), 3000, null);
-    }
+    if (cloudSession) await withTimeout(Cloud.fetchProfile(), 3000, null);
+    let pendingName = null;
+    try { pendingName = localStorage.getItem(PENDING_NAME_KEY); localStorage.removeItem(PENDING_NAME_KEY); } catch (e) {}
+    if (pendingName) Game.name = pendingName;
+    else if (!Game.name && Cloud.profileName()) Game.name = Cloud.profileName();
+    if (cloudSession && Game.name && Cloud.profileName() !== Game.name) await withTimeout(Cloud.saveProfile(Game.name, Game.level), 3000, null);
+    Game.save(); if (cloudSession) Cloud.push(Game.lastData());
+  } else {
+    Game.useGuest();
+    Cloud.bindSaves(null);                             // אורחת = מקומי בלבד, בלי ענן
+    saved = Game.load();
+    if (!saved) Game.reset();
   }
   buildFarm(saved);
   applySettings();
+  saveLocked = false;   // החווה הנכונה בנויה — מעכשיו שומרים (למגירה שלה בלבד)
 
-  // ---------- שער כניסה: אונליין בלי חשבון → הרשמה/כניסה קודם ----------
-  // אלא אם בחרו כבר לשחק כאורח — אז ממשיכים למשחק מקומי בלי לחסום שוב.
-  if (Cloud.ready && !Cloud.loggedIn()) {
+  // ---------- שער כניסה: אונליין בלי חשבון → בחירה: לשחק כאורחת או להיכנס לחשבון ----------
+  // אלא אם בחרו כבר לשחק כאורחת — אז ממשיכים למשחק מקומי בלי לחסום שוב.
+  if (!acctEmail) {
     let guest = false;
     try { guest = localStorage.getItem(GUEST_KEY) === '1'; } catch (e) {}
     if (!guest) {
@@ -328,9 +387,10 @@ async function boot() {
     }
   }
   // מחוברת אבל בלי שם (חשבון ותיק) — שואלים פעם אחת ושומרים פרופיל
-  if (Cloud.loggedIn() && !Cloud.profileName()) {
+  if (acctEmail && !Game.name) {
     UI.askPlayerName(async (name) => {
-      await Cloud.saveProfile(name, Game.level);
+      Game.name = name; Game.save(); saveAll();
+      if (cloudSession) await Cloud.saveProfile(name, Game.level);
       UI.showTitle();
     });
     readyUI();
@@ -343,6 +403,7 @@ boot();
 
 function saveAll() {
   if (Game.visiting) return;   // אצל חברה לא שומרים כלום
+  if (saveLocked || !Game.namespace()) return;   // לפני שהחווה נבנתה / באמצע החלפת חשבון
   Game.save({ horses: Horses.toJSON(), fields: Fields.toJSON(), placed: placedItems, animals: Animals.toJSON() });
   Cloud.push(Game.lastData());
 }
@@ -586,7 +647,7 @@ const Tutorial = {
 function questBump(action) {
   Story.event(action);
   const done = Game.bumpQuest(action);
-  done.forEach(q => { UI.toast('✅ משימה הושלמה! +' + q.reward + ' 🪙', true); Audio.fanfare(); Audio.speak('משימה הושלמה! כל הכבוד'); });
+  done.forEach(q => { UI.toast('✅ משימה הושלמה! +' + q.reward + ' 🪙', true); Audio.fanfare(); Audio.speak('גם משימת היום הושלמה!', { queue: true }); });
   if (done.length) UI.updateHUD(Game);
 }
 
@@ -637,6 +698,19 @@ function askProblem(actionType, onCorrect, harder, task) {
 }
 
 // ---------- טיפול בסוס ----------
+// סייח גדל אחרי 3 ארוחות + לחיצה על "לגדול" — אומרים לה בקול כמה נשאר, כדי שהדרך לגדילה תהיה ברורה
+const FOAL_FEEDS = 3;
+const TIMES = ['', 'עוד פעם אחת', 'עוד פעמיים', 'עוד שלוש פעמים'];
+function foalHint(h) {
+  const left = Math.max(0, FOAL_FEEDS - h.feedCount);
+  return left ? 'האכילי את ' + h.name + ' ' + TIMES[left] + ', ואז אפשר לגדל אותו'
+              : h.name + ' מוכן לגדול! געי בו ולחצי לגדול';
+}
+function foalProgressSay(h) {
+  const left = Math.max(0, FOAL_FEEDS - h.feedCount);
+  UI.toast(left ? '🍼 ' + h.name + ': עוד ' + left + ' 🥕 ואז לגדול' : '🌱 ' + h.name + ' מוכן לגדול!', true);
+  Audio.speak(foalHint(h), { queue: true });
+}
 function handleAction(type, horse) {
   UI.closeHorseCard();
   const task = type === 'feed'
@@ -661,6 +735,7 @@ function handleAction(type, horse) {
     UI.toast('+' + got + ' 🪙', false);
     saveAll();
     if (type === 'feed') Tutorial.fed();
+    if (type === 'feed' && horse.stage === 'foal') foalProgressSay(horse);
     // לא פותחים שוב את כרטיס הסוס: הוא הסתיר את התגובה של הסוס, שהיא הפרס האמיתי. נגיעה בסוס פותחת אותו מחדש
   }, type === 'grow', task);
 }
@@ -807,6 +882,24 @@ function buyUpgrade(item) {
 }
 
 // הלבשת סוס (אביזר)
+// צביעת סוס בתשלום: תרגיל קנייה, ואז הסוס מחליף צבע במקום
+function handlePaint(horse, paint) {
+  if (Game.visiting) { visitBlock(); return; }
+  if (!Game.canAfford(paint.cost)) { notEnough(paint.cost); return; }
+  askProblem('buy', (res) => {
+    if (!Game.spend(paint.cost)) return;
+    horse.setColor(paint.id);
+    horse.celebrate();
+    World.showAction(horse.group.position.clone(), '🎨');
+    World.spawnParticles(horse.group.position.clone(), 'sparkle', 14);
+    Audio.fanfare(); Audio.speak('וואו! ' + horse.name + ' עכשיו בצבע ' + paint.name);
+    UI.toast('🎨 ' + horse.name + ' בצבע ' + paint.name + '!', true);
+    grantReward(horse.group.position.clone(), res);
+    UI.updateHUD(Game); saveAll();
+    if (Horses.getById(horse.id)) setTimeout(() => UI.showHorseCard(horse, Game), 200);
+  });
+}
+
 function handleDress(horse, emoji) {
   askProblem('buy', (res) => {
     horse.setAccessory(emoji);
@@ -1062,9 +1155,15 @@ function storyGo(target) {
   if (Track3D.active) Track3D.stop();
   syncStoryUnlocks();
   const near = (o, say) => { World.travelTo(o.x, o.z, 16); pointAt(o); if (say) Audio.speak(say); };
-  if (target === 'horse' || target === 'foal') {
+  if (target === 'foal') {
     goFarm();
-    const h = (target === 'foal' && Horses.list.find(x => x.stage === 'foal')) || Horses.list[0];
+    // הסייח הכי קרוב לגדילה. אין סייח בכלל (גדלו/נמכרו) → השלב לא נתקע
+    const foals = Horses.list.filter(x => x.stage === 'foal').sort((a, b) => b.feedCount - a.feedCount);
+    if (!foals.length) { Story.event('grow'); return; }
+    near(foals[0].group.position, foalHint(foals[0]));
+  } else if (target === 'horse') {
+    goFarm();
+    const h = Horses.list[0];
     if (h) near(h.group.position, 'געי ב' + h.name);
   } else if (target === 'field') {
     goFarm();

@@ -6,16 +6,16 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const MODEL_URL = 'assets/models/horse.glb';
 const ADULT_HEIGHT = 3.8;      // גובה הגוף — מותאם לגודל הנראה של סוסי-הציור (הציור כולל שוליים ריקים)
-const FOAL_SCALE = 0.72;
+const FOAL_SCALE = 0.5;        // סייח = חצי מסוס גדול, שייראה קטן באמת
 
 // צבע הגוף לכל סוג סוס במשחק (החומר "Main" במודל)
 const BODY = {
   brown: 0x9a5b2e, white: 0xf2efe8, golden: 0xe3b35c, gray: 0x9c9fa3,
-  pink: 0xf3a5c8, black: 0x3a3330, spotted: 0xc9a27a, unicorn: 0xf5f0ff
+  pink: 0xf3a5c8, black: 0x3a3330, spotted: 0xc9a27a, unicorn: 0xf5f0ff, rainbow: 0xfff3fa
 };
 const HAIR = {
   brown: 0x4a2a17, white: 0xe9dfc8, golden: 0xfff1c9, gray: 0x5d6166,
-  pink: 0xd94f8c, black: 0x1c1816, spotted: 0x4a2a17, unicorn: 0xb68cf0
+  pink: 0xd94f8c, black: 0x1c1816, spotted: 0x4a2a17, unicorn: 0xb68cf0, rainbow: 0xff6fb5
 };
 
 // הקובץ יורד פעם אחת; כל סוס בונה ממנו מודל עצמאי (שלד, אנימציות וחומרים משלו)
@@ -114,6 +114,7 @@ class Horse3D {
   }
 
   grow() { if (this.ready) this._fit(); }
+  repaint() { if (this.ready) this._paint(); }
 
   play(name, fade = 0.25) {
     const next = this.actions[name];
@@ -131,12 +132,12 @@ class Horse3D {
     this.oneShot = seconds ?? a.getClip().duration;
   }
 
-  update(dt, { moving, sleeping, dir }) {
+  update(dt, { moving, sleeping, dir, fast }) {
     if (!this.ready) return;
     this.mixer.update(dt);
     if (this.oneShot > 0) { this.oneShot -= dt; }
     else if (sleeping) this.play('sleep', 0.6);
-    else if (moving) { this.play('walk'); this.idleFor = 0; }
+    else if (moving) { this.play(fast ? 'gallop' : 'walk'); this.idleFor = 0; }
     else {
       this.play('idle');
       // חיים בעמידה: מדי כמה שניות הסוס מלחך דשא או מחליף תנוחה
@@ -159,4 +160,4 @@ class Horse3D {
   }
 }
 
-export { Horse3D, loadModel };
+export { Horse3D, loadModel, FOAL_SCALE };

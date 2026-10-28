@@ -1,6 +1,6 @@
 // horses.js — סוסים: שלטים בעברית, תנועה חופשית, סטטיסטיקות, גדילה
 import { World, THREE } from './world.js';
-import { Horse3D } from './horse3d.js';
+import { Horse3D, FOAL_SCALE } from './horse3d.js';
 
 const NAMES = ['כוכב', 'ברק', 'סוכר', 'ענן', 'פרח', 'יהלום', 'נסיכה', 'אלוף',
   'דבש', 'תות', 'שלג', 'זהבה', 'רוח', 'נמר', 'מלכה', 'אגוז', 'קפיץ', 'חלום'];
@@ -62,6 +62,7 @@ class Horse {
     this.feedCount = opts.feedCount || 0;     // כמה פעמים הואכל (לגדילה)
     this.lastBirth = opts.lastBirth || Date.now();
     this.birthReady = false;
+    this.momId = opts.momId || null;          // סייח מסתובב ליד אמא שלו
 
     this.group = new THREE.Group();
     const a = Math.random() * Math.PI * 2;
@@ -108,14 +109,39 @@ class Horse {
   }
   setAccessory(emoji) { this.accessory = emoji; this._applyAccessory(); }
 
-  _height() { return this.stage === 'adult' ? 4.2 : 2.7; }
-  _tex() { return `assets/${this.stage === 'adult' ? 'horse' : 'foal'}_${this.color}.png`; }
+  _height() { return this.stage === 'adult' ? 4.2 : 2.2; }
+  _tex() {
+    // לסוס קשת אין ציור סייח — סייח קשת מקבל את ציור החד-קרן
+    const c = this.stage === 'adult' || this.color !== 'rainbow' ? this.color : 'unicorn';
+    return `assets/${this.stage === 'adult' ? 'horse' : 'foal'}_${c}.png`;
+  }
 
   _newTarget() {
+    if (this.stage !== 'adult') return this._foalTarget();
     const a = Math.random() * Math.PI * 2;
     const r = Math.random() * ROAM;
     this.target = new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r);
     this.wait = 1 + Math.random() * 3;
+    this.fast = false;
+  }
+
+  // סייח שובב: מסתובב ליד אמא (או בחווה), עוצר רק לרגע, ולפעמים פותח בדהרה קטנה
+  _foalTarget() {
+    const mom = this.momId && Horses.getById(this.momId);
+    const a = Math.random() * Math.PI * 2;
+    const r = mom ? 2 + Math.random() * 3 : 3 + Math.random() * (ROAM - 3);
+    const c = mom ? mom.group.position : new THREE.Vector3();
+    this.target = new THREE.Vector3(c.x + Math.cos(a) * r, 0, c.z + Math.sin(a) * r);
+    if (this.target.length() > ROAM) this.target.setLength(ROAM);
+    this.wait = 0.3 + Math.random() * 1.2;
+    this.fast = Math.random() < 0.35;
+  }
+
+  // צביעה מחדש (נקנה בחנות הצבעים בכרטיס הסוס)
+  setColor(c) {
+    this.color = c;
+    this._curTex = null;                      // ה-update יטען את הציור החדש
+    if (this.h3d) this.h3d.repaint();
   }
 
   grow() {
@@ -159,7 +185,7 @@ class Horse {
       this._placeLabel3D();
     }).catch(() => { this.h3d = null; });              // אין מודל → נשארים עם הציור
   }
-  _placeLabel3D() { this.label.position.y = (this.stage === 'adult' ? 3.8 : 3.8 * 0.72) + 0.8; }
+  _placeLabel3D() { this.label.position.y = (this.stage === 'adult' ? 3.8 : 3.8 * FOAL_SCALE) + 0.8; }
 
   update(dt) {
     // דעיכת סטטיסטיקות איטית — עם רצפה גבוהה כדי שהסוס לעולם לא ייראה מוזנח (ללא תחושת כישלון)
@@ -180,8 +206,8 @@ class Horse {
     const moving = !sleeping && d > 0.3 && this.wait <= 0;
     if (moving) {
       to.normalize();
-      const speed = (this.stage === 'adult' ? 1.4 : 1.1);
-      pos.addScaledVector(to, speed * dt);
+      const speed = this.stage === 'adult' ? 1.4 : (this.fast ? 3.0 : 1.6);
+      pos.addScaledVector(to, Math.min(d, speed * dt));
       if (Math.abs(to.x) > 0.05) this.facing = to.x > 0 ? -1 : 1;
     } else {
       this.wait -= dt;
@@ -194,7 +220,7 @@ class Horse {
     if (this.birthReady) this.birthIcon.position.y = this.label.position.y + 0.5 + Math.abs(Math.sin(this.phase * 0.4)) * 0.3;
     if (this.h3d) {
       if (this._lookAt) { const l = this._lookAt.clone().sub(pos); l.y = 0; this.h3d.lookDir = l.lengthSq() > 0.01 ? l : null; }
-      this.h3d.update(dt, { moving, sleeping, dir: moving ? to : null });
+      this.h3d.update(dt, { moving, sleeping, dir: moving ? to : null, fast: moving && this.fast && this.stage !== 'adult' });
     }
 
     // קפיצה עדינה + נשימה + כיוון פנים + קפיצת-שמחה
@@ -241,7 +267,7 @@ class Horse {
 
   toJSON() {
     return { id: this.id, name: this.name, color: this.color, stage: this.stage,
-      hunger: this.hunger, happy: this.happy, clean: this.clean, feedCount: this.feedCount, accessory: this.accessory, lastBirth: this.lastBirth };
+      hunger: this.hunger, happy: this.happy, clean: this.clean, feedCount: this.feedCount, accessory: this.accessory, lastBirth: this.lastBirth, momId: this.momId };
   }
 }
 
@@ -262,7 +288,7 @@ const Horses = {
   // סייח נולד ליד אמא שלו, באותו צבע
   birth(mom) {
     mom.lastBirth = Date.now(); mom.birthReady = false;
-    const foal = this.add({ color: mom.color === 'rainbow' ? 'unicorn' : mom.color, stage: 'foal', name: this.randomName() });
+    const foal = this.add({ color: mom.color === 'rainbow' ? 'unicorn' : mom.color, stage: 'foal', name: this.randomName(), momId: mom.id });
     foal.group.position.copy(mom.group.position).add(new THREE.Vector3(1.8, 0, 1.2));
     foal.target.copy(foal.group.position); foal.wait = 3;
     return foal;

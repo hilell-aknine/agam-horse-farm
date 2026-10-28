@@ -10,6 +10,15 @@ function el(tag, cls, html) {
   return e;
 }
 
+// צבעים לסוס בחנות הצבעים (כרטיס הסוס)
+const PAINTS = [
+  { id: 'brown', name: 'חום', cost: 30 }, { id: 'white', name: 'לבן', cost: 30 },
+  { id: 'golden', name: 'זהוב', cost: 30 }, { id: 'gray', name: 'אפור', cost: 30 },
+  { id: 'black', name: 'שחור', cost: 30 }, { id: 'spotted', name: 'מנומר', cost: 30 },
+  { id: 'pink', name: 'ורוד', cost: 40 }, { id: 'unicorn', name: 'חד-קרן', cost: 60 },
+  { id: 'rainbow', name: 'קשת', cost: 80 }
+];
+
 const ACTIONS = {
   feed:    { icon: '🥕', label: 'להאכיל' },
   brush:   { icon: '🧼', label: 'לנקות' },
@@ -54,19 +63,26 @@ const UI = {
         <button class="btn-big btn-play" id="playBtn">בואו נשחק! ▶</button>
         <button class="btn-ghost" id="titleFriends">👭 החוות של החברות</button>
         <button class="btn-ghost" id="titleSettings">⚙️ הגדרות</button>
+        <button class="btn-ghost" id="titleSwitch">🔄 להחליף שחקנית</button>
         <p class="credit">נבנה באהבה ע״י אבא 💙</p>
       </div>`;
     this.root.appendChild(s);
+    s.querySelector('#titleSwitch').onclick = () => { Audio.click(); this.handlers.onSwitchPlayer && this.handlers.onSwitchPlayer(); };
     s.querySelector('#playBtn').onclick = () => { Audio.resume(); Audio.click(); this.handlers.onStart && this.handlers.onStart(); };
     s.querySelector('#titleSettings').onclick = () => { Audio.click(); this.openSettings(); };
     s.querySelector('#titleFriends').onclick = () => { Audio.resume(); Audio.click(); this.handlers.onFriends && this.handlers.onFriends(); };
   },
 
   showTitle() {
-    const name = Cloud.profileName();
+    const g = this.handlers.getGame && this.handlers.getGame();
+    const name = g ? g.playerName() : '';
     const hello = document.getElementById('titleHello');
-    if (hello && name) hello.textContent = 'שלום ' + name + '! מגדלים סוסים ולומדים חשבון!';
+    if (hello) hello.textContent = name ? 'שלום ' + name + '! מגדלים סוסים ולומדים חשבון!'
+      : (Cloud.accountEmail() ? 'מגדלים סוסים ולומדים חשבון!' : 'משחקת בלי חשבון · מגדלים סוסים ולומדים חשבון!');
     document.getElementById('titleFriends').classList.toggle('hidden', !Cloud.loggedIn());
+    // החלפת שחקנית: מחוברת → יציאה לשער, אורחת → חזרה לשער
+    const sw = document.getElementById('titleSwitch');
+    if (sw) sw.classList.remove('hidden');
     document.getElementById('titleScreen').classList.remove('hidden');
     this.hud.classList.add('hidden');
   },
@@ -85,26 +101,9 @@ const UI = {
         <h1 class="game-title">החווה של אגם</h1>
         <p class="game-sub">לכל חברה יש חווה משלה בעולם!</p>
         <button class="btn-big btn-play gate-play" id="agGuest">בואי נשחק! ▶</button>
-        <button class="btn-ghost gate-parents" id="agParents">👨‍👩‍👧 להורים: חשבון כדי לשמור ולבקר חברות</button>
-        <div id="parentBox" class="hidden">
-        <div class="auth-tabs">
-          <button class="auth-tab on" id="tabUp">🌱 חווה חדשה</button>
-          <button class="auth-tab" id="tabIn">🔑 כניסה</button>
-        </div>
-        <div id="formUp">
-          <input class="auth-in" id="agName" type="text" placeholder="איך קוראים לך? (שם פרטי)" maxlength="20" autocomplete="name">
-          <input class="auth-in" id="agEmailUp" type="email" placeholder="אימייל (של אמא או אבא)" dir="ltr" autocomplete="email">
-          <input class="auth-in" id="agPassUp" type="password" placeholder="סיסמה (6+ תווים)" dir="ltr" autocomplete="new-password">
-          <button class="btn-big btn-play" id="agSignUp">יוצרים חווה! 🌱</button>
-        </div>
-        <div id="formIn" class="hidden">
-          <input class="auth-in" id="agEmailIn" type="email" placeholder="אימייל" dir="ltr" autocomplete="email">
-          <input class="auth-in" id="agPassIn" type="password" placeholder="סיסמה" dir="ltr" autocomplete="current-password">
-          <button class="btn-big btn-play" id="agSignIn">נכנסות! 🐴</button>
-        </div>
-        <div class="auth-msg" id="agMsg"></div>
-        <div class="auth-note">חווה שכבר התחלתן לשחק בלי חשבון עוברת לחשבון החדש.</div>
-        </div>
+        <div class="auth-note">משחקות בלי חשבון · החווה נשמרת במכשיר הזה</div>
+        <button class="btn-ghost gate-parents" id="agParents">👤 יש לי חשבון / חווה חדשה עם שם</button>
+        <div id="parentBox" class="hidden"></div>
         <p class="credit">נבנה באהבה ע״י אבא 💙</p>
       </div>`;
     this.root.appendChild(s);
@@ -116,35 +115,44 @@ const UI = {
       box.classList.toggle('hidden');
       if (!box.classList.contains('hidden')) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
-    const tabUp = s.querySelector('#tabUp'), tabIn = s.querySelector('#tabIn');
-    const formUp = s.querySelector('#formUp'), formIn = s.querySelector('#formIn');
-    tabUp.onclick = () => { Audio.click(); tabUp.classList.add('on'); tabIn.classList.remove('on'); formUp.classList.remove('hidden'); formIn.classList.add('hidden'); msg(''); };
-    tabIn.onclick = () => { Audio.click(); tabIn.classList.add('on'); tabUp.classList.remove('on'); formIn.classList.remove('hidden'); formUp.classList.add('hidden'); msg(''); };
-    s.querySelector('#agSignUp').onclick = async () => {
-      Audio.resume(); Audio.click();
-      const name = s.querySelector('#agName').value.trim();
-      const email = s.querySelector('#agEmailUp').value.trim();
-      const pass = s.querySelector('#agPassUp').value;
-      if (!name) { msg('כתבי איך קוראים לך 😊'); return; }
-      if (!email || pass.length < 6) { msg('מלאי אימייל וסיסמה (6+ תווים)'); return; }
-      msg('יוצרים לך חווה... 🌱', true);
-      try {
-        await (this.handlers.onAuth && this.handlers.onAuth.signUp(email, pass, name));
-        msg('החווה שלך מוכנה! נכנסות...', true);
-        setTimeout(() => location.reload(), 700);
-      } catch (e) { msg(this._authErr(e)); }
+    this._emailLoginForm(s.querySelector('#parentBox'));
+  },
+
+  // ---------- כניסה במייל של הורה בלבד (בלי סיסמה) ----------
+  // אותו מייל → אותה חווה, מייל חדש → חווה חדשה. השם רשות (בשבילו פונים לשחקנית).
+  _emailLoginForm(box) {
+    box.innerHTML = `
+      <input class="auth-in" data-f="name" type="text" placeholder="איך קוראים לך? (רשות)" maxlength="20" autocomplete="off">
+      <input class="auth-in" data-f="email" type="email" placeholder="המייל של אמא או אבא" dir="ltr" autocomplete="email">
+      <button class="btn-big btn-play" data-f="go">נכנסות לחווה! 🐴</button>
+      <div class="auth-adopt hidden" data-f="adopt">
+        <div class="auth-title">החווה ששיחקת בה עכשיו, לקחת אותה איתך?</div>
+        <button class="btn-big btn-play" data-f="yes">🐴 כן, זו החווה שלי</button>
+        <button class="btn-ghost" data-f="no">🌱 לא, חווה חדשה</button>
+      </div>
+      <div class="auth-msg" data-f="msg"></div>
+      <div class="auth-note">בלי סיסמה. אותו מייל תמיד פותח את אותה חווה.</div>`;
+    const q = (f) => box.querySelector(`[data-f="${f}"]`);
+    const msg = (t, ok) => { const m = q('msg'); m.textContent = t; m.className = 'auth-msg ' + (!t ? '' : ok ? 'ok' : 'err'); };
+    const done = async (adopt) => {
+      q('yes').disabled = q('no').disabled = true;
+      try { await this.handlers.onAuth.finish(adopt); } catch (e) {}
+      msg('טוענים את החווה שלך... 🐴', true);
+      setTimeout(() => location.replace(location.pathname), 500);
     };
-    s.querySelector('#agSignIn').onclick = async () => {
+    q('yes').onclick = () => { Audio.click(); done(true); };
+    q('no').onclick = () => { Audio.click(); done(false); };
+    q('go').onclick = async () => {
       Audio.resume(); Audio.click();
-      const email = s.querySelector('#agEmailIn').value.trim();
-      const pass = s.querySelector('#agPassIn').value;
-      if (!email || !pass) { msg('מלאי אימייל וסיסמה'); return; }
-      msg('נכנסות... 🐴', true);
+      const name = q('name').value.trim();
+      const email = q('email').value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg('צריך מייל של אמא או אבא 😊'); return; }
+      q('go').disabled = true; msg('נכנסות... 🐴', true);
       try {
-        await (this.handlers.onAuth && this.handlers.onAuth.signIn(email, pass));
-        msg('ברוכה הבאה! טוענים את החווה שלך...', true);
-        setTimeout(() => location.reload(), 700);
-      } catch (e) { msg(this._authErr(e)); }
+        const r = await this.handlers.onAuth.login(email, name);
+        if (r && r.canAdopt) { q('go').classList.add('hidden'); q('adopt').classList.remove('hidden'); msg(''); Audio.speak('החווה ששיחקת בה עכשיו, לקחת אותה איתך?'); return; }
+        await done(false);
+      } catch (e) { q('go').disabled = false; msg(this._authErr(e)); }
     };
   },
 
@@ -318,9 +326,11 @@ const UI = {
         ${horse.birthReady ? `<button class="birth-btn" id="birthBtn">🍼 הפתעה! ל${horse.name} נולד סייח</button>` : ''}
         <button class="ride-btn ${horse.stage === 'adult' ? '' : 'locked'}" id="rideBtn">🏇 ${horse.stage === 'adult' ? 'לרכוב על ' + horse.name + ' במסלול' : 'כשיגדל אפשר לרכוב'}</button>
         <button class="dress-btn" id="dressBtn">👒 להלביש את ${horse.name}</button>
+        <button class="paint-btn" id="paintBtn">🎨 לצבוע את ${horse.name} בצבע חדש</button>
       </div>`;
     this.root.appendChild(ov);
     ov.querySelector('#dressBtn').onclick = () => { Audio.click(); this.chooseAccessory(horse); };
+    ov.querySelector('#paintBtn').onclick = () => { Audio.click(); this.chooseColor(horse, g); };
     ov.querySelector('#rideBtn').onclick = () => {
       if (horse.stage !== 'adult') { Audio.wrong(); Audio.speak('אני עוד קטן. האכילי אותי ואז אגדל, ונוכל לרכוב'); return; }
       Audio.click(); this.closeHorseCard(); this.handlers.onRide && this.handlers.onRide(horse);
@@ -358,7 +368,7 @@ const UI = {
         <button class="close" id="shopClose">✖</button>
         <div class="shop-keeper">
           <img src="assets/shopkeeper.png" alt="">
-          <div class="keeper-bubble" id="keeperBubble">שלום אגם! מה תרצי לקנות היום? 😊</div>
+          <div class="keeper-bubble" id="keeperBubble">${this._hello()} מה תרצי לקנות היום? 😊</div>
         </div>
         <div class="coin-pill">🪙 <span id="shopCoins">${game.coins}</span></div>
         <div class="shop-tabs">
@@ -436,7 +446,7 @@ const UI = {
       if (lines[t.dataset.tab]) keeperSay(lines[t.dataset.tab]);
     });
     render('decor');
-    Audio.speak('שלום אגם! מה תרצי לקנות היום?');
+    Audio.speak(this._hello() + ' מה תרצי לקנות היום?');
   },
 
   _shopCard(img, name, cost, affordable, onBuy, fallbackIcon) {
@@ -530,6 +540,29 @@ const UI = {
     Audio.speak('מה נלביש?');
   },
 
+  // בורר צבע לסוס (בתשלום מטבעות). המחירים והשמות ב-PAINTS
+  chooseColor(horse, g) {
+    const coins = g ? g.coins : 0;
+    const kind = horse.stage === 'adult' ? 'horse' : 'foal';
+    const opts = PAINTS.filter(p => p.id !== horse.color).map(p => {
+      const img = `assets/${kind}_${kind === 'foal' && p.id === 'rainbow' ? 'unicorn' : p.id}.png`;
+      return `<button class="acc-opt paint-opt ${coins < p.cost ? 'poor' : ''}" data-c="${p.id}">
+        <img src="${img}" alt=""><span>${p.name}</span><span class="cost">${p.cost} 🪙</span></button>`;
+    }).join('');
+    const ov = el('div', 'overlay light'); ov.id = 'paintOv';
+    ov.innerHTML = `<div class="card acc-card"><button class="close" id="paintClose">✖</button>
+      <h2>🎨 באיזה צבע נצבע את ${horse.name}?</h2><div class="acc-grid paint-grid">${opts}</div></div>`;
+    this.root.appendChild(ov);
+    ov.querySelector('#paintClose').onclick = () => { Audio.click(); ov.remove(); };
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    ov.querySelectorAll('.paint-opt').forEach(b => b.onclick = () => {
+      const p = PAINTS.find(x => x.id === b.dataset.c);
+      Audio.click(); ov.remove(); this.closeHorseCard();
+      this.handlers.onPaint && this.handlers.onPaint(horse, p);
+    });
+    Audio.speak('באיזה צבע נצבע?');
+  },
+
   // ---------- תפריט כיף: משימות / גלגל / מירוץ ----------
   openFun() {
     const g = this.handlers.getGame && this.handlers.getGame();
@@ -588,6 +621,9 @@ const UI = {
   },
 
   // דוח הורי — תמונת התקדמות של אגם (מבוסס על נתוני-אמת שנאספים לקושי המותאם)
+  // שם השחקנית (חשבון) או '' (אורחת). כל פנייה אישית עוברת דרך כאן
+  _pn() { const g = this.handlers.getGame && this.handlers.getGame(); return (g && g.playerName && g.playerName()) || ''; },
+  _hello() { const n = this._pn(); return n ? 'שלום ' + n + '!' : 'שלום!'; },
   openParentReport(g) {
     const META = {
       add:      { l: 'חיבור',            e: '➕' },
@@ -622,7 +658,7 @@ const UI = {
     let advice;
     if (!totN) advice = '';
     else if (weak && META[weak]) advice = `💡 כדאי לתרגל יחד: ${META[weak].e} ${META[weak].l}`;
-    else advice = '🌟 אגם שולטת יפה בכל סוגי התרגילים! כל הכבוד';
+    else advice = this._pn() ? '🌟 ' + this._pn() + ' שולטת יפה בכל סוגי התרגילים! כל הכבוד' : '🌟 שליטה יפה בכל סוגי התרגילים! כל הכבוד';
 
     const body = totN
       ? `<div class="rgrid">
@@ -636,12 +672,12 @@ const UI = {
          <div class="rtitle">דיוק לפי סוג תרגיל</div>
          ${rows}
          ${advice ? `<div class="radvice">${advice}</div>` : ''}`
-      : `<div class="shop-empty">עדיין אין מספיק נתונים 😊<br>שחקו קצת וחזרו לראות את ההתקדמות של אגם.</div>`;
+      : `<div class="shop-empty">עדיין אין מספיק נתונים 😊<br>שחקו קצת וחזרו לראות את ההתקדמות${this._pn() ? ' של ' + this._pn() : ''}.</div>`;
 
     const ov = el('div', 'overlay light'); ov.id = 'reportOv';
     ov.innerHTML = `<div class="card journal-card report-card"><button class="close" id="rClose">✖</button>
       <h2>📊 דוח להורה</h2>
-      <div class="jprogress">תמונת ההתקדמות של אגם</div>
+      <div class="jprogress">תמונת ההתקדמות${this._pn() ? ' של ' + this._pn() : ''}</div>
       ${body}</div>`;
     this.root.appendChild(ov);
     ov.querySelector('#rClose').onclick = () => { Audio.click(); ov.remove(); };
@@ -714,7 +750,7 @@ const UI = {
       ${g && g.visiting ? '<button class="btn-home map-home" id="mapHome">🏡 חזרה לחווה שלי</button>' : ''}
       <div class="map-farms" id="mapFarms"><div class="map-loading">טוען חוות... ⏳</div></div>` : '';
     ov.innerHTML = `<div class="card map-card"><button class="close" id="mapClose">✖</button>
-      <h2>🗺️ העולם של אגם</h2><div class="map-grid">${cards}</div>${friendsSection}</div>`;
+      <h2>🗺️ ${this._pn() ? 'העולם של ' + this._pn() : 'העולם שלי'}</h2><div class="map-grid">${cards}</div>${friendsSection}</div>`;
     this.root.appendChild(ov);
     ov.querySelector('#mapClose').onclick = () => { Audio.click(); ov.remove(); };
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
@@ -1061,6 +1097,8 @@ const UI = {
 
   _authErr(e) {
     const m = (e && e.message) || '';
+    if (/not_farm_account/.test(m)) return 'המייל הזה שייך למערכת אחרת. נסי מייל אחר';
+    if (/bad_email/.test(m)) return 'המייל לא נראה תקין, נסי שוב';
     if (/registered|already/i.test(m)) return 'האימייל כבר רשום — נסי כניסה';
     if (/invalid|credential/i.test(m)) return 'אימייל או סיסמה שגויים';
     if (/least|password/i.test(m)) return 'סיסמה חייבת 6 תווים לפחות';
@@ -1070,43 +1108,26 @@ const UI = {
   _syncAuth() {
     const box = this.settingsOv.querySelector('#authBlock');
     if (!box) return;
-    if (!Cloud.ready) {
-      box.innerHTML = `<div class="auth-note">☁️ שמירת ענן מתחברת... (המשחק נשמר במכשיר בכל מקרה)</div>`;
-      return;
-    }
-    if (Cloud.email()) {
-      box.innerHTML = `<div class="auth-status">👤 מחובר/ת: <b dir="ltr">${Cloud.email()}</b></div>
-        <button class="auth-btn out" id="authOut">התנתקות</button>`;
-      box.querySelector('#authOut').onclick = async () => { Audio.click(); await Cloud.signOut(); location.reload(); };
+    const acct = Cloud.accountEmail();
+    if (acct) {
+      const g = this.handlers.getGame && this.handlers.getGame();
+      const nm = (g && g.playerName()) || Cloud.profileName();
+      const who = nm ? `<b>${nm}</b> · ` : '';
+      const where = Cloud.email() ? '' : `<div class="auth-note">החווה נשמרת במכשיר הזה (הענן עוד לא מחובר)</div>`;
+      box.innerHTML = `<div class="auth-status">👤 ${who}<b dir="ltr">${acct}</b></div>${where}
+        <button class="auth-btn out" id="authOut">התנתקות (להחליף שחקנית)</button>`;
+      box.querySelector('#authOut').onclick = async (e) => {
+        Audio.click(); e.currentTarget.disabled = true; e.currentTarget.textContent = 'יוצאות...';
+        if (this.handlers.onAuth && this.handlers.onAuth.signOut) await this.handlers.onAuth.signOut();
+        else { await Cloud.signOut(); location.replace(location.pathname); }
+      };
       return;
     }
     box.innerHTML = `
-      <div class="auth-title">👤 חשבון — לשחק מכל מכשיר</div>
-      <div class="auth-note">החווה נשמרת אצלך. צרי חשבון כדי לשחק גם מטאבלט/טלפון ולא לאבד אותה.</div>
-      <input class="auth-in" id="authEmail" type="email" placeholder="אימייל" dir="ltr" autocomplete="email">
-      <input class="auth-in" id="authPass" type="password" placeholder="סיסמה (6+ תווים)" dir="ltr">
-      <div class="auth-row">
-        <button class="auth-btn up" id="authUp">הרשמה</button>
-        <button class="auth-btn in" id="authIn">כניסה</button>
-      </div>
-      <div class="auth-msg" id="authMsg"></div>`;
-    const em = () => box.querySelector('#authEmail').value.trim();
-    const pw = () => box.querySelector('#authPass').value;
-    const msg = (t, ok) => { const m = box.querySelector('#authMsg'); m.textContent = t; m.className = 'auth-msg ' + (ok ? 'ok' : 'err'); };
-    box.querySelector('#authUp').onclick = async () => {
-      Audio.click();
-      if (!em() || pw().length < 6) { msg('מלאי אימייל וסיסמה (6+ תווים)'); return; }
-      msg('רושמת...', true);
-      try { await this.handlers.onAuth.signUp(em(), pw()); msg('נרשמת! טוען...', true); setTimeout(() => location.reload(), 700); }
-      catch (e) { msg(this._authErr(e)); }
-    };
-    box.querySelector('#authIn').onclick = async () => {
-      Audio.click();
-      if (!em() || !pw()) { msg('מלאי אימייל וסיסמה'); return; }
-      msg('נכנסת...', true);
-      try { await this.handlers.onAuth.signIn(em(), pw()); msg('ברוכה הבאה! טוען...', true); setTimeout(() => location.reload(), 700); }
-      catch (e) { msg(this._authErr(e)); }
-    };
+      <div class="auth-title">👤 משחקת בלי חשבון</div>
+      <div class="auth-note">החווה נשמרת במכשיר הזה. מייל חדש יכול לקחת את החווה הזו איתו. מייל של חשבון קיים פותח את החווה שלו (החווה הזו מחכה כאן).</div>
+      <div data-f="form"></div>`;
+    this._emailLoginForm(box.querySelector('[data-f="form"]'));
   },
 
   _syncSettings(g) {

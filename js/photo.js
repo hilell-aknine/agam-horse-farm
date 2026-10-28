@@ -96,7 +96,8 @@ export function createPhoto(deps) {
 
     const caption = document.createElement('div');
     caption.className = 'photo-caption';
-    caption.textContent = 'החווה היפה של אגם 🐴';
+    const pn = (deps.Game && deps.Game.playerName && deps.Game.playerName()) || '';
+    caption.textContent = pn ? 'החווה היפה של ' + pn + ' 🐴' : 'החווה היפה שלי 🐴';
 
     const actions = document.createElement('div');
     actions.className = 'photo-actions';
@@ -131,7 +132,7 @@ export function createPhoto(deps) {
       Audio.click();
       const a = document.createElement('a');
       a.href = dataUrl;
-      a.download = 'החווה-של-אגם.png';
+      a.download = pn ? 'החווה-של-' + pn.replace(/[^\p{L}\p{N}]+/gu, '-') + '.png' : 'החווה-שלי.png';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

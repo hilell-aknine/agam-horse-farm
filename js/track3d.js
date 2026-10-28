@@ -191,7 +191,7 @@ const Track3D = {
       const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), gold);
       ball.position.set(sx * (W / 2 + 0.6), 4.4, 0); gate.add(ball);
     }
-    const banner = new THREE.Mesh(new THREE.PlaneGeometry(W + 1.2, 1.3), new THREE.MeshBasicMaterial({ map: bannerTex('🏇 המסלול של אגם'), side: THREE.DoubleSide }));
+    const banner = new THREE.Mesh(new THREE.PlaneGeometry(W + 1.2, 1.3), new THREE.MeshBasicMaterial({ map: bannerTex('🏇 מסלול הרכיבה'), side: THREE.DoubleSide }));
     banner.position.y = 3.55; gate.add(banner);
     const line = new THREE.Mesh(new THREE.PlaneGeometry(W, 0.6), new THREE.MeshBasicMaterial({ map: bannerTex(''), transparent: true, opacity: 0.85 }));
     line.rotation.x = -Math.PI / 2; line.position.y = 0.09; gate.add(line);

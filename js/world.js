@@ -550,8 +550,9 @@ const World = {
   },
 
   // נסיעה חלקה למרכז אזור (עולם פתוח) — כולל נרמול מרחק לטווח עבודה נוח וקבוע
-  travelTo(cx, cz, dist = 22) {
-    this._travel = { x: cx, z: cz, dist };
+  // reset:true (כפתור 🏠) — גם מחזיר את זווית המצלמה למבט הפתיחה, לא רק את המרכז
+  travelTo(cx, cz, dist = 22, reset = false) {
+    this._travel = { x: cx, z: cz, dist, dir: reset ? new THREE.Vector3(0, 12, 22).normalize() : null };
     this.controls.autoRotate = false;
   },
   _updateTravel(dt) {
@@ -561,12 +562,16 @@ const World = {
     tgt.x += (T.x - tgt.x) * k;
     tgt.z += (T.z - tgt.z) * k;
     // נרמול מרחק המצלמה → כל חזרה ל"חווה"/אזור מגיעה לאותו מרחק עבודה נוח
-    if (T.dist) {
-      const off = this.camera.position.clone().sub(tgt);
-      off.setLength(off.length() + (T.dist - off.length()) * k);
-      this.camera.position.copy(tgt).add(off);
-    }
-    if (Math.hypot(tgt.x - T.x, tgt.z - T.z) < 0.5) { this._travel = null; }
+    const off = this.camera.position.clone().sub(tgt);
+    const len = T.dist ? off.length() + (T.dist - off.length()) * k : off.length();
+    if (T.dir) off.normalize().lerp(T.dir, k);
+    off.setLength(len);
+    this.camera.position.copy(tgt).add(off);
+    // מסיימים רק כשהגענו גם למקום, גם למרחק וגם לזווית (קודם: נעצר מיד אם כבר היינו קרובים למרכז)
+    const near = Math.hypot(tgt.x - T.x, tgt.z - T.z) < 0.3
+      && (!T.dist || Math.abs(off.length() - T.dist) < 0.3)
+      && (!T.dir || off.clone().normalize().distanceTo(T.dir) < 0.02);
+    if (near) { this._travel = null; this.controls.update(); }
   },
 
   update() {

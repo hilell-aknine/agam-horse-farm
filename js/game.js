@@ -1,5 +1,16 @@
 // game.js — מצב המשחק, כלכלת מטבעות, התקדמות ושמירה (localStorage)
-const SAVE_KEY = 'agam_farm_v2';
+// ריבוי שחקניות במכשיר אחד: לכל חשבון "מגירה" משלו ב-localStorage, ולאורחת מגירה נפרדת.
+//   agam_farm_v2:guest       — החווה של מי שמשחקת בלי חשבון
+//   agam_farm_v2:e:<email>   — החווה של כל חשבון (מזוהה לפי מייל ההורה; הענן הוא הגיבוי)
+//   agam_farm_v2:u:<user_id> — שארית מהמעבר מהמפתח הישן; נאספת למגירת המייל בכניסה הראשונה
+// המפתח הישן 'agam_farm_v2' (מגירה אחת לכולם) מועבר פעם אחת למגירה הנכונה לפי agam_farm_owner.
+const LEGACY_KEY = 'agam_farm_v2';
+const LEGACY_OWNER_KEY = 'agam_farm_owner';
+const GUEST_NS = 'guest';
+const nsKey = (ns) => LEGACY_KEY + ':' + ns;
+const userNs = (userId) => 'u:' + userId;
+const normEmail = (e) => String(e || '').trim().toLowerCase();
+const emailNs = (email) => 'e:' + normEmail(email);
 
 // גידולים לשתילה בשדה (ללא לחץ זמן — היבול ממתין כשבשל)
 const CROPS = {
@@ -90,6 +101,8 @@ const Game = {
   story: { ch: 0, prog: [], seen: false },        // סיפור החווה: פרק נוכחי, התקדמות בכל שלב, האם הפרק הוצג
   rides: { laps: 0, perfect: 0, jumps: 0 },       // מסלול הרכיבה: סיבובים, סיבובים מושלמים, קפיצות
   _firstRun: true,
+  name: '',          // שם השחקנית (לחשבון). לאורחת אין שם — פונים אליה בלי שם
+  _ns: null,         // המגירה הפעילה (guest / u:<id>). null = עוד לא הוחלט → לא שומרים כלום
 
   // קושי גדל עם הגיל שנבחר ועם ההתקדמות במשחק
   ageBase() { return { 5: 1, 6: 3, 7: 5 }[this.settings.age] || 3; },
@@ -229,12 +242,14 @@ const Game = {
         coins: this.coins, xp: this.xp, level: this.level, stars: this.stars,
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
+        name: this.name || '',
         typeStats: this.typeStats, tutorialDone: this.tutorialDone, mastery: this.mastery, recent: this.recent, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
         upgrades: this.upgrades, expansion: this.expansion, decorPos: this.decorPos, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, story: this.story, rides: this.rides, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
       this._lastData = data;     // לשימוש שמירת-הענן
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      if (!this._ns) return;     // לפני שהוחלט של מי החווה — לא כותבים לאף מגירה
+      localStorage.setItem(nsKey(this._ns), JSON.stringify(data));
     } catch (e) { /* storage full / blocked */ }
   },
 
@@ -251,6 +266,7 @@ const Game = {
     this.solved = d.solved ?? 0;
     this.settings = Object.assign({ age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true }, d.settings || {});
     this.typeStats = d.typeStats || {};
+    this.name = (this._ns === GUEST_NS) ? '' : (d.name || this.name || '');
     // שמירה ישנה בלי שליטה: מתחילים מהקושי שהיה לה (רמה/2), והמנגנון יתקן מכאן
     this.mastery = Number.isFinite(d.mastery) ? d.mastery : Math.min(8, Math.floor((d.level || 1) / 2));
     this.recent = d.recent || [];
@@ -271,9 +287,58 @@ const Game = {
     this._snap = { horses: d.horses || [], fields: d.fields || [], placed: d.placed || [], animals: d.animals || [] };
   },
 
+  // ---------- מגירות שמירה (ריבוי שחקניות) ----------
+  // מעבר חד-פעמי מהמפתח הישן: שמירה עם בעלים ידוע → למגירת החשבון, בלי בעלים → למגירת האורחת.
+  migrateLegacy() {
+    try {
+      const raw = localStorage.getItem(LEGACY_KEY);
+      if (raw) {
+        const owner = localStorage.getItem(LEGACY_OWNER_KEY);
+        const target = nsKey(owner ? userNs(owner) : GUEST_NS);
+        if (!localStorage.getItem(target)) localStorage.setItem(target, raw);
+        localStorage.removeItem(LEGACY_KEY);
+      }
+      localStorage.removeItem(LEGACY_OWNER_KEY);
+    } catch (e) {}
+  },
+  useGuest() { this._ns = GUEST_NS; this.name = ''; },
+  // חשבון לפי מייל. userId (אם יש session בענן) — אוסף שארית ממגירת ה-id הישנה
+  useEmail(email, userId) {
+    this._ns = emailNs(email);
+    try {
+      if (userId && !localStorage.getItem(nsKey(this._ns))) {
+        const old = localStorage.getItem(nsKey(userNs(userId)));
+        if (old) { localStorage.setItem(nsKey(this._ns), old); localStorage.removeItem(nsKey(userNs(userId))); }
+      }
+    } catch (e) {}
+  },
+  hasEmailFarm(email) { try { return !!localStorage.getItem(nsKey(emailNs(email))); } catch (e) { return false; } },
+  hasGuestFarm() { try { return !!localStorage.getItem(nsKey(GUEST_NS)); } catch (e) { return false; } },
+  isGuest() { return this._ns === GUEST_NS; },
+  // השם שבו פונים לשחקנית. '' לאורחת → מנסחים בלי שם
+  playerName() { return this.isGuest() || this.visiting ? '' : (this.name || ''); },
+  namespace() { return this._ns; },
+  // קריאה של מגירה בלי להחיל אותה על המשחק
+  peek(ns) {
+    try { const raw = localStorage.getItem(nsKey(ns)); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  },
+  // העברת חוות האורחת לחשבון חדש (רק בהרשמה חדשה). מחזיר את הנתונים שהועברו או null.
+  adoptGuestInto(email) {
+    try {
+      const raw = localStorage.getItem(nsKey(GUEST_NS));
+      if (!raw || !email) return null;
+      const dst = nsKey(emailNs(email));
+      if (localStorage.getItem(dst)) return null;   // לחשבון כבר יש חווה במכשיר — לא דורסים
+      localStorage.setItem(dst, raw);
+      localStorage.removeItem(nsKey(GUEST_NS));      // החווה עברה לחשבון, האורחת הבאה מתחילה חדשה
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  },
+
   load() {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      if (!this._ns) return null;
+      const raw = localStorage.getItem(nsKey(this._ns));
       if (!raw) return null;
       const d = JSON.parse(raw);
       this.applyData(d);
@@ -283,14 +348,15 @@ const Game = {
   },
 
   reset() {
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    try { if (this._ns) localStorage.removeItem(nsKey(this._ns)); } catch (e) {}
     this.coins = 40; this.xp = 0; this.level = 1; this.stars = 0;
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
     this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true };
+    if (this._ns === GUEST_NS) this.name = '';
     this.typeStats = {}; this.tutorialDone = false; this.mastery = 0; this.recent = []; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
     this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
     this.story = { ch: 0, prog: [], seen: false }; this.rides = { laps: 0, perfect: 0, jumps: 0 };
-    this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] };
+    this._firstRun = true; this._snap = { horses: [], fields: [], placed: [], animals: [] }; this._lastData = null;
   }
 };
 

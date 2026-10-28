@@ -301,6 +301,15 @@ canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-a
 .acc-opt.on{background:#fff3cf;box-shadow:0 0 0 3px var(--gold),0 4px 0 #e7d8b0;}
 .acc-opt.none{color:#d34a4a;}
 .acc-opt:active{transform:translateY(2px);}
+/* ---- צביעת סוס ---- */
+.paint-btn{display:block;width:100%;margin-top:10px;background:linear-gradient(160deg,#8fd3ff,#4fa8e8);color:#fff;
+  font-weight:700;font-size:17px;padding:12px;border-radius:18px;box-shadow:0 4px 0 #2f7fbf;}
+.paint-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #2f7fbf;}
+.paint-grid{grid-template-columns:repeat(3,1fr);}
+.paint-opt{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;font-size:15px;font-weight:700;color:var(--petrol);}
+.paint-opt img{width:64px;height:64px;object-fit:contain;}
+.paint-opt .cost{font-size:13px;color:#a07a12;}
+.paint-opt.poor{opacity:.45;}
 
 /* ---- מפת העולם הפתוח ---- */
 .map-card{width:min(440px,94vw);max-height:86vh;overflow-y:auto;}

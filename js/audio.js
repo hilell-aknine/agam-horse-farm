@@ -124,21 +124,39 @@ const Audio = {
     cues.forEach(([w, f, d, delay]) => this._tone(f, d, w, 0.14, delay));
   },
 
-  speak(text) {
+  // queue:true = הכרזה משנית (סיפור, משימה) — מחכה שהמשפט הנוכחי ייגמר במקום לקטוע אותו,
+  // ונזרקת אם עברו יותר מ-5 שניות (אחרת היא נשמעת אחר כך כהערה לא קשורה).
+  // דיבור רגיל (בלי queue) הוא תגובה לפעולה עכשיו — קוטע ומנקה את התור.
+  _q: [],
+  speak(text, opts) {
     if (!this.voiceOn || !window.speechSynthesis || !text) return;
+    const ss = window.speechSynthesis;
+    if (opts && opts.queue) {
+      if (ss.speaking || ss.pending || this._waiting) { this._q.push({ text, t: Date.now() }); return; }
+    } else this._q.length = 0;
+    this._say(text);
+  },
+  _next() {
+    while (this._q.length) {
+      const it = this._q.shift();
+      if (Date.now() - it.t < 5000) { this._say(it.text); return; }
+    }
+  },
+  _say(text) {
     try {
       const ss = window.speechSynthesis;
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'he-IL';
       if (this.heVoice) u.voice = this.heVoice;
       u.rate = 0.92; u.pitch = 1.05;
+      u.onend = () => this._next();
       // באג ספארי: speak מיד אחרי cancel נבלע בשקט. עוצרים רק אם משהו באמת מדבר, ומחכים רגע.
-      if (ss.speaking || ss.pending) { ss.cancel(); setTimeout(() => ss.speak(u), 80); }
+      if (ss.speaking || ss.pending) { ss.cancel(); this._waiting = true; setTimeout(() => { this._waiting = false; ss.speak(u); }, 80); }
       else ss.speak(u);
     } catch (e) { /* ignore */ }
   },
 
-  stopSpeak() { if (window.speechSynthesis) window.speechSynthesis.cancel(); },
+  stopSpeak() { this._q.length = 0; if (window.speechSynthesis) window.speechSynthesis.cancel(); },
 
   praise() {
     const phrases = ['כל הכבוד!', 'מעולה!', 'יפה מאוד!', 'את אלופה!', 'נכון מאוד!', 'וואו, מדהים!'];

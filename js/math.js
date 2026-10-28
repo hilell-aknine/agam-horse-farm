@@ -2,6 +2,11 @@
 // כל פעולה במשחק מייצרת תרגיל. מחזיר אובייקט עם שאלה, תשובה, אפשרויות בחירה,
 // עזר חזותי לספירה, רמז, וטקסט להקראה קולית.
 
+import { Game } from './game.js';
+
+// שם השחקנית לבעיות מילוליות. לאורחת אין שם → פונים אליה ישירות ("יש לך...")
+const who = () => (Game.playerName && Game.playerName()) || '';
+
 function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function shuffle(a) {
@@ -194,10 +199,13 @@ function genWord(d) {
     const a = rnd(2, Math.max(2, max - 2));
     const b = rnd(2, Math.max(2, max - a));
     const ans = a + b;
+    const n = who();
+    const text = n ? `ל${n} יש ${a} ${noun}. היא קיבלה עוד ${b}. כמה ${noun} יש לה עכשיו`
+                   : `יש לך ${a} ${noun}. קיבלת עוד ${b}. כמה ${noun} יש לך עכשיו`;
     return {
       type: 'word',
-      question: `לאגם יש ${a} ${noun}. היא קיבלה עוד ${b}. כמה ${noun} יש לה עכשיו?`,
-      speech: `לאגם יש ${a} ${noun}. היא קיבלה עוד ${b}. כמה ${noun} יש לה עכשיו`,
+      question: text + '?',
+      speech: text,
       answer: ans,
       choices: makeChoices(ans, 3, 4, 0),
       visual: { kind: 'group', emoji, a, b, op: '+' },
@@ -207,10 +215,12 @@ function genWord(d) {
     const a = rnd(4, max);
     const b = rnd(2, a - 2);   // b ≥ 2 → "נעלמו" תמיד תקין; התוצאה ≥ 2
     const ans = a - b;
+    const n = who();
+    const text = `${n ? 'ל' + n + ' היו' : 'היו לך'} ${a} ${noun}. ${b} מהם נעלמו. כמה ${noun} נשארו`;
     return {
       type: 'word',
-      question: `לאגם היו ${a} ${noun}. ${b} מהם נעלמו. כמה ${noun} נשארו?`,
-      speech: `לאגם היו ${a} ${noun}. ${b} מהם נעלמו. כמה ${noun} נשארו`,
+      question: text + '?',
+      speech: text,
       answer: ans,
       choices: makeChoices(ans, 3, 4, 0),
       visual: { kind: 'group', emoji, a, b, op: '-' },
