@@ -340,8 +340,12 @@ const Transfer3D = {
     Audio.click();
     const n = this.inBox(), target = S.task.target, name = S.task.who.name;
     if (n === target) { this._success(); return; }
+    if (S.checkLock) return;            // בזמן העצירה אחרי טעות — לא בודקים שוב
     S.attempts++;
     Audio.wrong();
+    // עצירה קצרה אחרי טעות: לחיצות מהירות על "זהו!" בלי לספור לא עובדות
+    S.checkLock = true; S.doneBtn.disabled = true; S.doneBtn.classList.add('wait');
+    setTimeout(() => { S.checkLock = false; if (S.doneBtn) { S.doneBtn.disabled = false; S.doneBtn.classList.remove('wait'); } }, 2200);
     // הספירה מופיעה על הגזרים עצמם — לומדים מהטעות, לא מקבלים ציון
     S.box.forEach((c, i) => {
       const sp = numberSprite(i + 1);

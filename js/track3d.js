@@ -321,7 +321,6 @@ const Track3D = {
     S.state = 'ask';
     const focus = Math.random() < 0.35 ? G.weakType() : null;
     const pr = S.problem = generateProblem(G.difficulty(), focus);
-    let attempts = 0;
     const q = S.ui.querySelector('.ride-q'), qt = q.querySelector('.ride-qtext'), vis = q.querySelector('.ride-vis');
     const hint = q.querySelector('.ride-hint'), ch = S.ui.querySelector('.ride-choices');
     qt.textContent = pr.question; qt.style.direction = pr.ltr ? 'ltr' : 'rtl';
@@ -330,28 +329,11 @@ const Track3D = {
     d.UI._wireCounting(vis);
     hint.classList.add('hidden'); hint.textContent = '';
     ch.innerHTML = '';
-    pr.choices.forEach(c => {
-      const b = el('button', 'choice', String(c));
-      b.onclick = () => {
-        if (S.state !== 'ask' || b.classList.contains('done')) return;
-        Audio.speak(String(c));
-        if (c === pr.answer) {
-          b.classList.add('correct', 'done');
-          Audio.success();
-          setTimeout(() => this._answered(attempts === 0), 550);
-        } else {
-          attempts++;
-          b.classList.add('wrong'); Audio.wrong();
-          setTimeout(() => b.classList.remove('wrong'), 500);
-          if (attempts === 1) { hint.textContent = '💡 ' + (pr.hint || 'נסי שוב'); hint.classList.remove('hidden'); Audio.speak('כמעט! ' + (pr.hint || 'נסי שוב')); }
-          else {
-            ch.querySelectorAll('.choice').forEach(x => { if (Number(x.textContent) === pr.answer) x.classList.add('glow'); });
-            hint.innerHTML = `💡 התשובה היא <b>${pr.answer}</b>. געי בה`; hint.classList.remove('hidden');
-            Audio.speak('התשובה היא ' + pr.answer + '. געי בה');
-          }
-        }
-      };
-      ch.appendChild(b);
+    if (S.choiceCtl) S.choiceCtl.stop();
+    // אותו מנוע נגד ניחושים כמו בחלון התרגיל
+    S.choiceCtl = d.UI.wireChoices(ch, pr, {
+      hintEl: hint, visEl: vis,
+      onCorrect: (res) => { setTimeout(() => { if (this.active === S && S.state === 'ask') this._answered(res.firstTry); }, 550); }
     });
     q.querySelector('.ride-say').onclick = () => Audio.speak(pr.speech || pr.question);
     q.classList.remove('hidden'); ch.classList.remove('hidden');
@@ -420,6 +402,7 @@ const Track3D = {
   stop() {
     const S = this.active;
     if (!S) return;
+    if (S.choiceCtl) S.choiceCtl.stop();
     this.active = null;
     Audio.stopSpeak();
     World.scene.remove(S.rig);

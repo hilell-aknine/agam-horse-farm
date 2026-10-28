@@ -81,8 +81,7 @@ export function buildForest(deps) {
   // 5) קטיף אוכמניות — פותח בעיית חשבון, ורק בפתרון נכון נותן פרס
   function pickBerries(x, z) {
     askProblem('harvest', res => {
-      const gain = 12 + Game.level;
-      Game.coins += gain;
+      const gain = deps.payout(12, res);
       spawnAt(x, z, 'sparkle', 12);
       Audio.coin();
       UI.toast('🫐 קטפת פירות יער! +' + gain + ' 🪙', false);
@@ -94,8 +93,7 @@ export function buildForest(deps) {
   // 6) קטיף פטריות — אותה מכניקה, פרס מעט שונה
   function pickMushrooms(x, z) {
     askProblem('harvest', res => {
-      const gain = 10 + Game.level;
-      Game.coins += gain;
+      const gain = deps.payout(10, res);
       spawnAt(x, z, 'sparkle', 10);
       Audio.coin();
       UI.toast('🍄 קטפת פטריות! +' + gain + ' 🪙', false);

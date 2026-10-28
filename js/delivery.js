@@ -67,7 +67,7 @@ export function createDelivery(deps) {
   return {
     start() {
       const TOTAL = 4;            // 4 תחנות / 4 שאלות
-      let solved = 0;            // כמה ענינו נכון עד עכשיו
+      let solved = 0, firstTries = 0;           // כמה ענינו נכון עד עכשיו
       let alive = true;          // האם הריצה עדיין פעילה
 
       // --- בניית סרגל הכביש הקבוע ---
@@ -141,6 +141,7 @@ export function createDelivery(deps) {
         deps.askProblem('buy', (res) => {
           if (!alive) return;
           solved++;
+          if (res && res.firstTry !== false) firstTries++;
 
           // סימון התחנה והזזת העגלה ימינה
           const idx = solved - 1;
@@ -162,7 +163,8 @@ export function createDelivery(deps) {
       function finish() {
         alive = false;
         cart.style.left = '94%'; // צמוד לשוק
-        const prize = 35 + Game.level * 3;
+        // פרס לפי תשובות בניסיון ראשון (היה 35 + 3×רמה לכל משלוח)
+        const prize = 3 + firstTries * 2;
         Game.coins += prize;
         Audio.fanfare();
         Audio.speak('הגעת לשוק! כל הכבוד');

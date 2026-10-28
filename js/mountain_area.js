@@ -67,8 +67,7 @@ export function buildMountain(deps) {
   function mine(x, z) {
     deps.Audio.speak('כורים אבן חן!');
     deps.askProblem('harvest', res => {
-      const gain = 18 + deps.Game.level * 2;
-      deps.Game.coins += gain;
+      const gain = deps.payout(18, res);
       deps.spawnAt(x, z, 'star', 16);
       deps.Audio.coin();
       deps.Audio.fanfare();
@@ -105,8 +104,7 @@ export function buildMountain(deps) {
   deps.activity(caveSprite, () => {
     deps.Audio.speak('נכנסים לחקור את המערה!');
     deps.askProblem('harvest', res => {
-      const gain = 25 + deps.Game.level * 2;
-      deps.Game.coins += gain;
+      const gain = deps.payout(25, res);
       deps.spawnAt(cx, cz - 7, 'star', 18);
       deps.Audio.coin();
       deps.Audio.fanfare();

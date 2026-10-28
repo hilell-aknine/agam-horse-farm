@@ -269,7 +269,7 @@ function buildFarm(saved) {
   spawnRares();       // חיות נדירות שכבר נפתחו
   initMagicTree();    // עץ הקסם
   // אזורי העולם הפתוח (יער, אגם)
-  const areaDeps = { THREE, World, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, saveAll, Game, UI, Audio, enter: enterBuilding };
+  const areaDeps = { THREE, World, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, payout, saveAll, Game, UI, Audio, enter: enterBuilding };
   buildForest(Object.assign({}, areaDeps, { center: { x: 0, z: -70 }, grantReward: areaReward('forest') }));
   buildLake(Object.assign({}, areaDeps, { center: { x: 70, z: 6 }, grantReward: areaReward('lake') }));
   buildVillage(Object.assign({}, areaDeps, { center: { x: -72, z: 0 }, grantReward: areaReward('village') }));
@@ -712,17 +712,22 @@ function applySettings() {
 }
 
 // ---------- תגמול משותף ----------
-function grantReward(pos, res) {
+// opts.coins === false: התרגיל היה שער לקנייה/מכירה/שתילה — XP בלבד.
+// אחרי טעות/פיגום: בלי מטבעות, ושבח רך במקום ("יופי שתיקנת").
+function grantReward(pos, res, opts) {
+  const firstTry = !res || res.firstTry !== false;
   World.spawnParticles(pos, 'heart', 8);
-  World.spawnParticles(pos, 'coin', 6);
-  const r = Game.onCorrect();
-  const bonus = res.firstTry ? 2 : 0;
-  if (bonus) Game.addCoins(bonus);
-  Audio.coin(); Audio.praise();
+  const r = Game.onCorrect(firstTry, opts || {});
+  if (r.coins) { World.spawnParticles(pos, 'coin', 6); Audio.coin(); }
+  if (firstTry) Audio.praise();
+  else Audio.speak('יופי שתיקנת! כשעונים נכון בפעם הראשונה מקבלים הכי הרבה מטבעות', { queue: true });
   UI.updateHUD(Game);
   if (r.leveledUp) { World.spawnParticles(pos, 'star', 16); UI.levelUp(Game.level); checkRareUnlocks(); }
-  return 5 + bonus;
+  return r.coins;
 }
+const NO_COINS = { coins: false };
+// תשלום לאזורים: בסיס הפעילות → סכום מאוזן, מלא רק בניסיון ראשון
+const payout = (base, res) => Game.pay(Game.activityGain(base), res);
 
 // פותח תרגיל עם קושי מותאם (35% מהזמן מחזק את הסוג החלש), ומתעד את התוצאה
 // task: {who, item, itemName, box, verb} — כשניתן, החשבון הוא הפעולה עצמה (משימת העברה).
@@ -782,7 +787,7 @@ function handleAction(type, horse) {
     World.spawnParticles(horse.group.position.clone(), fx, 12);
     questBump(type);
     const got = grantReward(horse.group.position.clone(), res);
-    UI.toast('+' + got + ' 🪙', false);
+    UI.toast(got ? '+' + got + ' 🪙' : '✔ יופי!', false);
     saveAll();
     if (type === 'feed') Tutorial.fed();
     if (type === 'feed' && horse.stage === 'foal') foalProgressSay(horse);
@@ -812,7 +817,7 @@ function shopBuy(item, cat) {
     Audio.fanfare(); Audio.speak('קנית ' + item.name);
     UI.toast('✨ קנית ' + item.name + '!', true);
     Story.event('buy_decor');
-    grantReward({ x, y: 1, z }, res);
+    grantReward({ x, y: 1, z }, res, NO_COINS);
     saveAll();
   });
 }
@@ -828,7 +833,7 @@ function buyField() {
     spawnAt(p.pos.x, p.pos.z, 'star', 16);
     Audio.fanfare(); Audio.speak('שדה חדש! עכשיו אפשר לשתול עוד');
     UI.toast('🟫 שדה חדש נפתח!', true);
-    grantReward({ x: p.pos.x, y: 1, z: p.pos.z }, res);
+    grantReward({ x: p.pos.x, y: 1, z: p.pos.z }, res, NO_COINS);
     saveAll();
   });
 }
@@ -844,7 +849,7 @@ function buyExpansion() {
     spawnAt(0, 10, 'star', 20);
     Audio.fanfare(); Audio.speak('החווה שלך גדלה! עכשיו יש יותר מקום');
     UI.toast('🏞️ החווה גדלה! עוד מקום לשדות', true);
-    grantReward({ x: 0, y: 2, z: 10 }, res);
+    grantReward({ x: 0, y: 2, z: 10 }, res, NO_COINS);
     saveAll();
   });
 }
@@ -852,7 +857,7 @@ function buyExpansion() {
 function buyHorse(breed) {
   const special = breed === 'rainbow';
   const owned = Horses.list.length;
-  const cost = special ? 150 : Game.horseCost(owned);
+  const cost = special ? Game.RAINBOW_COST : Game.horseCost(owned);
   if (!Game.canAfford(cost)) { notEnough(cost); return; }
   askProblem('buy', (res) => {
     if (!Game.spend(cost)) return;
@@ -864,7 +869,7 @@ function buyHorse(breed) {
     spawnAt(h.group.position.x, h.group.position.z, 'confetti', 18);
     Audio.fanfare(); Audio.speak('סוס חדש הצטרף לחווה! קוראים לו ' + h.name);
     UI.toast('🐴 ' + h.name + ' הצטרף/ה לחווה!', true);
-    grantReward(h.group.position.clone(), res);
+    grantReward(h.group.position.clone(), res, NO_COINS);
     saveAll();
   });
 }
@@ -879,7 +884,7 @@ function buyAnimal(item) {
     Audio.fanfare(); Audio.speak(item.name + ' חדשה הצטרפה לחווה!');
     UI.toast('🐔 ' + item.name + ' הצטרפה!', true);
     Story.event('buy_animal');
-    grantReward({ x: an.group.position.x, y: 1, z: an.group.position.z }, res);
+    grantReward({ x: an.group.position.x, y: 1, z: an.group.position.z }, res, NO_COINS);
     saveAll();
   });
 }
@@ -902,8 +907,7 @@ function handleAnimal(a) {
 
 function collectProduce(a) {
   askProblem('harvest', (res) => {
-    const gain = a.collect(nowMs());
-    Game.addCoins(gain);
+    const gain = Game.pay(a.collect(nowMs()), res);
     questBump('collect');
     a.celebrate();
     World.showAction(a.group.position.clone(), (a.produce && a.produce.emoji) || '🥚');
@@ -926,7 +930,7 @@ function buyUpgrade(item) {
     spawnAt(0, -12, 'star', 16);
     Audio.fanfare(); Audio.speak('שדרגת את החווה! ' + item.name);
     UI.toast('🏠 ' + item.name + ' נבנה!', true);
-    grantReward({ x: 0, y: 3, z: -12 }, res);
+    grantReward({ x: 0, y: 3, z: -12 }, res, NO_COINS);
     saveAll();
   });
 }
@@ -944,7 +948,7 @@ function handlePaint(horse, paint) {
     World.spawnParticles(horse.group.position.clone(), 'sparkle', 14);
     Audio.fanfare(); Audio.speak('וואו! ' + horse.name + ' עכשיו בצבע ' + paint.name);
     UI.toast('🎨 ' + horse.name + ' בצבע ' + paint.name + '!', true);
-    grantReward(horse.group.position.clone(), res);
+    grantReward(horse.group.position.clone(), res, NO_COINS);
     UI.updateHUD(Game); saveAll();
     if (Horses.getById(horse.id)) setTimeout(() => UI.showHorseCard(horse, Game), 200);
   });
@@ -958,7 +962,7 @@ function handleDress(horse, emoji) {
     World.spawnParticles(horse.group.position.clone(), 'sparkle', 10);
     Audio.pop();
     UI.toast(emoji ? '👒 איזה יופי!' : 'הורדנו את האביזר', false);
-    grantReward(horse.group.position.clone(), res);
+    grantReward(horse.group.position.clone(), res, NO_COINS);   // הלבשה חינמית — לא מכונת מטבעות
     saveAll();
     if (Horses.getById(horse.id)) setTimeout(() => UI.showHorseCard(horse, Game), 200);
   });
@@ -1016,8 +1020,7 @@ function harvestTree() {
   }
   askProblem('harvest', (res) => {
     Game.tree.lastFruit = nowMs();
-    const gain = 22;
-    Game.addCoins(gain);
+    const gain = Game.pay(10, res);
     spawnAt(-13.5, -3.5, 'apple', 14);
     Audio.coin(); Audio.fanfare();
     UI.toast('🍎 קטפת פרי קסם! +' + gain + ' 🪙', true);
@@ -1042,7 +1045,7 @@ function buildTrack() {
       Story.event('jump'); if (firstTry) Story.event('star_jump');
     },
     onLap: ({ stars, perfect }) => {
-      const prize = 10 + stars * 3 + (perfect ? 10 : 0);
+      const prize = 3 + stars * 2 + (perfect ? 5 : 0);
       Game.addCoins(prize);
       Game.rides.laps++;
       if (perfect) { Game.ribbons++; Game.rides.perfect++; Story.event('perfect'); }
@@ -1117,13 +1120,15 @@ function sellables() {
     out.push({ kind: 'placed', key: id, name: it.name, say: it.name, img: 'assets/' + it.asset, count: byId[id], price: Math.max(1, Math.floor(it.cost / 2)) });
   });
   const byType = {};
-  Animals.productive().forEach(a => { const k = a.type + (a.baby ? ':baby' : ''); byType[k] = (byType[k] || 0) + 1; });
+  Animals.productive().forEach(a => { const k = a.type + ':' + (a.baby ? 'baby' : '') + ':' + (a.momId ? 'born' : ''); byType[k] = (byType[k] || 0) + 1; });
   Object.keys(byType).forEach(k => {
-    const [type, baby] = k.split(':');
+    const [type, baby, born] = k.split(':');
     const def = SHOP.animals.find(s => s.id === type);
     if (!def) return;
-    out.push({ kind: 'animal', key: type, baby: !!baby, name: (baby ? 'גור ' : '') + def.name, say: (baby ? 'גור ' : '') + def.name,
-      img: 'assets/' + def.asset, count: byType[k], price: Math.max(1, Math.floor(def.cost / (baby ? 4 : 2))) });
+    // חיה שנולדה בחווה לא נקנתה בכסף — נמכרת בזול, אחרת לידות הופכות למכונת כסף
+    const div = baby ? 10 : born ? 8 : 2;
+    out.push({ kind: 'animal', key: type, baby: !!baby, born: !!born, name: (baby ? 'גור ' : '') + def.name, say: (baby ? 'גור ' : '') + def.name,
+      img: 'assets/' + def.asset, count: byType[k], price: Math.max(1, Math.floor(def.cost / div)) });
   });
   return out;
 }
@@ -1152,7 +1157,7 @@ function sellItem(it) {
       if (!rec) return;
       pos = removePlaced(rec);
     } else {
-      const list = Animals.productive().filter(a => a.type === it.key && !!a.baby === !!it.baby);
+      const list = Animals.productive().filter(a => a.type === it.key && !!a.baby === !!it.baby && !!a.momId === !!it.born);
       const a = list[list.length - 1];
       if (!a) return;
       pos = a.group.position.clone();
@@ -1162,7 +1167,7 @@ function sellItem(it) {
     spawnAt(pos.x, pos.z, 'coin', 14);
     Audio.coin(); Audio.speak('מכרת ' + it.say + ' וקיבלת ' + it.price + ' מטבעות');
     UI.toast('💰 מכרת ' + it.name + '! +' + it.price + ' 🪙', true);
-    grantReward({ x: pos.x, y: 1, z: pos.z }, res);
+    grantReward({ x: pos.x, y: 1, z: pos.z }, res, NO_COINS);
     Story.event('sell');
     saveAll();
   });
@@ -1175,10 +1180,11 @@ function enterBuilding(id) {
   UI.closeHorseCard();
   Interiors.enter(id);
 }
+let lastInteriorRes = null;   // התוצאה של התרגיל האחרון בתוך מבנה — קובעת אם התשלום מלא
 Interiors.init({
   Horses,
-  ask: (type, fn) => askProblem(type, (res) => { grantReward(FAR, res); fn(res); }),
-  coins: (n) => { Game.addCoins(n); UI.toast('+' + n + ' 🪙', false); UI.updateHUD(Game); saveAll(); },
+  ask: (type, fn) => askProblem(type, (res) => { lastInteriorRes = res; grantReward(FAR, res); fn(res); }),
+  coins: (n) => { const g = Game.pay(Math.ceil(n / 2), lastInteriorRes); lastInteriorRes = null; if (g) UI.toast('+' + g + ' 🪙', false); UI.updateHUD(Game); saveAll(); },
   stallCare: (h, fx) => askProblem('brush', (res) => {
     h.clean = 100; h.happy = 100;
     questBump('brush');
@@ -1289,7 +1295,7 @@ function startPlant(plot, cropKey) {
     spawnAt(plot.pos.x, plot.pos.z, 'sparkle', 10);
     Audio.pop(); Audio.speak('שתלת ' + def.name + '. עכשיו צריך לחכות שיגדל');
     UI.toast('🌱 שתלת ' + def.name + '!', false);
-    grantReward({ x: plot.pos.x, y: 1, z: plot.pos.z }, res);
+    grantReward({ x: plot.pos.x, y: 1, z: plot.pos.z }, res, NO_COINS);
     saveAll();
     Tutorial.planted();
   }, false, task);
@@ -1298,7 +1304,7 @@ function startPlant(plot, cropKey) {
 function startHarvest(plot) {
   askProblem('harvest', (res) => {
     const key = plot.harvest();
-    const gain = Game.sellCrop(key);
+    const gain = Game.pay((CROPS[key] || { sellPrice: 6 }).sellPrice, res);
     questBump('harvest');
     World.showAction({ x: plot.pos.x, y: 0, z: plot.pos.z }, '🌾');
     spawnAt(plot.pos.x, plot.pos.z, 'coin', 14);

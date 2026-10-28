@@ -14,54 +14,54 @@ const emailNs = (email) => 'e:' + normEmail(email);
 
 // גידולים לשתילה בשדה (ללא לחץ זמן — היבול ממתין כשבשל)
 const CROPS = {
-  carrot:     { key: 'carrot',     name: 'גזר',     icon: '🥕', asset: 'carrot.png',      seedCost: 4,  sellPrice: 10, growMs: 25000, size: 1.7 },
-  wheat:      { key: 'wheat',      name: 'חיטה',    icon: '🌾', asset: 'wheat.png',        seedCost: 6,  sellPrice: 14, growMs: 35000, size: 2.0 },
-  flower:     { key: 'flower',     name: 'פרח',     icon: '🌸', asset: 'flower_bush.png',  seedCost: 5,  sellPrice: 12, growMs: 30000, size: 1.9 },
-  strawberry: { key: 'strawberry', name: 'תות',     icon: '🍓', asset: 'strawberry.png',   seedCost: 7,  sellPrice: 16, growMs: 32000, size: 1.7 },
-  corn:       { key: 'corn',       name: 'תירס',    icon: '🌽', asset: 'corn.png',         seedCost: 8,  sellPrice: 18, growMs: 40000, size: 2.0 },
-  pumpkin:    { key: 'pumpkin',    name: 'דלעת',    icon: '🎃', asset: 'pumpkin.png',      seedCost: 10, sellPrice: 24, growMs: 55000, size: 2.1 },
-  apple:      { key: 'apple',      name: 'תפוח',    icon: '🍎', asset: 'apple.png',        seedCost: 7,  sellPrice: 17, growMs: 34000, size: 1.9 },
+  carrot:     { key: 'carrot',     name: 'גזר',     icon: '🥕', asset: 'carrot.png',      seedCost: 5,  sellPrice: 8, growMs: 25000, size: 1.7 },
+  wheat:      { key: 'wheat',      name: 'חיטה',    icon: '🌾', asset: 'wheat.png',        seedCost: 6,  sellPrice: 10, growMs: 35000, size: 2.0 },
+  flower:     { key: 'flower',     name: 'פרח',     icon: '🌸', asset: 'flower_bush.png',  seedCost: 6,  sellPrice: 10, growMs: 30000, size: 1.9 },
+  strawberry: { key: 'strawberry', name: 'תות',     icon: '🍓', asset: 'strawberry.png',   seedCost: 7,  sellPrice: 12, growMs: 32000, size: 1.7 },
+  corn:       { key: 'corn',       name: 'תירס',    icon: '🌽', asset: 'corn.png',         seedCost: 8,  sellPrice: 13, growMs: 40000, size: 2.0 },
+  pumpkin:    { key: 'pumpkin',    name: 'דלעת',    icon: '🎃', asset: 'pumpkin.png',      seedCost: 10, sellPrice: 17, growMs: 55000, size: 2.1 },
+  apple:      { key: 'apple',      name: 'תפוח',    icon: '🍎', asset: 'apple.png',        seedCost: 8,  sellPrice: 13, growMs: 34000, size: 1.9 },
 };
 
 // קטלוג החנות
 const SHOP = {
   decor: [
-    { id: 'tree',        name: 'עץ',          asset: 'tree.png',        cost: 15, h: 7 },
-    { id: 'flower_bush', name: 'שיח פרחים',   asset: 'flower_bush.png', cost: 12, h: 2.2 },
-    { id: 'pond',        name: 'בריכה',       asset: 'pond.png',        cost: 45, h: 2.4 },
-    { id: 'fountain',    name: 'מזרקה',       asset: 'fountain.png',    cost: 50, h: 3.4 },
-    { id: 'scarecrow',   name: 'דחליל',       asset: 'scarecrow.png',   cost: 25, h: 3.4 },
-    { id: 'windmill',    name: 'טחנת רוח',    asset: 'windmill.png',    cost: 60, h: 6 },
-    { id: 'signpost',    name: 'שלט',         asset: 'signpost.png',    cost: 10, h: 3 },
-    { id: 'rainbow',     name: 'קשת בענן',    asset: 'rainbow.png',     cost: 70, h: 7 },
-    { id: 'balloons',    name: 'בלונים',      asset: 'balloons.png',    cost: 22, h: 4 },
-    { id: 'bench',       name: 'ספסל',        asset: 'bench.png',       cost: 28, h: 2 },
-    { id: 'butterfly',   name: 'פרפר',        asset: 'butterfly.png',   cost: 14, h: 1.6 },
-    { id: 'mushroom',    name: 'בית פטרייה',  asset: 'mushroom.png',    cost: 40, h: 3 },
-    { id: 'lamp_post',   name: 'פנס',         asset: 'lamp_post.png',   cost: 30, h: 4 },
+    { id: 'tree',        name: 'עץ',          asset: 'tree.png',        cost: 60, h: 7 },
+    { id: 'flower_bush', name: 'שיח פרחים',   asset: 'flower_bush.png', cost: 50, h: 2.2 },
+    { id: 'pond',        name: 'בריכה',       asset: 'pond.png',        cost: 200, h: 2.4 },
+    { id: 'fountain',    name: 'מזרקה',       asset: 'fountain.png',    cost: 250, h: 3.4 },
+    { id: 'scarecrow',   name: 'דחליל',       asset: 'scarecrow.png',   cost: 100, h: 3.4 },
+    { id: 'windmill',    name: 'טחנת רוח',    asset: 'windmill.png',    cost: 300, h: 6 },
+    { id: 'signpost',    name: 'שלט',         asset: 'signpost.png',    cost: 40, h: 3 },
+    { id: 'rainbow',     name: 'קשת בענן',    asset: 'rainbow.png',     cost: 350, h: 7 },
+    { id: 'balloons',    name: 'בלונים',      asset: 'balloons.png',    cost: 90, h: 4 },
+    { id: 'bench',       name: 'ספסל',        asset: 'bench.png',       cost: 120, h: 2 },
+    { id: 'butterfly',   name: 'פרפר',        asset: 'butterfly.png',   cost: 60, h: 1.6 },
+    { id: 'mushroom',    name: 'בית פטרייה',  asset: 'mushroom.png',    cost: 180, h: 3 },
+    { id: 'lamp_post',   name: 'פנס',         asset: 'lamp_post.png',   cost: 130, h: 4 },
   ],
   equipment: [
-    { id: 'trough',    name: 'שוקת אוכל',  asset: 'trough.png',       cost: 35, h: 2.0 },
-    { id: 'well',      name: 'באר מים',    asset: 'well.png',         cost: 40, h: 3.2 },
-    { id: 'saddle',    name: 'אוכף',       asset: 'saddle.png',       cost: 30, h: 1.8 },
-    { id: 'horseshoe', name: 'פרסת מזל',   asset: 'horseshoe.png',    cost: 20, h: 1.6 },
-    { id: 'hay_bale',  name: 'חבילת חציר', asset: 'hay_bale.png',     cost: 18, h: 2.2 },
-    { id: 'feed_sack', name: 'שק מספוא',   asset: 'feed_sack.png',    cost: 16, h: 2.0 },
+    { id: 'trough',    name: 'שוקת אוכל',  asset: 'trough.png',       cost: 150, h: 2.0 },
+    { id: 'well',      name: 'באר מים',    asset: 'well.png',         cost: 180, h: 3.2 },
+    { id: 'saddle',    name: 'אוכף',       asset: 'saddle.png',       cost: 130, h: 1.8 },
+    { id: 'horseshoe', name: 'פרסת מזל',   asset: 'horseshoe.png',    cost: 80, h: 1.6 },
+    { id: 'hay_bale',  name: 'חבילת חציר', asset: 'hay_bale.png',     cost: 70, h: 2.2 },
+    { id: 'feed_sack', name: 'שק מספוא',   asset: 'feed_sack.png',    cost: 60, h: 2.0 },
   ],
   // חיות משק — מייצרות תוצרת לאורך זמן (אוספים עם תרגיל ומוכרים)
   animals: [
-    { id: 'chicken', name: 'תרנגולת', asset: 'chicken.png', cost: 30, scale: 1.5, produce: { emoji: '🥚', intervalMs: 30000, sell: 9 } },
-    { id: 'pig',     name: 'חזיר',    asset: 'pig.png',     cost: 50, scale: 1.9, produce: { emoji: '🍠', intervalMs: 45000, sell: 15 } },
-    { id: 'sheep',   name: 'כבשה',    asset: 'sheep.png',   cost: 60, scale: 1.9, produce: { emoji: '🧶', intervalMs: 50000, sell: 18 } },
-    { id: 'cow',     name: 'פרה',     asset: 'cow.png',     cost: 90, scale: 2.3, produce: { emoji: '🥛', intervalMs: 60000, sell: 26 } },
-    { id: 'goat',    name: 'עז',      asset: 'goat.png',    cost: 70, scale: 1.9, produce: { emoji: '🧀', intervalMs: 55000, sell: 20 } },
-    { id: 'turkey',  name: 'תרנגול הודו', asset: 'turkey.png', cost: 40, scale: 1.7, produce: { emoji: '🥚', intervalMs: 35000, sell: 11 } },
+    { id: 'chicken', name: 'תרנגולת', asset: 'chicken.png', cost: 120, scale: 1.5, produce: { emoji: '🥚', intervalMs: 30000, sell: 4 } },
+    { id: 'pig',     name: 'חזיר',    asset: 'pig.png',     cost: 200, scale: 1.9, produce: { emoji: '🍠', intervalMs: 45000, sell: 6 } },
+    { id: 'sheep',   name: 'כבשה',    asset: 'sheep.png',   cost: 250, scale: 1.9, produce: { emoji: '🧶', intervalMs: 50000, sell: 7 } },
+    { id: 'cow',     name: 'פרה',     asset: 'cow.png',     cost: 400, scale: 2.3, produce: { emoji: '🥛', intervalMs: 60000, sell: 10 } },
+    { id: 'goat',    name: 'עז',      asset: 'goat.png',    cost: 300, scale: 1.9, produce: { emoji: '🧀', intervalMs: 55000, sell: 8 } },
+    { id: 'turkey',  name: 'תרנגול הודו', asset: 'turkey.png', cost: 160, scale: 1.7, produce: { emoji: '🥚', intervalMs: 35000, sell: 5 } },
   ],
   // שדרוגים שמשנים את האסם/החווה באופן נראה (פעם אחת כל אחד)
   upgrades: [
-    { id: 'barn_big',    name: 'אסם גדול',  asset: 'barn_big.png',    cost: 120 },
-    { id: 'silo',        name: 'סילו',      asset: 'silo.png',        cost: 80 },
-    { id: 'weathervane', name: 'שבשבת',     asset: 'weathervane.png', cost: 35 },
+    { id: 'barn_big',    name: 'אסם גדול',  asset: 'barn_big.png',    cost: 700 },
+    { id: 'silo',        name: 'סילו',      asset: 'silo.png',        cost: 450 },
+    { id: 'weathervane', name: 'שבשבת',     asset: 'weathervane.png', cost: 150 },
   ],
 };
 
@@ -123,12 +123,18 @@ const Game = {
 
   xpForNext() { return 100; },
 
-  onCorrect() {
+  // --- כלכלה (אוזנה 2026-10-28) ---
+  // תרגיל: ניסיון ראשון = 3 מטבעות + 10 XP. אחרי טעות/פיגום = 0 מטבעות + 4 XP (הפעולה עצמה קורית תמיד).
+  // תרגיל שהוא שער לקנייה/מכירה/שתילה (opts.coins === false) — XP בלבד, כדי שקנייה-ומכירה לא ייצרו כסף.
+  EXERCISE_COINS: 3,
+  RAINBOW_COST: 1200,
+  onCorrect(firstTry = true, opts = {}) {
     this.solved++;
     this.streak++;
     this.bestStreak = Math.max(this.bestStreak, this.streak);
-    this.xp += 10;
-    this.coins += 5;
+    this.xp += firstTry ? 10 : 4;
+    const gain = (firstTry && opts.coins !== false) ? this.EXERCISE_COINS : 0;
+    this.coins += gain;
     let leveledUp = false;
     while (this.xp >= this.xpForNext()) {
       this.xp -= this.xpForNext();
@@ -137,18 +143,28 @@ const Game = {
       leveledUp = true;
     }
     this.save();
-    return { leveledUp };
+    return { leveledUp, coins: gain };
   },
+  // תשלום על תוצר/פעילות: ניסיון ראשון = מלא, אחרי טעות = שליש (מעט, לא כלום — בלי תחושת עונש)
+  pay(amount, res) {
+    const firstTry = !res || res.firstTry !== false;
+    const gain = amount <= 0 ? 0 : firstTry ? Math.round(amount) : Math.max(1, Math.floor(amount / 3));
+    this.coins += gain; this.save();
+    return gain;
+  },
+  // פעילויות באזורי העולם: היו 10-25 + רמה למטבע — עכשיו בערך שליש, והרמה מוסיפה לאט
+  activityGain(base) { return Math.max(2, Math.round(base * 0.35) + Math.floor(this.level / 5)); },
 
   // ללא עונש — לגיל 6 לא מאפסים את הרצף על טעות (משחק סלחני, בלי תחושת כישלון)
   onWrong() { },
 
   // --- קושי מותאם: דיוק לפי סוג תרגיל ---
+  // correct = נכון בניסיון הראשון. תשובה שהגיעה אחרי ניחוש/פיגום נרשמת כ"בעזרה" — לא מעלה שליטה.
   recordResult(type, correct) {
     if (!type) return;
     const s = this.typeStats[type] || (this.typeStats[type] = { c: 0, w: 0 });
     if (correct) s.c++; else s.w++;
-    this._updateMastery(correct);
+    this._updateMastery(!!correct);
   },
   weakType() {
     let worst = null, wr = 1;
@@ -210,12 +226,12 @@ const Game = {
   canAfford(n) { return this.coins >= n; },
   spend(n) { if (this.coins < n) return false; this.coins -= n; this.save(); return true; },
 
-  horseCost(owned) { return 25 + 15 * Math.max(0, owned - 1); },
-  fieldCost(count) { return 20 + 12 * Math.max(0, count); },
+  horseCost(owned) { return 100 + 60 * Math.max(0, owned - 1); },
+  fieldCost(count) { return 40 + 25 * Math.max(0, count); },
 
   // --- הרחבת שטח החווה (בכסף) ---
   maxExpansion: 3,
-  expansionCost() { return [70, 140, 240][this.expansion] || null; },   // null = הורחב למקסימום
+  expansionCost() { return [400, 900, 1600][this.expansion] || null; },   // null = הורחב למקסימום
   canExpandFarm() { return this.expansion < this.maxExpansion; },
   expandFarm() {                     // מגדיל רמת-הרחבה; המתקשר בונה מחדש גדר + שדות
     if (this.expansion >= this.maxExpansion) return false;

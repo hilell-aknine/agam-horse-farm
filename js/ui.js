@@ -12,11 +12,11 @@ function el(tag, cls, html) {
 
 // צבעים לסוס בחנות הצבעים (כרטיס הסוס)
 const PAINTS = [
-  { id: 'brown', name: 'חום', cost: 30 }, { id: 'white', name: 'לבן', cost: 30 },
-  { id: 'golden', name: 'זהוב', cost: 30 }, { id: 'gray', name: 'אפור', cost: 30 },
-  { id: 'black', name: 'שחור', cost: 30 }, { id: 'spotted', name: 'מנומר', cost: 30 },
-  { id: 'pink', name: 'ורוד', cost: 40 }, { id: 'unicorn', name: 'חד-קרן', cost: 60 },
-  { id: 'rainbow', name: 'קשת', cost: 80 }
+  { id: 'brown', name: 'חום', cost: 120 }, { id: 'white', name: 'לבן', cost: 120 },
+  { id: 'golden', name: 'זהוב', cost: 120 }, { id: 'gray', name: 'אפור', cost: 120 },
+  { id: 'black', name: 'שחור', cost: 120 }, { id: 'spotted', name: 'מנומר', cost: 120 },
+  { id: 'pink', name: 'ורוד', cost: 160 }, { id: 'unicorn', name: 'חד-קרן', cost: 250 },
+  { id: 'rainbow', name: 'קשת', cost: 350 }
 ];
 
 const ACTIONS = {
@@ -457,7 +457,7 @@ const UI = {
         const cost = game.horseCost(counts.horses);
         grid.appendChild(this._shopCard('assets/horse_brown.png', 'סוס חדש', cost, game.coins >= cost,
           () => { this.closeShop(); this.handlers.onBuyHorse && this.handlers.onBuyHorse(); }));
-        const rainbowCost = 150;   // סוס מיוחד ונדיר — רעמת קשת בענן
+        const rainbowCost = game.RAINBOW_COST;   // סוס מיוחד ונדיר — רעמת קשת בענן
         grid.appendChild(this._shopCard('assets/horse_rainbow.png', 'סוס קשת בענן 🌈', rainbowCost, game.coins >= rainbowCost,
           () => { this.closeShop(); this.handlers.onBuyHorse && this.handlers.onBuyHorse('rainbow'); }));
       } else if (tab === 'upgrades') {
@@ -921,6 +921,9 @@ const UI = {
       if (n === target) { finish(true); return; }
       attempts++;
       Audio.wrong();
+      // עצירה קצרה: "זהו!" ננעל לרגע, כדי שלחיצות מהירות בלי לספור לא יעבדו
+      const db = ov.querySelector('#trDone'); db.disabled = true; db.classList.add('wait');
+      setTimeout(() => { db.disabled = false; db.classList.remove('wait'); }, 2200);
       // מראים את הספירה על הפריטים עצמם — לומדים מהטעות, לא מקבלים ציון
       box.querySelectorAll('.tr-item').forEach((x, i) => { x.dataset.n = i + 1; });
       const diff = Math.abs(n - target);
@@ -952,7 +955,6 @@ const UI = {
   // ---------- חלון תרגיל חשבון ----------
   askMath(problem, actionType, onDone) {
     this._mathOpen = true;
-    let attempts = 0;
     const ov = el('div', 'overlay math-ov');
     ov.id = 'mathOv';
     const act = ACTIONS[actionType] || { icon: '🔢', label: 'תרגיל', sub: '' };
@@ -980,48 +982,121 @@ const UI = {
     vis.innerHTML = this._renderVisual(problem.visual);
     this._wireCounting(vis);
 
-    // אפשרויות
-    const ch = ov.querySelector('#choices');
-    problem.choices.forEach(c => {
-      const b = el('button', 'choice', String(c));
-      b.onclick = () => {
-        if (b.classList.contains('done')) return;
-        Audio.speak(String(c));   // מקריא את המספר שנבחר — עוזר למי שעוד לא קוראת ספרות
-        if (c === problem.answer) {
-          b.classList.add('correct', 'done');
-          Audio.success();
-          this._mathOpen = false;
-          setTimeout(() => { ov.remove(); onDone && onDone({ correct: true, firstTry: attempts === 0 }); }, 750);
-        } else {
-          attempts++;
-          b.classList.add('wrong');
-          Audio.wrong();
-          setTimeout(() => b.classList.remove('wrong'), 500);
-          if (attempts === 1) {
-            // משפט אחד: קודם הרמז נקטע מיד ע"י "כמעט! נסי שוב" (speak מבטל את הדיבור הקודם)
-            this._showHint(ov, problem, false);
-            Audio.speak('כמעט! ' + (problem.hint || 'נסי שוב'));
-          }
-          if (attempts >= 2) {
-            // חושפים ומקריאים את התשובה הנכונה — שתלמד, לא תנחש
-            ov.querySelectorAll('.choice').forEach(x => {
-              if (Number(x.textContent) === problem.answer) x.classList.add('glow');
-            });
-            const ht = ov.querySelector('#hintText');
-            if (ht) { ht.classList.remove('hidden'); ht.innerHTML = `💡 התשובה היא <b>${problem.answer}</b> — געי בה`; }
-            Audio.speak('התשובה הנכונה היא ' + problem.answer + '. געי בה');
-          }
-        }
-      };
-      ch.appendChild(b);
+    // אפשרויות — דרך מנוע הבחירה שמונע ניחושים (הקשבה → תשובה, טעות → עצירה ופיגום)
+    const ctl = this.wireChoices(ov.querySelector('#choices'), problem, {
+      hintEl: ov.querySelector('#hintText'), visEl: vis,
+      onCorrect: (res) => {
+        this._mathOpen = false;
+        setTimeout(() => { ov.remove(); onDone && onDone(Object.assign({ correct: true }, res)); }, 750);
+      }
     });
+    this._mathCtl = ctl;
 
-    ov.querySelector('#mathClose').onclick = () => { Audio.click(); Audio.stopSpeak(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
+    ov.querySelector('#mathClose').onclick = () => { Audio.click(); Audio.stopSpeak(); ctl.stop(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
     ov.querySelector('#speakBtn').onclick = () => Audio.speak(problem.speech || problem.question);
     ov.querySelector('#hintBtn').onclick = () => this._showHint(ov, problem);
 
     // הקראה אוטומטית
     Audio.speak(problem.speech || problem.question);
+  },
+
+  // ---------- מנוע בחירה נגד ניחושים (משותף לחלון התרגיל ולמסלול הרכיבה) ----------
+  // 1. הקשבה: הכפתורים נפתחים רק אחרי רגע (👂), כך שהקשה מהירה לפני שהשאלה נשמעה לא עובדת.
+  // 2. טעות: התשובה השגויה נכבית, וכל הכפתורים ננעלים לרגע עם רמז ("בואי נחשוב רגע").
+  // 3. "מנסה הכל": טעות מהירה מיד כשהכפתורים נפתחו, נגיעות חוזרות בזמן הנעילה, או טעות שנייה →
+  //    "בואי נספור יחד": הפריטים נספרים אחד אחד בקול, ורק התשובה הנכונה נשארת פתוחה.
+  // onCorrect({ firstTry, scaffolded, guessy }) — firstTry רק כשהתשובה הראשונה נכונה ולא נוחשה.
+  wireChoices(ch, problem, opts = {}) {
+    const LISTEN_MS = this._guessy > 0 ? 2600 : 1300;   // מי שניחשה בתרגיל הקודם — מקשיבה קצת יותר
+    const FAST_MS = 900, PAUSE_MS = 2200;
+    const WORDS = ['אחת', 'שתיים', 'שלוש', 'ארבע', 'חמש', 'שש', 'שבע', 'שמונה', 'תשע', 'עשר',
+      'אחת עשרה', 'שתים עשרה', 'שלוש עשרה', 'ארבע עשרה', 'חמש עשרה', 'שש עשרה', 'שבע עשרה', 'שמונה עשרה', 'תשע עשרה', 'עשרים'];
+    const hintEl = opts.hintEl, visEl = opts.visEl;
+    let attempts = 0, locked = true, unlockAt = 0, spam = 0, scaffolded = false, guessy = false, done = false;
+    const timers = [];
+    const later = (fn, ms) => { const t = setTimeout(() => { if (!done) fn(); }, ms); timers.push(t); return t; };
+    const buttons = [];
+    const setLock = (on) => {
+      locked = on;
+      ch.classList.toggle('wait', on);
+      if (!on) unlockAt = performance.now();
+    };
+    const showHint = (html) => { if (hintEl) { hintEl.innerHTML = html; hintEl.classList.remove('hidden'); } };
+
+    // ספירה משותפת: מספרים את הפריטים אחד אחד בקול. בלי ציור בתרגיל — מציירים פיגום מהתרגיל עצמו
+    const countWithMe = (then) => {
+      let v = problem.visual || problem.scaffold || null;
+      if (visEl && !problem.visual && v) { visEl.innerHTML = this._renderVisual(v); }
+      const items = visEl ? [...visEl.querySelectorAll('.em:not(.gone)')] : [];
+      items.forEach(e => { delete e.dataset.n; e.classList.remove('counted'); });
+      if (!items.length) { then(); return; }
+      Audio.speak('בואי נספור יחד');
+      items.forEach((e, i) => later(() => {
+        e.dataset.n = i + 1; e.classList.add('counted', 'pop');
+        Audio.speak(WORDS[i] || String(i + 1));
+      }, 1400 + i * 650));
+      later(then, 1400 + items.length * 650 + 400);
+    };
+    // הסוף של הפיגום: התשובה זוהרת, ורק היא פתוחה
+    const reveal = () => {
+      buttons.forEach(b => {
+        const right = Number(b.textContent) === problem.answer;
+        b.classList.toggle('glow', right);
+        if (!right) b.classList.add('out');
+      });
+      showHint(`💡 התשובה היא <b>${problem.answer}</b>. געי בה`);
+      Audio.speak('התשובה היא ' + problem.answer + '. געי בה');
+      setLock(false);
+    };
+    const scaffold = (why) => {
+      if (scaffolded) return;
+      scaffolded = true; setLock(true);
+      if (why === 'guess') {
+        guessy = true;
+        this._guessy = Math.min(3, (this._guessy || 0) + 1);
+        showHint('👂 לאט לאט. בואי נעשה את זה יחד');
+      } else showHint('🤝 בואי נעשה את זה יחד');
+      later(() => countWithMe(reveal), 900);
+    };
+
+    problem.choices.forEach(c => {
+      const b = el('button', 'choice', String(c));
+      buttons.push(b);
+      b.onclick = () => {
+        if (done || b.classList.contains('out')) return;
+        if (locked) {   // נגיעות בזמן הקשבה/עצירה לא נחשבות, אבל הרבה כאלה = ניחוש
+          spam++;
+          if (spam >= 3 && attempts > 0) scaffold('guess');
+          return;
+        }
+        Audio.speak(String(c));   // מקריא את המספר שנבחר — עוזר למי שעוד לא קוראת ספרות
+        const quick = performance.now() - unlockAt < FAST_MS;
+        if (c === problem.answer) {
+          done = true; timers.forEach(clearTimeout);
+          b.classList.add('correct', 'done');
+          Audio.success();
+          const firstTry = attempts === 0 && !scaffolded;
+          if (firstTry && !quick && this._guessy > 0) this._guessy--;   // תשובה רגועה ונכונה מחזירה אמון
+          opts.onCorrect && opts.onCorrect({ firstTry, scaffolded, guessy });
+          return;
+        }
+        attempts++;
+        b.classList.add('wrong', 'out');
+        Audio.wrong();
+        setTimeout(() => b.classList.remove('wrong'), 500);
+        if (scaffolded) return;
+        if (quick || attempts >= 2) { scaffold(quick ? 'guess' : 'help'); return; }
+        // טעות ראשונה רגועה: עוצרים לרגע, רמז, ואז שוב מנסים
+        setLock(true); spam = 0;
+        showHint('🤔 בואי נחשוב רגע. ' + (problem.hint || ''));
+        Audio.speak('כמעט! בואי נחשוב רגע. ' + (problem.hint || ''));
+        later(() => setLock(false), PAUSE_MS);
+      };
+      ch.appendChild(b);
+    });
+    setLock(true);
+    later(() => setLock(false), LISTEN_MS);
+    return { stop() { done = true; timers.forEach(clearTimeout); } };
   },
 
   _showHint(ov, problem, speak = true) {

@@ -566,3 +566,10 @@ body.inside .hud .bottombar,body.inside #homeBtn,body.inside #mapBtn,body.inside
 .scene-fade.on{opacity:1;}
 .pick-row.on{outline:3px solid var(--gold,#D4AF37);}
 #pickScreen .friend-row{width:100%;margin:6px 0;}
+/* נגד ניחושים: הקשבה/עצירה לפני תשובה, ותשובה שגויה נכבית */
+.choices.wait .choice:not(.out),.ride-choices.wait .choice:not(.out){opacity:.5;filter:saturate(.5);transition:opacity .25s;}
+.choices.wait,.ride-choices.wait{position:relative;}
+.choices.wait::after,.ride-choices.wait::after{content:'👂';position:absolute;inset:auto 0 -6px 0;text-align:center;font-size:26px;animation:pop 1s infinite alternate;pointer-events:none;}
+.choice.out{opacity:.25;filter:grayscale(1);pointer-events:none;box-shadow:none;}
+.em.counted.pop{animation:pop .35s;}
+.tr-done.wait,.t3-done.wait,button.wait{opacity:.5;filter:saturate(.5);}

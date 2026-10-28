@@ -84,10 +84,8 @@ export function createContest(deps) {
   // award(horse, res) — מעניק את הפרס וחוגג
   // ====================================================================
   function award(horse, res) {
-    const prize = 25 + Game.level * 2;
-
-    // עדכון מצב המשחק
-    Game.coins += prize;
+    // פרס מאוזן (היה 25 + 2×רמה): מלא רק בניסיון ראשון
+    const prize = Game.pay(8 + Math.floor(Game.level / 2), res);
     Game.ribbons = (Game.ribbons || 0) + 1;
 
     // אנימציות בעולם התלת-ממד

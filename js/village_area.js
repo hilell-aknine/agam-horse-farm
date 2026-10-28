@@ -97,8 +97,7 @@ export function buildVillage(deps) {
   function bake() {
     deps.Audio.speak('בואי נאפה לחם!');
     deps.askProblem('buy', res => {
-      const g = 14 + deps.Game.level;
-      deps.Game.coins += g;
+      const g = deps.payout(14, res);
       deps.spawnAt(center.x - 7, center.z - 1, 'star', 14);
       deps.Audio.coin();
       deps.UI.toast('🍞 אפית לחם! +' + g + ' 🪙', true);
@@ -117,8 +116,7 @@ export function buildVillage(deps) {
   function heal() {
     deps.Audio.speak('עוזרים לחיה להרגיש טוב!');
     deps.askProblem('brush', res => {
-      const g = 12 + deps.Game.level;
-      deps.Game.coins += g;
+      const g = deps.payout(12, res);
       deps.spawnAt(center.x + 5, center.z + 2, 'heart', 12);
       deps.Audio.coin();
       deps.UI.toast('💊 ריפאת חיה! +' + g + ' 🪙', true);
@@ -137,8 +135,7 @@ export function buildVillage(deps) {
   function shop() {
     deps.Audio.speak('בואי נקנה בשוק!');
     deps.askProblem('buy', res => {
-      const g = 13 + deps.Game.level;
-      deps.Game.coins += g;
+      const g = deps.payout(13, res);
       deps.spawnAt(center.x - 1, center.z + 3, 'star', 13);
       deps.Audio.coin();
       deps.UI.toast('🛒 קנית בשוק! +' + g + ' 🪙', true);

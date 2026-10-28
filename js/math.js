@@ -117,6 +117,7 @@ function genAddPlain(d) {
     answer: ans,
     choices: makeChoices(ans, 3, 4, 0),
     visual: null,
+    scaffold: { kind: 'group', emoji: '⭐', a, b, op: '+' },   // מוצג רק בפיגום "בואי נספור יחד"
     hint: 'אפשר לספור באצבעות'
   };
 }
@@ -133,6 +134,7 @@ function genSubPlain(d) {
     answer: ans,
     choices: makeChoices(ans, 3, 4, 0),
     visual: null,
+    scaffold: { kind: 'group', emoji: '⭐', a, b, op: '-' },
     hint: 'כמה צריך להוריד מהמספר הגדול'
   };
 }
@@ -149,6 +151,7 @@ function genMissing(d) {
     answer: ans,
     choices: makeChoices(ans, 2, 4, 0),
     visual: null,
+    scaffold: { kind: 'count', emoji: '⭐', count: ans },   // סופרים רק את מה שחסר
     hint: `כמה צריך להוסיף ל-${a} כדי להגיע ל-${total}`
   };
 }
@@ -183,6 +186,7 @@ function genNeighbor(d) {
     answer: ans,
     choices: makeChoices(ans, 2, 4, 0),
     visual: null,
+    scaffold: { kind: 'count', emoji: '⭐', count: ans },
     hint: after ? 'מספר אחד יותר' : 'מספר אחד פחות'
   };
 }

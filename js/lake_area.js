@@ -87,8 +87,7 @@ export function buildLake(deps) {
   // ===== 6a) פעילות דיג — פותחת בעיית חשבון; פתרון נכון = דג + מטבעות =====
   function fish(x, z) {
     deps.askProblem('harvest', res => {
-      const gain = 14 + deps.Game.level;
-      deps.Game.coins += gain;
+      const gain = deps.payout(14, res);
       deps.spawnAt(x, z, 'water', 12);
       deps.Audio.coin();
       deps.UI.toast('🐟 תפסת דג! +' + gain + ' 🪙', true);
@@ -122,8 +121,7 @@ export function buildLake(deps) {
   World.scene.add(duckMarker);
   deps.activity(duckMarker, () => {
     deps.askProblem('feed', res => {
-      const gain = 10 + deps.Game.level;
-      deps.Game.coins += gain;
+      const gain = deps.payout(10, res);
       deps.spawnAt(duckX, duckZ, 'water', 8);
       deps.Audio.coin();
       deps.UI.toast('🦆 האכלת את הברווזים! +' + gain + ' 🪙', true);

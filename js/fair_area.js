@@ -113,8 +113,7 @@ export function buildFair(deps) {
   // --- פעילויות (כל אחת פותחת תרגיל, ורק תשובה נכונה מתגמלת) ---
   function rideWheel() {
     askProblem('ride', res => {
-      const gain = 14 + Game.level;
-      Game.coins += gain;
+      const gain = deps.payout(14, res);
       spawnAt(C.x, C.z, 'star', 14);
       Audio.fanfare();
       UI.toast('🎡 טסת בגלגל הענק! +' + gain + ' 🪙', true);
@@ -124,8 +123,7 @@ export function buildFair(deps) {
   }
   function rideCarousel() {
     askProblem('ride', res => {
-      const gain = 12 + Game.level;
-      Game.coins += gain;
+      const gain = deps.payout(12, res);
       spawnAt(carX, carZ, 'music', 12);
       Audio.coin();
       UI.toast('🎠 רכבת על הקרוסלה! +' + gain + ' 🪙', true);
@@ -135,8 +133,7 @@ export function buildFair(deps) {
   }
   function popBalloons(x, z) {
     askProblem('game', res => {
-      const gain = 11 + Game.level;
-      Game.coins += gain;
+      const gain = deps.payout(11, res);
       spawnAt(x, z, 'confetti', 14);
       Audio.pop();
       UI.toast('🎈 פוצצת בלונים! +' + gain + ' 🪙', false);
@@ -146,8 +143,7 @@ export function buildFair(deps) {
   }
   function playDarts(x, z) {
     askProblem('game', res => {
-      const gain = 13 + Game.level;
-      Game.coins += gain;
+      const gain = deps.payout(13, res);
       spawnAt(x, z, 'star', 12);
       Audio.coin();
       UI.toast('🎯 קלעת בול! +' + gain + ' 🪙', false);
@@ -157,8 +153,7 @@ export function buildFair(deps) {
   }
   function buyTreat(x, z) {
     askProblem('treat', res => {
-      const gain = 10 + Game.level;
-      Game.coins += gain;
+      const gain = deps.payout(10, res);
       spawnAt(x, z, 'sparkle', 10);
       Audio.coin();
       UI.toast('🍭 קיבלת ממתק מתוק! +' + gain + ' 🪙', false);
