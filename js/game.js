@@ -21,7 +21,18 @@ const CROPS = {
   corn:       { key: 'corn',       name: 'תירס',    icon: '🌽', asset: 'corn.png',         seedCost: 8,  sellPrice: 13, growMs: 40000, size: 2.0 },
   pumpkin:    { key: 'pumpkin',    name: 'דלעת',    icon: '🎃', asset: 'pumpkin.png',      seedCost: 10, sellPrice: 17, growMs: 55000, size: 2.1 },
   apple:      { key: 'apple',      name: 'תפוח',    icon: '🍎', asset: 'apple.png',        seedCost: 8,  sellPrice: 13, growMs: 34000, size: 1.9 },
+  // גידול לילה: פורח רק מחר בבוקר (growMs נקבע בשתילה). סיבה לחזור, בלי נבילה ובלי עונש על היעדרות
+  moonflower: { key: 'moonflower', name: 'פרח לילה', icon: '🌙', asset: 'flowers_wild.png', seedCost: 12, sellPrice: 45, overnight: true, size: 1.9 },
 };
+
+// כמה זמן עד הבוקר הבא (06:00 בשעון המקומי) — זמן הגדילה של גידול לילה
+const MORNING_HOUR = 6;
+function msUntilMorning(now = Date.now()) {
+  const t = new Date(now);
+  t.setHours(MORNING_HOUR, 0, 0, 0);
+  if (t.getTime() <= now) t.setDate(t.getDate() + 1);
+  return t.getTime() - now;
+}
 
 // קטלוג החנות
 const SHOP = {
@@ -83,8 +94,10 @@ const Game = {
   streak: 0,
   bestStreak: 0,
   solved: 0,
-  settings: { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true },
+  settings: { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true, sessionMin: 20 },
   tutorialDone: false, // הדרכת 60 השניות הראשונות
+  morningDate: '',     // תאריך פרס "בוקר טוב, חווה" האחרון (פעם ביום, אחרי תרגיל אחד)
+  MORNING_COINS: 15,
   mastery: 0,        // שליטה בחשבון (0..8) — מה שמזיז את הקושי
   recent: [],        // 5 התוצאות האחרונות: 1=ניסיון ראשון, 0=בעזרה
   typeStats: {},     // {type: {c, w}} — דיוק לפי סוג תרגיל
@@ -259,7 +272,7 @@ const Game = {
         streak: this.streak, bestStreak: this.bestStreak, solved: this.solved,
         settings: this.settings,
         name: this.name || '',
-        typeStats: this.typeStats, tutorialDone: this.tutorialDone, mastery: this.mastery, recent: this.recent, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
+        typeStats: this.typeStats, tutorialDone: this.tutorialDone, morningDate: this.morningDate, mastery: this.mastery, recent: this.recent, quests: this.quests, questDate: this.questDate, spinDate: this.spinDate,
         upgrades: this.upgrades, expansion: this.expansion, decorPos: this.decorPos, ribbons: this.ribbons, rares: this.rares, tree: this.tree, worldStats: this.worldStats, story: this.story, rides: this.rides, savedAt: Date.now(),
         horses: s.horses || [], fields: s.fields || [], placed: s.placed || [], animals: s.animals || []
       };
@@ -280,7 +293,8 @@ const Game = {
     this.streak = d.streak ?? 0;
     this.bestStreak = d.bestStreak ?? 0;
     this.solved = d.solved ?? 0;
-    this.settings = Object.assign({ age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true }, d.settings || {});
+    this.settings = Object.assign({ age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true, sessionMin: 20 }, d.settings || {});
+    this.morningDate = d.morningDate || '';
     this.typeStats = d.typeStats || {};
     this.name = (this._ns === GUEST_NS) ? '' : (d.name || this.name || '');
     // שמירה ישנה בלי שליטה: מתחילים מהקושי שהיה לה (רמה/2), והמנגנון יתקן מכאן
@@ -400,7 +414,8 @@ const Game = {
     try { if (this._ns) localStorage.removeItem(nsKey(this._ns)); } catch (e) {}
     this.coins = 40; this.xp = 0; this.level = 1; this.stars = 0;
     this.streak = 0; this.bestStreak = 0; this.solved = 0;
-    this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true };
+    this.settings = { age: 6, diff: 'normal', sound: true, voice: true, music: true, daynight: true, sessionMin: 20 };
+    this.morningDate = '';
     if (this._ns === GUEST_NS) this.name = '';
     this.typeStats = {}; this.tutorialDone = false; this.mastery = 0; this.recent = []; this.quests = []; this.questDate = ''; this.spinDate = ''; this.upgrades = {}; this.expansion = 0; this.decorPos = {};
     this.ribbons = 0; this.rares = {}; this.tree = null; this.worldStats = { visited: {}, activities: {} };
@@ -409,4 +424,4 @@ const Game = {
   }
 };
 
-export { Game, CROPS, SHOP };
+export { Game, CROPS, SHOP, msUntilMorning };

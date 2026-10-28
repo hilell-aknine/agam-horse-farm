@@ -34,7 +34,9 @@ const ACTIONS = {
   birth:   { icon: '🍼', label: 'גור חדש' },
   ride:    { icon: '🎡', label: 'רכיבה' },
   game:    { icon: '🎯', label: 'משחק' },
-  treat:   { icon: '🍭', label: 'ממתק' }
+  treat:   { icon: '🍭', label: 'ממתק' },
+  growNow: { icon: '⚡', label: 'לגדל מיד' },
+  morning: { icon: '🌅', label: 'בוקר טוב' }
 };
 
 const UI = {
@@ -127,17 +129,19 @@ const UI = {
       <div class="auth-note">בלי סיסמה. רק מייל שאבא הוסיף לרשימה של החווה.</div>`;
     const q = (f) => box.querySelector(`[data-f="${f}"]`);
     const msg = (t, ok) => { const m = q('msg'); m.textContent = t; m.className = 'auth-msg ' + (!t ? '' : ok ? 'ok' : 'err'); };
+    let busy = false;   // Enter כפול או Enter+לחיצה שולחים בקשה אחת בלבד
     const go = async () => {
+      if (busy) return;
       Audio.resume(); Audio.click();
       const email = q('email').value.trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg('צריך מייל של אמא או אבא 😊'); return; }
-      q('go').disabled = true; msg('בודקות... 🐴', true);
+      busy = true; q('go').disabled = true; msg('בודקות... 🐴', true);
       try {
         const info = await this.handlers.onAuth.login(email);
         msg('');
         this.showPlayerPicker(info);
       } catch (e) {
-        q('go').disabled = false;
+        busy = false; q('go').disabled = false;
         msg(this._authErr(e));
         if (/not_allowed/.test((e && e.message) || '')) Audio.speak('המייל הזה עוד לא ברשימה של החווה. אפשר לבקש מאבא להוסיף אותו');
       }
@@ -553,6 +557,7 @@ const UI = {
           <img src="assets/${cr.asset}" onerror="this.style.display='none'">
           <span class="crop-name">${cr.name}</span>
           <span class="crop-cost">🪙 ${cr.seedCost}</span>
+          ${cr.overnight ? '<span class="crop-night">🌙 פורח מחר בבוקר</span>' : ''}
         </button>`;
     });
     ov.innerHTML = `
@@ -773,6 +778,79 @@ const UI = {
     };
   },
 
+  // ---------- כרטיס קטן עם שתי בחירות (משמש את הבוקר, הדילוג והשינה) ----------
+  // opts = { id, cls, emoji, title, text, yes, no, onYes, onNo, say }
+  _choiceCard(opts) {
+    const old = document.getElementById(opts.id); if (old) old.remove();
+    const ov = el('div', 'overlay ' + (opts.cls || 'light')); ov.id = opts.id;
+    ov.innerHTML = `<div class="card choice-card">
+        <div class="cc-emoji">${opts.emoji}</div>
+        <h2>${opts.title}</h2>
+        ${opts.text ? `<p class="cc-text">${opts.text}</p>` : ''}
+        <button class="btn-big btn-play" data-f="yes">${opts.yes}</button>
+        ${opts.no ? `<button class="btn-ghost" data-f="no">${opts.no}</button>` : ''}
+      </div>`;
+    this.root.appendChild(ov);
+    const close = () => ov.remove();
+    ov.querySelector('[data-f="yes"]').onclick = () => { Audio.click(); close(); opts.onYes && opts.onYes(); };
+    const no = ov.querySelector('[data-f="no"]');
+    if (no) no.onclick = () => { Audio.click(); close(); opts.onNo && opts.onNo(); };
+    if (opts.say) Audio.speak(opts.say);
+    return ov;
+  },
+
+  // בוקר טוב, חווה: פרס פתיחה יומי שמגיע אחרי תרגיל אחד. בלי רצף שנשבר
+  morningCard(info, onGo, onLater) {
+    const extra = info.ready ? `${info.ready === 1 ? 'פרח לילה אחד פרח' : info.ready + ' פרחי לילה פרחו'} בשדה! 🌙` : '';
+    this._choiceCard({
+      id: 'morningOv', emoji: '🌅', title: 'בוקר טוב, חווה!',
+      text: `רותי השאירה לך מתנת בוקר. תרגיל אחד והיא שלך 🎁${extra ? '<br>' + extra : ''}`,
+      yes: 'בואי נפתח! 🎁', no: 'אחר כך', onYes: onGo, onNo: onLater,
+      say: 'בוקר טוב! רותי השאירה לך מתנת בוקר. תרגיל אחד והיא שלך' + (info.ready ? '. ופרחי הלילה פרחו!' : '')
+    });
+  },
+
+  // שדה שעוד גדל: אפשר לחכות, או לפתור תרגיל אתגר והוא גדל מיד
+  offerGrow(sec, cropName, onGrow) {
+    this._choiceCard({
+      id: 'growOv', emoji: '🌱', title: `ה${cropName} עוד גדל`,
+      text: `עוד ${sec} שניות. רוצה תרגיל אתגר? פתרת, והוא גדל מיד ⚡`,
+      yes: '⚡ תרגיל אתגר', no: 'אחכה', onYes: onGrow,
+      say: 'ה' + cropName + ' עוד גדל. רוצה תרגיל אתגר? פתרת, והוא גדל מיד'
+    });
+  },
+
+  // סוף משחק מתוכנן: החווה הולכת לישון. info = { solved, growing, night }
+  bedtime(info, onSleep, onMore) {
+    const parts = [];
+    if (info.solved) parts.push(`פתרת היום <b>${info.solved}</b> תרגילים`);
+    if (info.night) parts.push(`${info.night === 1 ? 'פרח לילה אחד יפרח' : info.night + ' פרחי לילה יפרחו'} מחר בבוקר 🌙`);
+    else parts.push('מחר אפשר לשתול פרח לילה, והוא יחכה לך בבוקר 🌙');
+    const ov = this._choiceCard({
+      id: 'bedOv', cls: 'night', emoji: '🌙', title: 'החווה הולכת לישון',
+      text: 'רותי משכיבה את הסוסים לישון. ' + parts.join('. '),
+      yes: 'לילה טוב! 💤', no: onMore ? 'עוד 5 דקות' : null,
+      onYes: () => { onSleep && onSleep(); this._sleepScreen(info); }, onNo: onMore,
+      say: 'החווה הולכת לישון. רותי משכיבה את הסוסים. כל הכבוד על היום!' + (info.solved ? ' פתרת ' + info.solved + ' תרגילים' : '')
+    });
+    return ov;
+  },
+  _sleepScreen(info) {
+    const ov = el('div', 'overlay night sleep-ov'); ov.id = 'sleepOv';
+    ov.innerHTML = `<div class="sleep-card">
+        <div class="cc-emoji">🐴💤</div>
+        <h2>לילה טוב${this._pn() ? ', ' + this._pn() : ''}!</h2>
+        <p class="cc-text">החווה ישנה. נתראה מחר בבוקר 🌅</p>
+        <button class="btn-ghost sleep-parents" data-f="wake">👨‍👩‍👧 הורים: להמשיך לשחק</button>
+      </div>`;
+    this.root.appendChild(ov);
+    Audio.speak('לילה טוב! נתראה מחר בבוקר', { queue: true });
+    ov.querySelector('[data-f="wake"]').onclick = () => {
+      Audio.click(); ov.remove();
+      this.handlers.onWake && this.handlers.onWake();
+    };
+  },
+
   // פס מירוץ עליון
   raceBar(step, total) {
     let bar = document.getElementById('raceBar');
@@ -941,7 +1019,7 @@ const UI = {
         if (inBox() === target) finish(true);
       }
     };
-    ov.querySelector('#mathClose').onclick = () => { Audio.click(); Audio.stopSpeak(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
+    ov.querySelector('#mathClose').onclick = () => { if (finished) return; Audio.click(); Audio.stopSpeak(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
     ov.querySelector('#speakBtn').onclick = () => Audio.speak(say);
     Audio.speak(say);
   },
@@ -992,7 +1070,8 @@ const UI = {
     });
     this._mathCtl = ctl;
 
-    ov.querySelector('#mathClose').onclick = () => { Audio.click(); Audio.stopSpeak(); ctl.stop(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
+    // ✖ אחרי תשובה נכונה לא מבטל: הפעולה כבר בדרך, והחלון ייסגר לבד (בלי קריאה כפולה ל-onDone)
+    ov.querySelector('#mathClose').onclick = () => { if (ctl.answered()) return; Audio.click(); Audio.stopSpeak(); ctl.stop(); this._mathOpen = false; ov.remove(); onDone && onDone({ correct: false, cancelled: true }); };
     ov.querySelector('#speakBtn').onclick = () => Audio.speak(problem.speech || problem.question);
     ov.querySelector('#hintBtn').onclick = () => this._showHint(ov, problem);
 
@@ -1012,7 +1091,7 @@ const UI = {
     const WORDS = ['אחת', 'שתיים', 'שלוש', 'ארבע', 'חמש', 'שש', 'שבע', 'שמונה', 'תשע', 'עשר',
       'אחת עשרה', 'שתים עשרה', 'שלוש עשרה', 'ארבע עשרה', 'חמש עשרה', 'שש עשרה', 'שבע עשרה', 'שמונה עשרה', 'תשע עשרה', 'עשרים'];
     const hintEl = opts.hintEl, visEl = opts.visEl;
-    let attempts = 0, locked = true, unlockAt = 0, spam = 0, scaffolded = false, guessy = false, done = false;
+    let attempts = 0, locked = true, unlockAt = 0, spam = 0, scaffolded = false, guessy = false, done = false, pauseT = null;
     const timers = [];
     const later = (fn, ms) => { const t = setTimeout(() => { if (!done) fn(); }, ms); timers.push(t); return t; };
     const buttons = [];
@@ -1051,6 +1130,7 @@ const UI = {
     const scaffold = (why) => {
       if (scaffolded) return;
       scaffolded = true; setLock(true);
+      clearTimeout(pauseT);   // העצירה של הטעות הראשונה לא פותחת את התשובות באמצע הספירה
       if (why === 'guess') {
         guessy = true;
         this._guessy = Math.min(3, (this._guessy || 0) + 1);
@@ -1090,13 +1170,13 @@ const UI = {
         setLock(true); spam = 0;
         showHint('🤔 בואי נחשוב רגע. ' + (problem.hint || ''));
         Audio.speak('כמעט! בואי נחשוב רגע. ' + (problem.hint || ''));
-        later(() => setLock(false), PAUSE_MS);
+        pauseT = later(() => setLock(false), PAUSE_MS);
       };
       ch.appendChild(b);
     });
     setLock(true);
     later(() => setLock(false), LISTEN_MS);
-    return { stop() { done = true; timers.forEach(clearTimeout); } };
+    return { stop() { done = true; timers.forEach(clearTimeout); }, answered: () => done };
   },
 
   _showHint(ov, problem, speak = true) {
@@ -1193,6 +1273,14 @@ const UI = {
             <button data-diff="hard">מאתגר</button>
           </div>
         </div>
+        <div class="set-row"><span>⏰ זמן משחק</span>
+          <div class="sess-pick">
+            <button data-sess="15">15</button>
+            <button data-sess="20">20</button>
+            <button data-sess="30">30</button>
+            <button data-sess="0">בלי</button>
+          </div>
+        </div>
         <div class="auth-block" id="authBlock"></div>
         <button class="btn-report" id="reportBtn">📊 דוח להורה</button>
         <button class="btn-reset" id="resetBtn">🔄 להתחיל מחדש</button>
@@ -1267,6 +1355,10 @@ const UI = {
     ov.querySelectorAll('.diff-pick button').forEach(b => {
       b.classList.toggle('on', b.dataset.diff === (g.settings.diff || 'normal'));
       b.onclick = () => { Audio.click(); g.settings.diff = b.dataset.diff; this._syncSettings(g); this.handlers.onSettings && this.handlers.onSettings(); };
+    });
+    ov.querySelectorAll('.sess-pick button').forEach(b => {
+      b.classList.toggle('on', Number(b.dataset.sess) === (g.settings.sessionMin ?? 20));
+      b.onclick = () => { Audio.click(); g.settings.sessionMin = Number(b.dataset.sess); this._syncSettings(g); this.handlers.onSettings && this.handlers.onSettings(); };
     });
     ov.querySelectorAll('.toggle').forEach(b => {
       const k = b.dataset.key;

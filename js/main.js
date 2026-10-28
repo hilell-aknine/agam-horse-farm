@@ -7,7 +7,7 @@ import { Fields } from './fields.js';
 import { Animals } from './animals.js';
 import { Cloud } from './cloud.js';
 import { UI } from './ui.js';
-import { Game, CROPS, SHOP } from './game.js';
+import { Game, CROPS, SHOP, msUntilMorning } from './game.js';
 import { Audio } from './audio.js';
 import { generateProblem, makeTransferTask } from './math.js';
 import { createContest } from './contest.js';
@@ -23,7 +23,7 @@ import { Track3D } from './track3d.js';
 import { Interiors } from './interiors.js';
 
 const nowMs = () => Date.now();
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => new Date().toLocaleDateString('en-CA');   // תאריך מקומי (UTC החליף יום בשתיים בלילה בקיץ)
 
 // --- עולם חברתי: מצב ביקור אצל חברה (?visit=<user_id>&name=<שם>) ---
 const VISIT = (() => {
@@ -161,6 +161,7 @@ UI.init({
   },
   onGuest: enterGuest,
   onSwitchPlayer: switchPlayer,
+  onWake: () => Bedtime.wake(),
   getGame: () => Game
 });
 
@@ -642,9 +643,69 @@ function startGame() {
   Story.refresh(); Story.show(true);
   storyAutoSkip();
   Tutorial.start();
-  // שחקנית ותיקה שעוד לא ראתה את הפרק — רותי מספרת עליו
-  if (Game.tutorialDone && !Game.story.seen) setTimeout(() => { if (!document.querySelector('.overlay:not(.hidden)')) Story.open(); }, 1500);
+  Bedtime.start();
+  // בוקר חדש קודם (מתנת בוקר), ואחריו הסיפור. שחקנית ותיקה שעוד לא ראתה את הפרק — רותי מספרת עליו
+  if (!Morning.maybe() && Game.tutorialDone && !Game.story.seen) setTimeout(() => { if (!document.querySelector('.overlay:not(.hidden)')) Story.open(); }, 1500);
 }
+
+// משהו פתוח עכשיו (חלון, תרגיל, רכיבה, מבנה) — לא קופצים באמצע
+function busyNow() {
+  return !!document.querySelector('.overlay:not(.hidden)') || UI._mathOpen || Transfer3D.active || Track3D.active || Interiors.active || arrangeMode;
+}
+const FARM_POS = { x: 0, y: 1, z: 0 };
+const nightPlots = (state) => Fields.plots.filter(p => p.state === state && CROPS[p.cropKey] && CROPS[p.cropKey].overnight).length;
+
+// ---------- בוקר טוב, חווה: מתנת פתיחה יומית אחרי תרגיל אחד ----------
+// אין רצף שנשבר: יום שפספסו פשוט לא קיים. ביטול (✖ או "אחר כך") = המתנה מחכה לפעם הבאה שנכנסים.
+const Morning = {
+  maybe() {
+    if (Game.visiting || !Game.tutorialDone || Game.morningDate === today()) return false;
+    let tries = 0;
+    const open = () => {
+      if (busyNow()) { if (++tries < 15) setTimeout(open, 4000); return; }
+      UI.morningCard({ ready: nightPlots('ready') }, () => this.solve(), () => this.after());
+    };
+    setTimeout(open, 1200);
+    return true;
+  },
+  solve() {
+    askProblem('morning', (res) => {
+      Game.morningDate = today();
+      const gain = Game.pay(Game.MORNING_COINS, res);
+      World.spawnParticles(FARM_POS, 'coin', 12);
+      Audio.coin(); Audio.fanfare();
+      UI.toast('🎁 מתנת בוקר! +' + gain + ' 🪙', true);
+      grantReward(FARM_POS, res, NO_COINS);
+      saveAll();
+      this.after();
+    });
+  },
+  after() { if (!Game.story.seen) setTimeout(() => { if (!busyNow()) Story.open(); }, 2500); }
+};
+
+// ---------- סוף משחק מתוכנן: אחרי זמן המשחק (הגדרת הורים, ברירת מחדל 20 דק') החווה הולכת לישון ----------
+// לא קופץ באמצע תרגיל. "עוד 5 דקות" פעם אחת. אחרי "לילה טוב" רק הורה ממשיך מהמסך.
+const Bedtime = {
+  startedAt: 0, solvedAt: 0, extended: false, shown: false, _t: null,
+  start() {
+    this.startedAt = nowMs(); this.solvedAt = Game.solved; this.extended = false; this.shown = false;
+    clearInterval(this._t); this._t = setInterval(() => this.check(), 15000);
+  },
+  limitMs() { const m = Game.settings.sessionMin ?? 20; return m > 0 ? m * 60000 : 0; },
+  check() {
+    const lim = this.limitMs();
+    if (this.shown || Game.visiting || !lim || nowMs() - this.startedAt < lim || busyNow()) return;
+    this.shown = true;
+    const info = { solved: Game.solved - this.solvedAt, night: nightPlots('growing') };
+    UI.bedtime(info, () => this.sleep(), this.extended ? null : () => this.more());
+  },
+  more() { this.extended = true; this.shown = false; this.startedAt = nowMs() - this.limitMs() + 5 * 60000; },
+  sleep() { saveAll(); Audio.stopMusic(); },
+  wake() {   // הורה בחר להמשיך: סבב משחק חדש מלא
+    this.start();
+    if (Game.settings.music) { Audio.musicOn = true; Audio.startMusic(); }
+  }
+};
 
 // ---------- 60 השניות הראשונות: הדרכה קולית בלי קריאה ----------
 // סוס → האכלה (משימת גזרים) → שדה → שתילה. כל שלב מחכה לילדה, אין שעון.
@@ -1275,8 +1336,14 @@ function handlePlot(plot) {
   if (plot.state === 'empty') {
     UI.chooseCrop(Game, (key) => startPlant(plot, key));
   } else if (plot.state === 'growing') {
-    UI.toast('🌱 עוד ' + plot.remainingSec(nowMs()) + ' שניות לגדילה', false);
-    Audio.speak('עוד קצת והגידול יהיה מוכן');
+    const def = CROPS[plot.cropKey] || {}, sec = plot.remainingSec(nowMs());
+    if (def.overnight) {   // גידול לילה לא מדלגים: הוא הסיבה לחזור מחר
+      UI.toast('🌙 פרח הלילה יפרח מחר בבוקר', true);
+      Audio.speak('פרח הלילה ישן עכשיו. הוא יפרח מחר בבוקר');
+    } else if (sec <= 5 || Game.visiting) {
+      UI.toast('🌱 עוד ' + sec + ' שניות לגדילה', false);
+      Audio.speak('עוד קצת והגידול יהיה מוכן');
+    } else UI.offerGrow(sec, def.name || 'גידול', () => growNow(plot));
   } else if (plot.state === 'ready') {
     startHarvest(plot);
   }
@@ -1289,16 +1356,30 @@ function startPlant(plot, cropKey) {
   if (Tutorial.step === 'plant') clearInterval(Tutorial._timer);   // החץ מעל השדה מפריע כשהערוגה פתוחה
   askProblem('plant', (res) => {
     if (!Game.spend(def.seedCost)) return;
-    plot.plant(Object.assign({ key: cropKey }, def), nowMs());
+    const now = nowMs();
+    plot.plant(Object.assign({ key: cropKey }, def, def.overnight ? { growMs: msUntilMorning(now) } : null), now);
     questBump('plant');
-    World.showAction({ x: plot.pos.x, y: 0, z: plot.pos.z }, '🌱');
+    World.showAction({ x: plot.pos.x, y: 0, z: plot.pos.z }, def.overnight ? '🌙' : '🌱');
     spawnAt(plot.pos.x, plot.pos.z, 'sparkle', 10);
-    Audio.pop(); Audio.speak('שתלת ' + def.name + '. עכשיו צריך לחכות שיגדל');
-    UI.toast('🌱 שתלת ' + def.name + '!', false);
+    Audio.pop(); Audio.speak('שתלת ' + def.name + (def.overnight ? '. הוא יפרח מחר בבוקר' : '. עכשיו צריך לחכות שיגדל'));
+    UI.toast((def.overnight ? '🌙 ' : '🌱 ') + 'שתלת ' + def.name + '!', false);
     grantReward({ x: plot.pos.x, y: 1, z: plot.pos.z }, res, NO_COINS);
     saveAll();
     Tutorial.planted();
   }, false, task);
+}
+
+// הדילוג על ההמתנה נקנה בחשבון: תרגיל אתגר (קושי +1) → השדה גדל מיד. XP בלבד, המטבעות מגיעים בקציר
+function growNow(plot) {
+  askProblem('growNow', (res) => {
+    if (plot.state !== 'growing') return;
+    plot.plantedAt = nowMs() - plot.growMs;
+    World.showAction({ x: plot.pos.x, y: 0, z: plot.pos.z }, '⚡');
+    spawnAt(plot.pos.x, plot.pos.z, 'sparkle', 16);
+    Audio.fanfare(); Audio.speak('וואו! הוא גדל מיד. עכשיו אפשר לקצור', { queue: true });
+    grantReward({ x: plot.pos.x, y: 1, z: plot.pos.z }, res, NO_COINS);
+    saveAll();
+  }, true);
 }
 
 function startHarvest(plot) {
