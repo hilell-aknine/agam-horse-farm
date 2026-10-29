@@ -76,15 +76,23 @@
 
 **בענן:** Supabase `xgqetnlsesgwiypufodf` (חשבון hilelltohar). ⚠️ **משותף עם פורטל קגן** (אותו Auth ואותו מסד). לכן: אסור `supabase db push`, מריצים SQL קובץ-קובץ דרך Management API, וכל משתמשת חווה מסומנת `app_metadata.agam_farm = true`.
 - `game_saves(user_id PK, data jsonb, updated_at)` · `farm_profiles(user_id PK, name, level, updated_at)`.
-- RLS מתוכנן: כתיבה רק לשורה של עצמך, קריאה לעצמך + לחוות של חברות (ביקור). פרופילים דרך `public.has_farm()` עם **security definer**, כי מדיניות שמפנה לאותה טבלה ישירות = רקורסיה אינסופית.
-- **מצב נכון ל-29.10.2026: הטבלאות עוד לא נוצרו.** הכל נשמר במכשיר בלבד.
+- **נוצר ב-29.10.2026** מ-`supabase/sql/001_farm_core.sql` (הרצה: `python scripts/run_sql.py <קובץ>`).
+- **מחיצה:** כל מדיניות דורשת `public.is_farm_user()` = `app_metadata.agam_farm` בטוקן. קריאה: כל משתמשות החווה (ביקור אצל חברה). כתיבה: רק השורה של עצמך. anon: אין גישה בכלל.
+- `public.has_farm()` עם **security definer**, כי מדיניות שמפנה לאותה טבלה ישירות = רקורסיה אינסופית.
+- **נגד הצפה:** `game_saves_size` (עד 256KB), טריגר `farm_save_throttle` (עדכון אחד לשנייה לאותה שורה, `updated_at` נקבע בשרת).
+- **הגבלת קצב:** `farm_rate_hits` + `farm_rate_check(key, limit, window_s)` (רק service role). משותף לכל מופעי השרתונים.
+- **בדיקה:** `supabase/sql/tests/001_rls_test.sql` (מתבטל אחרי עצמו). 29.10: כל 11 הבדיקות עברו, כולל משתמש בלי סימון חווה שרואה 0 שורות.
+- **עדיין ריק:** אף משתמש לא מסומן חווה עד שהכניסה בגוגל תעלה.
 - במסד יש גם טבלאות דמו ישנות של ג'ף (06.2026, נטושות). ג'ף החי רץ בחשבון נפרד. למחוק רק באישור הלל.
 
 ## 6. API
 | שרתון | קלט | פלט | מצב |
 |---|---|---|---|
-| `farm-email-login` | POST `{email}` | session או `403 not_allowed / not_farm_account`, `429` | **לא פרוס** (404). יוחלף בכניסת גוגל |
-| `admin-users` | טוקן `ADMIN_PANEL_TOKEN` | רשימת משתמשות + איפוס | פרוס |
+| `farm-claim` | POST, `Authorization: Bearer <טוקן גוגל מ-Supabase>` | `200 {ok}` + סימון `agam_farm` · `403 google_required / not_allowed` · `401` · `429` | **כתוב, לא פרוס** |
+| `farm-email-login` | POST `{email}` | session בלי סיסמה | **לא פרוס, יימחק**: מי שיודע מייל מורשה נכנס כמוהו |
+| `admin-users` | כותרת `x-admin-token` | רשימת משתמשות חווה בלבד + איפוס למשתמשת חווה בלבד · `429` | הגרסה הפרוסה עדיין מציגה את כל משתמשי המסד המשותף. התיקון כתוב, ממתין לפריסה |
+
+רשימת המורשים: סוד `FARM_ALLOWED_EMAILS` בשרת (הקובע) + טביעות ב-`js/net/allowlist.js` (הודעה ידידותית בלבד).
 
 ## 7. גיבויים ושחזור
 - משימה מתוזמנת `AgamFarmBackup` כל לילה ב-23:30 → `scripts/backup/backup.ps1`:
@@ -106,5 +114,6 @@
 - בטלפון אמיתי: עדיין ידני (הלל/אגם).
 
 ## 10. יומן שינויים
+- **2026-10-29** · אבטחה במסד: טבלאות + RLS לפי סימון חווה + תקרת גודל + טריגר נגד הצפה + הגבלת קצב (`001_farm_core.sql`), כולל בדיקת מחיצה שעברה. נכתבו `farm-claim` ותיקון ל-`admin-users` (לא פרוסים).
 - **2026-10-29** · מבנה היררכי: `js/` פוצל ל-engine/farm/areas/minigames/systems/net/ui, מסמכים ל-`docs/`, נוצרו `CONTEXT.md` ו-`scripts/smoke.py`. CACHE v23. נבדק ב-smoke (מחשב + טלפון): 29 מודולים, 0 שגיאות.
 - **2026-10-28** · גיבוי לילי (bundle + `backup/auto` + מסד) ו-`vercel.json` שחוסם פריסת ענפי גיבוי. שחזור ניסיון מה-bundle עבר.

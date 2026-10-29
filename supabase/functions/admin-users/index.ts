@@ -2,6 +2,8 @@
 // אבטחה: המפתח service_role נשאר בצד-שרת בלבד (מוזרק ע"י Supabase).
 // גישה נחסמת מאחורי טוקן-אדמין (ADMIN_PANEL_TOKEN) בהשוואת זמן-קבוע.
 // לעולם לא מחזיר סיסמאות — הן מוצפנות חד-כיווני ולא ניתנות לשחזור.
+// ⚠️ ה-Auth משותף עם מערכות אחרות: מציגים ונוגעים רק במשתמשות חווה (app_metadata.agam_farm).
+// הגבלת קצב: 10 לדקה לכל IP (farm_rate_check במסד), גם לפני בדיקת הטוקן, נגד ניחוש.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CORS = {
@@ -31,16 +33,21 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
+    const url = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const { data: okRate, error: rateErr } = await admin.rpc('farm_rate_check', { p_key: 'admin:' + ip, p_limit: 10, p_window_s: 60 });
+    if (rateErr) return json({ error: 'server_error' }, 500);
+    if (!okRate) return json({ error: 'rate_limited' }, 429);
+
     const adminToken = Deno.env.get('ADMIN_PANEL_TOKEN');
     const provided = req.headers.get('x-admin-token') || '';
     // fail loudly: בלי טוקן מוגדר בשרת — אין גישה בכלל (לא ברירת-מחדל פתוחה)
     if (!adminToken || !safeEqual(provided, adminToken)) {
       return json({ error: 'unauthorized' }, 401);
     }
-
-    const url = Deno.env.get('SUPABASE_URL')!;
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const action = body.action;
@@ -52,8 +59,8 @@ Deno.serve(async (req) => {
       for (;;) {
         const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
         if (error) throw error;
-        authUsers.push(...data.users);
-        if (data.users.length < 200) break;
+        authUsers.push(...data.users.filter((u: any) => u.app_metadata?.agam_farm === true));
+        if (data.users.length < 200) break;   // העימוד לפי הרשימה המלאה, לפני הסינון
         page++;
       }
       const { data: profiles } = await admin.from('farm_profiles').select('user_id,name,level,updated_at');
@@ -80,6 +87,8 @@ Deno.serve(async (req) => {
       const userId = String((body as any).userId || '');
       const newPassword = String((body as any).newPassword || '');
       if (!userId || newPassword.length < 6) return json({ error: 'bad-input' }, 400);
+      const { data: target } = await admin.auth.admin.getUserById(userId);
+      if (!target?.user?.app_metadata?.agam_farm) return json({ error: 'not-farm-user' }, 403);
       const { error } = await admin.auth.admin.updateUserById(userId, { password: newPassword });
       if (error) throw error;
       return json({ ok: true });
@@ -87,6 +96,6 @@ Deno.serve(async (req) => {
 
     return json({ error: 'unknown-action' }, 400);
   } catch (e) {
-    return json({ error: String((e as any)?.message || e) }, 500);
+    return json({ error: 'server_error' }, 500);   // בלי פרטי שגיאה החוצה
   }
 });
