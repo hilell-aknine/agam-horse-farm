@@ -1,6 +1,6 @@
 // horses.js — סוסים: שלטים בעברית, תנועה חופשית, סטטיסטיקות, גדילה
-import { World, THREE } from './world.js';
-import { Horse3D, FOAL_SCALE } from './horse3d.js';
+import { World, THREE } from '../engine/world.js';
+import { Horse3D, FOAL_SCALE } from '../engine/horse3d.js';
 
 const NAMES = ['כוכב', 'ברק', 'סוכר', 'ענן', 'פרח', 'יהלום', 'נסיכה', 'אלוף',
   'דבש', 'תות', 'שלג', 'זהבה', 'רוח', 'נמר', 'מלכה', 'אגוז', 'קפיץ', 'חלום'];

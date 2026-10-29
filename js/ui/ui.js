@@ -1,7 +1,7 @@
 // ui.js — שכבת DOM: מסכים, HUD, כרטיס סוס, חנות, חלון תרגיל חשבון (עברית RTL)
-import { Audio } from './audio.js';
-import { SHOP, CROPS } from './game.js';
-import { Cloud } from './cloud.js';
+import { Audio } from '../systems/audio.js';
+import { SHOP, CROPS } from '../systems/game.js';
+import { Cloud } from '../net/cloud.js';
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);

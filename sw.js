@@ -1,16 +1,16 @@
 // sw.js — Service Worker: מאפשר למשחק לעבוד גם בלי אינטרנט (אחרי טעינה ראשונה)
 // גרסה מועלית בכל שינוי קוד/אמנות — activate מוחק מטמון ישן ומרענן הכל
 // (בלי זה, cache-first מגיש למשתמשים מותקנים את הגרסה הישנה לנצח).
-const CACHE = 'agam-farm-v22';
+const CACHE = 'agam-farm-v23';
 const CORE = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
-  './js/main.js', './js/world.js', './js/horses.js', './js/animals.js',
-  './js/fields.js', './js/game.js', './js/ui.js', './js/audio.js',
-  './js/math.js', './js/cloud.js',
-  './js/contest.js', './js/delivery.js', './js/photo.js',
-  './js/forest_area.js', './js/lake_area.js', './js/village_area.js',
-  './js/mountain_area.js', './js/fair_area.js', './js/transfer3d.js',
-  './js/story.js', './js/track3d.js', './js/interiors.js', './js/allowlist.js',
+  './js/main.js', './js/engine/world.js', './js/farm/horses.js', './js/farm/animals.js',
+  './js/farm/fields.js', './js/systems/game.js', './js/ui/ui.js', './js/systems/audio.js',
+  './js/systems/math.js', './js/net/cloud.js',
+  './js/minigames/contest.js', './js/minigames/delivery.js', './js/minigames/photo.js',
+  './js/areas/forest_area.js', './js/areas/lake_area.js', './js/areas/village_area.js',
+  './js/areas/mountain_area.js', './js/areas/fair_area.js', './js/minigames/transfer3d.js',
+  './js/systems/story.js', './js/areas/track3d.js', './js/areas/interiors.js', './js/net/allowlist.js',
   './js/lib/three.module.min.js', './js/lib/addons/controls/OrbitControls.js'
 ];
 

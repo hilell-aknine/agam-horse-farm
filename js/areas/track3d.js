@@ -2,10 +2,10 @@
 // לפני כל משוכה הסוס עוצר ומחכה, אגם פותרת תרגיל, והסוס קופץ. אין הפסד: טעות מראה רמז,
 // שתי טעויות חושפות את התשובה, והסוס קופץ בכל מקרה. ניסיון ראשון = ⭐ שנאסף באוויר.
 // המצלמה רודפת אחרי הסוס; בסוף הסיבוב — סיכום כוכבים, "עוד סיבוב" או חזרה.
-import { World, THREE } from './world.js';
-import { Audio } from './audio.js';
-import { Horse3D } from './horse3d.js';
-import { generateProblem } from './math.js';
+import { World, THREE } from '../engine/world.js';
+import { Audio } from '../systems/audio.js';
+import { Horse3D } from '../engine/horse3d.js';
+import { generateProblem } from '../systems/math.js';
 
 const C = { x: -42, z: -62 };            // מרכז המסלול: בין החווה ליער, הרחק מהגבעות
 const RX = 17, RZ = 11, W = 4.4;         // רדיוסי קו האמצע ורוחב המסלול

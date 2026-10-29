@@ -2,10 +2,10 @@
 // כל מבנה הוא "בית בובות": חדר תלת-ממדי עם קיר קדמי פתוח, בסצנה נפרדת שמוחלפת ברינדור.
 // בפנים יש דברים לגעת בהם (סוסים בתאים, חציר, חתול, עכבר מתחבא, תנור, ספרים) —
 // כל פעולה עוברת דרך askProblem כמו בשאר המשחק. העולם בחוץ ממשיך לחיות (יבול, חיות, שמירה).
-import { World, THREE } from './world.js';
-import { Audio } from './audio.js';
-import { Game } from './game.js';
-import { Horse3D } from './horse3d.js';
+import { World, THREE } from '../engine/world.js';
+import { Audio } from '../systems/audio.js';
+import { Game } from '../systems/game.js';
+import { Horse3D } from '../engine/horse3d.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 function mat(color, glow = 0.18) {

@@ -2,8 +2,8 @@
 // אותו חשבון כמו UI.askTransfer (ספירה / "כמה חסר", פיגום, שתי טעויות → משבצות),
 // רק שבמקום חלון שמסתיר את החווה — נוגעים בגזר, הוא עף לשוקת, והסוס ניגש ואוכל בדיוק את מה ששמו.
 // אם משהו חסר (אין סוס/עולם) main.js נופל לחלון הרגיל.
-import { World, THREE } from './world.js';
-import { Audio } from './audio.js';
+import { World, THREE } from '../engine/world.js';
+import { Audio } from '../systems/audio.js';
 
 const WORDS = ['אחת', 'שתיים', 'שלוש', 'ארבע', 'חמש', 'שש', 'שבע', 'שמונה', 'תשע', 'עשר', 'אחת עשרה', 'שתים עשרה'];
 const word = (n) => WORDS[n - 1] || String(n);

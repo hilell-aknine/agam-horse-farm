@@ -1,26 +1,26 @@
 // main.js — מקשר הכל: עולם, סוסים, שדות, חנות, ממשק, מצב ולולאת המשחק
-import { World, THREE } from './world.js';
-import { Horses } from './horses.js';
-import { Models3D } from './models3d.js';
-import { Transfer3D } from './transfer3d.js';
-import { Fields } from './fields.js';
-import { Animals } from './animals.js';
-import { Cloud } from './cloud.js';
-import { UI } from './ui.js';
-import { Game, CROPS, SHOP, msUntilMorning } from './game.js';
-import { Audio } from './audio.js';
-import { generateProblem, makeTransferTask } from './math.js';
-import { createContest } from './contest.js';
-import { createDelivery } from './delivery.js';
-import { createPhoto } from './photo.js';
-import { buildForest } from './forest_area.js';
-import { buildLake } from './lake_area.js';
-import { buildVillage } from './village_area.js';
-import { buildMountain } from './mountain_area.js';
-import { buildFair } from './fair_area.js';
-import { Story } from './story.js';
-import { Track3D } from './track3d.js';
-import { Interiors } from './interiors.js';
+import { World, THREE } from './engine/world.js';
+import { Horses } from './farm/horses.js';
+import { Models3D } from './engine/models3d.js';
+import { Transfer3D } from './minigames/transfer3d.js';
+import { Fields } from './farm/fields.js';
+import { Animals } from './farm/animals.js';
+import { Cloud } from './net/cloud.js';
+import { UI } from './ui/ui.js';
+import { Game, CROPS, SHOP, msUntilMorning } from './systems/game.js';
+import { Audio } from './systems/audio.js';
+import { generateProblem, makeTransferTask } from './systems/math.js';
+import { createContest } from './minigames/contest.js';
+import { createDelivery } from './minigames/delivery.js';
+import { createPhoto } from './minigames/photo.js';
+import { buildForest } from './areas/forest_area.js';
+import { buildLake } from './areas/lake_area.js';
+import { buildVillage } from './areas/village_area.js';
+import { buildMountain } from './areas/mountain_area.js';
+import { buildFair } from './areas/fair_area.js';
+import { Story } from './systems/story.js';
+import { Track3D } from './areas/track3d.js';
+import { Interiors } from './areas/interiors.js';
 
 const nowMs = () => Date.now();
 const today = () => new Date().toLocaleDateString('en-CA');   // תאריך מקומי (UTC החליף יום בשתיים בלילה בקיץ)
