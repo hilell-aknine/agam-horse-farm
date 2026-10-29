@@ -3,3 +3,4 @@ node_modules/
 *.log
 .vercel
 .DS_Store
+_handoff/

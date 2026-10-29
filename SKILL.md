@@ -5,7 +5,7 @@
 ## מטרת-על · [Tier 4 — אישי/תחביב]
 משחק **עולם-פתוח תלת-ממדי בסגנון FarmVille** לבת של הלל, **אגם (גיל 6)**, בעברית מלאה.
 החווה היא הבית, ומסביבה עולם מחובר (יער/אגם/כפר/הר). **כל פעולה דורשת תרגיל חשבון מותאם לכיתה א'** — קושי עולה עם הרמה ומחזק את הסוג החלש. גישת "אי אפשר להפסיד" (מחקר גיל 5-7): יבול ממתין, סוס תמיד שמח, טעות חושפת+מקריאה את התשובה.
-**עולם חברתי (2026-07-02):** דף הבית = שער הרשמה/כניסה (שם+מייל+סיסמה) — לכל חברה של אגם חווה משלה בענן, וכפתור "👭 החוות של החברות" מאפשר לבקר בחווה של חברה **במצב צפייה בלבד** (`?visit=<user_id>` — כל הפעולות/שמירה חסומות, באנר "חזרה הביתה").
+**עולם חברתי (2026-07-02):** כניסה של הורה פעם אחת במכשיר (מייל מורשה בלבד, בלי סיסמה, ובחירת שחקנית) — לכל חברה של אגם חווה משלה בענן, וכפתור "👭 החוות של החברות" מאפשר לבקר בחווה של חברה **במצב צפייה בלבד** (`?visit=<user_id>` — כל הפעולות/שמירה חסומות, באנר "חזרה הביתה").
 
 ## Stack
 - **Vanilla JS (ES modules) + Three.js r160** (מוטמע מקומית ב-`js/lib/`, importmap — **בלי שלב build**).
@@ -13,32 +13,11 @@
 - אירוח סטטי (Vercel). מנוע חשבון פרוצדורלי, הקראה קולית (Web Speech), צלילים פרוצדורליים (WebAudio).
 
 ## מיקומים
-- **מקומי:** `C:\Users\saraa\agam-horse-farm\` (נתיב ASCII נקי — קריטי לריצה). הפעלה: `שחקי.bat`.
+- **מקומי:** `C:\Personal\Kids\agam-horse-farm\` (נתיב ASCII נקי, קריטי לריצה). הפעלה: `שחקי.bat`.
 - **חי:** https://agam-horse-farm.vercel.app/ · **GitHub:** `hilell-aknine/agam-horse-farm` (push→Vercel auto-deploy).
-- **סודות:** `C:\Users\saraa\.secrets\agam-horse-farm.env` (Supabase URL/anon/access-token).
-- `js/` מודולים · `assets/` (~81 ציורי FAL) · `css/style.css` · `tools/` (סקריפטי ייצור, gitignored).
 
-## ארכיטקטורת מודולים (js/)
-- **main.js** — מקשר: אתחול, boot (טעינה מקומית/ענן), בניית עולם, מטפלים, לולאה.
-- **world.js** — סצנה תלת-ממד, מצלמה+נסיעה (travelTo), יום/לילה, מזג-אוויר, שמיים/קרקע/גבעות/הרים, חלקיקים, בחירה (raycast), floorPatch, makeSign, makeBillboard.
-- **horses.js / animals.js / fields.js** — סוסים / חיות (משק+נוף+נדירות) / חלקות-גידול. כל אחד עם update().
-- **game.js** — מצב, כלכלה, שמירה (localStorage `agam_farm_v2`), קטלוג חנות (SHOP), גידולים (CROPS), משימות, גלגל, קושי-מותאם (typeStats/weakType), שדרוגים, worldStats.
-- **ui.js** — כל ה-DOM (מסכים, HUD, כרטיס-סוס, חנות, חלון-תרגיל, מפה, יומן, הגדרות+חשבון).
-- **audio.js** — SFX פרוצדורלי + הקראה עברית + קולות חיות + צלילי-אזור.
-- **math.js** — `generateProblem(difficulty, focusType)` → אובייקט {question, answer, choices, visual, hint, speech, **ltr**}. משוואות=LTR, משפטים עברית=RTL.
-- **cloud.js** — Supabase (esm.sh CDN), התחברות אנונימית/אימייל, pull/push (fail-safe: אם אין רשת → localStorage בלבד).
-- **מודולי-אזור:** `forest_area.js`, `lake_area.js`, `village_area.js`, `mountain_area.js`, `fair_area.js` — כל אחד `build*(deps)` שבונה אזור סביב מרכז נתון (DI: deps.decor/activity/onUpdate/askProblem/Animals/...).
-- **מודולי מיני-משחק:** `contest.js`, `delivery.js`, `photo.js` — `create*(deps)` → API.
-- **story.js** — סיפור החווה: `CHAPTERS` (8 פרקים × 3 שלבים). main שולח `Story.event(name)` (דרך `questBump` + אירועי visit_/act_/enter_/buy_/sell/ride/jump/birth). `Game.story = {ch, prog, seen}`. פרק יכול לפתוח אזור נעול (`opens`).
-- **track3d.js** — מסלול הרכיבה (אזור `track`): טבלת אורך-קשת לאליפסה, `Track3D.start(horse)` בונה סוס-רוכב נפרד (Horse3D על אובייקט מזויף) + רוכבת מפרימיטיבים, מצלמה רודפת (מבטלת זמנית את גבולות OrbitControls), השמש עוקבת אחרי הסוס בשביל צל. `Game.rides`.
-- **interiors.js** — מבנים: כל חדר הוא `THREE.Scene` נפרד ש-`World.activeScene` מחליף ברינדור. לא משתמשים שם ב-`makeBillboard` (Models3D מסנכרן רק את הסצנה הראשית) — מודלים נטענים ישירות. נגיעה בפנים עוברת ל-`Interiors.pick` בלבד.
-
-## מודל נתונים
-- מקומי: `localStorage['agam_farm_v2']` — coins/xp/level/stars/settings/typeStats/quests/upgrades/ribbons/rares/tree/worldStats + horses/fields/placed/animals + savedAt. בנוסף `agam_farm_owner` = user_id שמחזיק את השמירה במכשיר (הגנת מכשיר משותף: הרשמה חדשה לא יורשת חווה של אחרת).
-- ענן: Supabase Ref `xgqetnlsesgwiypufodf` (חשבון hilelltohar@gmail.com) · Auth: email (`mailer_autoconfirm=true`; אין יותר כניסה אנונימית אוטומטית — session אנונימי ותיק ממשיך לעבוד עד הרשמה).
-  - `public.game_saves(user_id uuid PK → auth.users, data jsonb, updated_at)` — כתיבה רק לעצמך; קריאה: לעצמך + `visit_select` לכל מי שיש לה פרופיל חווה (ביקורים).
-  - `public.farm_profiles(user_id PK, name, level, updated_at)` — שם+רמה גלויים לחברות; RLS דרך פונקציית `public.has_farm()` (**security definer** — מדיניות שמפנה לאותה טבלה ישירות = רקורסיה אינסופית).
-  - בפרויקט יש גם טבלאות דמו ישנות של ג'ף (מ-2026-06-03, נטושות) — ג'ף החי רץ בחשבון נפרד (`szplwdkskbeprvyvjqvv`). אפשר למחוק באישור הלל.
+## ארכיטקטורה, נתונים, API, גיבויים
+**הכל ב-`CONTEXT.md`** (מפת תיקיות וקוד, זרימת המשחק, מודל הנתונים, שרתונים, שחזור). לא משכפלים לכאן.
 
 ## צנרת אמנות (tools/gen_*.py)
 FAL: **Flux dev בסגנון "flat vector / die-cut sticker" (guidance 6, 40 steps) → BiRefNet cutout → PIL UnsharpMask**. מפתח FAL ב-`.secrets\creative-board.env`. תקציב 30₪ · נוצל ~11.3₪.
@@ -50,7 +29,10 @@ FAL: **Flux dev בסגנון "flat vector / die-cut sticker" (guidance 6, 40 ste
 4. **בלי build** — importmap ל-Three מקומי; supabase-js מ-esm.sh בזמן ריצה.
 5. **ענן fail-safe** — תמיד נופל ל-localStorage; לא חוסם משחק.
 6. **אזור חדש = מודול נפרד** עם חוזה `deps` (טורבו-ידידותי: קבצים דיסיוינטיים).
-7. אימות: `node --check js/*.js` + צילום headless (Chrome swiftshader) + מבחן חשבון 36K.
+7. אימות: `node --check` + `python scripts/smoke.py` + צילום headless (Chrome swiftshader) + מבחן חשבון 36K.
 
 ## גוטצ'ות (ראה hindsight.md)
 `p.rotation` על Sprite זורק (freeze) · Supabase Mgmt API חוסם python-UA · far-plane<sky=שמיים שחורים · headless virtual-time לא מריץ אנימציית-נסיעה.
+
+## צוות סוכנים (מ-28.10.2026)
+Opus מנהל ומטמיע. סוכני משנה `farm-researcher/artist/writer/characters/module-builder/qa` ב-`.claude/agents/`, ו-Codex כמסלול מקביל על המנוי. כותבים רק ל-`_handoff/` עם דוח `HANDOFF.md` אחיד. הפרוטוקול המלא: `CLAUDE.md`, סעיף "צוות סוכנים".

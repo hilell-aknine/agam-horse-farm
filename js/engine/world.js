@@ -93,7 +93,8 @@ const World = {
   },
 
   _lights() {
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.85);
+    // חלק מהמילוי עבר לאור הסביבה (_envLight), לכן ההמיספרה חלשה יותר מבעבר
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.65);
     this.scene.add(hemi);
     this.hemi = hemi;
     const sun = new THREE.DirectionalLight(0xfff2cc, 1.05);
@@ -107,6 +108,48 @@ const World = {
     sun.shadow.bias = -0.0004;
     this.scene.add(sun);
     this.sunLight = sun;
+    this._envLight();
+  },
+
+  // אור סביבה מהשמיים (PMREM): המודלים מקבלים מילוי רך וברק עדין מכל הכיוונים, לא רק מהשמש.
+  // נבנה פעם אחת בעלייה. בלילה מנמיכים את העוצמה דרך envMapIntensity (ראו _setEnvIntensity).
+  _envLight() {
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 128;
+    const g = c.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, 0, 128);
+    grad.addColorStop(0, '#8fc8ff');
+    grad.addColorStop(0.47, '#fff1d6');   // אופק חם
+    grad.addColorStop(0.53, '#9cc874');
+    grad.addColorStop(1, '#5d8a3c');      // דשא מתחת
+    g.fillStyle = grad; g.fillRect(0, 0, 16, 128);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const envScene = new THREE.Scene();
+    envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide })));
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+    pmrem.dispose(); tex.dispose();
+    this.ENV_DAY = 0.6;      // יותר מזה והצללים נשטפים
+    this._envI = this.ENV_DAY;
+    this._envT = 0;
+  },
+
+  _setEnvIntensity(v) { this._envI = v; },
+
+  // r160 בלי scene.environmentIntensity — מעדכנים את החומרים עצמם, פעם בשנייה וחצי.
+  // הסריקה התקופתית תופסת גם מודלים שנטענו אחרי השינוי האחרון (חיה שנקנתה, גידול חדש)
+  _applyEnvIntensity(dt) {
+    this._envT -= dt;
+    if (this._envT > 0) return;
+    this._envT = 1.5;
+    const v = this._envI;
+    this.scene.traverse(o => {
+      const m = o.material;
+      if (!m) return;
+      if (Array.isArray(m)) m.forEach(mm => { if ('envMapIntensity' in mm) mm.envMapIntensity = v; });
+      else if ('envMapIntensity' in m) m.envMapIntensity = v;
+    });
   },
 
   _ground() {
@@ -123,13 +166,45 @@ const World = {
       pos.setY(i, h);
     }
     geo.computeVertexNormals();
-    const mat = new THREE.MeshStandardMaterial({ color: 0x7ec850, roughness: 0.95, metalness: 0 });
+    const mat = new THREE.MeshStandardMaterial({ color: 0x7ec850, map: this._grassTexture(), roughness: 0.95, metalness: 0 });
     const ground = new THREE.Mesh(geo, mat);
     ground.receiveShadow = true;
     this.scene.add(ground);
     this.ground = ground;
 
     // רצפות האזורים מתווספות ב-floorPatch (גינה/מגרש רכיבה) — המרכז נשאר דשא
+  },
+
+  // כתמי דשא בהירים וכהים (טקסטורה קטנה שחוזרת על עצמה) — במקום ירוק אחיד ושטוח.
+  // הטקסטורה בהירה-כמעט-לבנה ומוכפלת בצבע הקרקע, כך שהגוון הכללי לא משתנה.
+  _grassTexture() {
+    const S = 256;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const g = c.getContext('2d');
+    g.fillStyle = '#f0f0f0'; g.fillRect(0, 0, S, S);
+    // ציור כל כתם 9 פעמים (מוזז ב-±S) כדי שהשוליים יתחברו בלי תפר
+    const blot = (x, y, r, col) => {
+      for (let dx = -S; dx <= S; dx += S) for (let dy = -S; dy <= S; dy += S) {
+        const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+        gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(240,240,240,0)');
+        g.fillStyle = gr; g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
+      }
+    };
+    for (let i = 0; i < 26; i++) blot(Math.random() * S, Math.random() * S, 24 + Math.random() * 46, 'rgba(255,255,232,0.35)');
+    for (let i = 0; i < 22; i++) blot(Math.random() * S, Math.random() * S, 20 + Math.random() * 40, 'rgba(160,185,145,0.5)');
+    // קווקווים זעירים של עלי דשא
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * S, y = Math.random() * S;
+      g.strokeStyle = Math.random() < 0.5 ? 'rgba(255,255,240,0.35)' : 'rgba(150,175,140,0.35)';
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + (Math.random() - 0.5) * 3, y - 3 - Math.random() * 3); g.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(26, 26);
+    tex.anisotropy = this.maxAniso || 4;
+    return tex;
   },
 
   _fence() { this.fenceR = 15; this._buildFenceAt(15); },
@@ -478,7 +553,8 @@ const World = {
     this.tod = (this.tod + dt / 240) % 1;                 // מחזור מלא ~4 דקות
     const t = this.tod;
     const light = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 - Math.PI / 2);  // 0=חצות, 1=צהריים
-    this.hemi.intensity = 0.45 + 0.55 * light;   // רצפת-לילה גבוהה יותר — השדות נשארים קריאים
+    this.hemi.intensity = 0.42 + 0.33 * light;   // רצפת-לילה גבוהה — השדות נשארים קריאים
+    this._setEnvIntensity(this.ENV_DAY * (0.3 + 0.7 * light));
     this.sunLight.intensity = 0.28 + 0.85 * light;
     // צבע שמיים: לילה (כחול רך, לא שחור) → יום בהיר, עם נגיעת זריחה/שקיעה
     const c = new THREE.Color(0x3a4a78).lerp(new THREE.Color(0xffffff), Math.min(1, light * 1.3));
@@ -580,6 +656,7 @@ const World = {
     this._updateTravel(dt);
     this.controls.update();
     this._updateDayNight(dt);
+    this._applyEnvIntensity(dt);
     this._updateWeather(dt);
     Models3D.sync(dt);
 
@@ -641,7 +718,8 @@ const World = {
       this.tod = 0.35;
       this.skyMesh.material.color.setHex(0xffffff);
       this.scene.fog.color.setHex(0xcfeaff);
-      this.hemi.intensity = 0.85; this.sunLight.intensity = 1.05;
+      this.hemi.intensity = 0.65; this.sunLight.intensity = 1.05;
+      this._setEnvIntensity(this.ENV_DAY);
       this.moonMesh.material.opacity = 0; this.stars.material.opacity = 0;
       this.sunMesh.position.set(-22, 30, -30); this.sunHalo.position.copy(this.sunMesh.position);
       this.sunMesh.visible = true; this.sunHalo.visible = true;
