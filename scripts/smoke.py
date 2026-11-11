@@ -18,7 +18,7 @@ threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 def run(p, name, ctx_args):
     errors, missing, js_ok = [], [], set()
-    b = p.chromium.launch(args=['--use-gl=swiftshader', '--enable-unsafe-swiftshader'])
+    b = p.chromium.launch(args=['--mute-audio', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'])
     ctx = b.new_context(**ctx_args)
     page = ctx.new_page()
     page.on('console', lambda m: m.type == 'error' and errors.append(m.text))

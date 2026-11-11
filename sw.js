@@ -1,17 +1,18 @@
 // sw.js — Service Worker: מאפשר למשחק לעבוד גם בלי אינטרנט (אחרי טעינה ראשונה)
 // גרסה מועלית בכל שינוי קוד/אמנות — activate מוחק מטמון ישן ומרענן הכל
 // (בלי זה, cache-first מגיש למשתמשים מותקנים את הגרסה הישנה לנצח).
-const CACHE = 'agam-farm-v23';
+const CACHE = 'agam-farm-v24';
 const CORE = [
   './', './index.html', './css/style.css', './manifest.webmanifest',
-  './js/main.js', './js/engine/world.js', './js/farm/horses.js', './js/farm/animals.js',
+  './js/main.js', './js/engine/world.js', './js/engine/quality.js', './js/engine/models3d.js', './js/engine/horse3d.js', './js/farm/horses.js', './js/farm/animals.js',
   './js/farm/fields.js', './js/systems/game.js', './js/ui/ui.js', './js/systems/audio.js',
   './js/systems/math.js', './js/net/cloud.js',
   './js/minigames/contest.js', './js/minigames/delivery.js', './js/minigames/photo.js',
   './js/areas/forest_area.js', './js/areas/lake_area.js', './js/areas/village_area.js',
   './js/areas/mountain_area.js', './js/areas/fair_area.js', './js/minigames/transfer3d.js',
   './js/systems/story.js', './js/areas/track3d.js', './js/areas/interiors.js', './js/net/allowlist.js',
-  './js/lib/three.module.min.js', './js/lib/addons/controls/OrbitControls.js'
+  './js/lib/three.module.min.js', './js/lib/addons/controls/OrbitControls.js',
+  './js/lib/addons/loaders/GLTFLoader.js', './js/lib/addons/utils/BufferGeometryUtils.js'
 ];
 
 self.addEventListener('install', (e) => {
