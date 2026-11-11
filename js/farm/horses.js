@@ -181,7 +181,7 @@ class Horse {
     this.h3d.init().then(() => {
       this.sprite.material.opacity = 0;
       this.sprite.material.depthWrite = false;
-      if (this.shadow) this.shadow.visible = false;   // למודל יש צל אמיתי מהשמש
+      // כתם הצל נשאר: בדרגה נמוכה הוא הצל היחיד, ובגבוהה הוא צל-מגע עדין מתחת לצל האמיתי
       this._placeLabel3D();
     }).catch(() => { this.h3d = null; });              // אין מודל → נשארים עם הציור
   }

@@ -18,8 +18,6 @@ const World = {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, Quality.pick(1.5, 2, 2)));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     // tone mapping — צבעים עשירים ופחות "שטופים" (קולנועי-רך)
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -65,6 +63,7 @@ const World = {
     this._environment();
     this._ambientCreatures();
     this._initWeather();
+    this._applyTime(this.tod);
 
     window.addEventListener('resize', () => this.resize());
     Quality.onChange(() => this._applyQuality());
@@ -74,45 +73,104 @@ const World = {
   },
 
   _sky() {
-    // כיפת שמיים עם מעבר צבע רך
-    const c = document.createElement('canvas');
-    c.width = 16; c.height = 256;
-    const g = c.getContext('2d');
-    const grad = g.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#6db9ff');
-    grad.addColorStop(0.5, '#a7d8ff');
-    grad.addColorStop(1, '#e9f6ff');
-    g.fillStyle = grad; g.fillRect(0, 0, 16, 256);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(200, 32, 16),
-      new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false })
-    );
+    // כיפת שמיים בשיידר קטן: שלושה צבעים (למעלה / אופק / מתחת לאופק) + זוהר סביב השמש.
+    // הצבעים מוחלפים לפי השעה ב-_applyTime, כך שלילה ושקיעה הם פלטות משלהן ולא "יום מוחשך".
+    const uni = {
+      top: { value: new THREE.Color(0x4f9fea) },
+      horizon: { value: new THREE.Color(0xcfeaff) },
+      bottom: { value: new THREE.Color(0xa9d6a0) },
+      sunDir: { value: new THREE.Vector3(0, 1, 0) },
+      sunCol: { value: new THREE.Color(0xfff1c2) },
+      glow: { value: 0.5 }
+    };
+    const mat = new THREE.ShaderMaterial({
+      uniforms: uni, side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false,
+      vertexShader: `varying vec3 vDir;
+        void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 bottom; uniform vec3 sunDir; uniform vec3 sunCol; uniform float glow;
+        varying vec3 vDir;
+        void main() {
+          vec3 d = normalize(vDir);
+          float h = d.y;
+          vec3 col = mix(horizon, top, pow(clamp(h, 0.0, 1.0), 0.55));
+          col = mix(col, bottom, smoothstep(0.0, -0.18, h));
+          float s = max(dot(d, normalize(sunDir)), 0.0);
+          col += sunCol * (pow(s, 6.0) * 0.28 + pow(s, 48.0) * 0.55) * glow;
+          col += sunCol * pow(1.0 - abs(h), 10.0) * 0.10 * glow;
+          gl_FragColor = vec4(col, 1.0);
+          #include <colorspace_fragment>
+        }`
+    });
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(200, 32, 16), mat);
+    sky.renderOrder = -10;
     this.scene.add(sky);
     this.skyMesh = sky;
-    this.scene.fog = new THREE.Fog(0xcfeaff, 75, 185);
+    this.skyUni = uni;
+    this.scene.fog = new THREE.Fog(0xcfeaff, 45, 190);
     this.dayNight = true;
     this.tod = 0.35;          // התחלה בבוקר
   },
 
   _lights() {
     // חלק מהמילוי עבר לאור הסביבה (_envLight), לכן ההמיספרה חלשה יותר מבעבר
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x88aa66, 0.65);
+    const hemi = new THREE.HemisphereLight(0xdfefff, 0x8aa86a, 0.7);
     this.scene.add(hemi);
     this.hemi = hemi;
-    const sun = new THREE.DirectionalLight(0xfff2cc, 1.05);
+    const sun = new THREE.DirectionalLight(0xfff2cc, 2.0);
     sun.position.set(14, 24, 10);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 1; sun.shadow.camera.far = 80;
-    const s = 28;
+    sun.shadow.camera.near = 1; sun.shadow.camera.far = 150;
+    const s = this.SHADOW_R = 30;
     sun.shadow.camera.left = -s; sun.shadow.camera.right = s;
     sun.shadow.camera.top = s; sun.shadow.camera.bottom = -s;
-    sun.shadow.bias = -0.0004;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.04;
     this.scene.add(sun);
+    this.scene.add(sun.target);
     this.sunLight = sun;
+    this._sunDir = new THREE.Vector3(0.4, 0.8, -0.45).normalize();
+    this._blobs = [];
+    this._shadowQuality();
     this._envLight();
+  },
+
+  // צללים לפי דרגת איכות: high = מפה 2048 רכה, mid = 1024 שמתעדכנת כל פריים שני, low = בלי מפה (רק כתמי צל)
+  _shadowQuality() {
+    const on = Quality.atLeast('mid');
+    const r = this.renderer;
+    const changed = r.shadowMap.enabled !== on;
+    r.shadowMap.enabled = on;
+    r.shadowMap.type = Quality.tier === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    this.sunLight.castShadow = on;
+    const size = Quality.pick(512, 1024, 2048);
+    if (this.sunLight.shadow.mapSize.x !== size) {
+      this.sunLight.shadow.mapSize.set(size, size);
+      if (this.sunLight.shadow.map) { this.sunLight.shadow.map.dispose(); this.sunLight.shadow.map = null; }
+    }
+    r.shadowMap.autoUpdate = Quality.tier === 'high';
+    r.shadowMap.needsUpdate = true;
+    // כתם הצל מתחת לכל דמות: כשיש צל אמיתי הוא נשאר כצל-מגע עדין, בלי צל אמיתי הוא הצל כולו
+    this.BLOB_OP = on ? 0.45 : 1;
+    for (const m of this._blobs) m.opacity = this.BLOB_OP;
+    if (changed && this.scene) this.scene.traverse(o => {
+      const m = o.material; if (!m) return;
+      (Array.isArray(m) ? m : [m]).forEach(mm => { mm.needsUpdate = true; });
+    });
+  },
+
+  // האור האמיתי הולך עם השמש שרואים בשמיים (ובלילה עם הירח), ותיבת הצל הולכת עם המצלמה,
+  // כך שיש צל אמיתי גם ביער, באגם ובכפר ולא רק במרכז החווה.
+  _updateSunLight() {
+    const sun = this.sunLight, tgt = this.controls.target;
+    const step = 1;                                           // קפיצות של מטר: הצל לא "רוחש" כשהמצלמה זזה
+    const cx = Math.round(tgt.x / step) * step, cz = Math.round(tgt.z / step) * step;
+    sun.target.position.set(cx, 0, cz);
+    sun.position.set(cx + this._sunDir.x * 70, this._sunDir.y * 70, cz + this._sunDir.z * 70);
+    sun.target.updateMatrixWorld();
+    if (!this.renderer.shadowMap.autoUpdate && this.renderer.shadowMap.enabled) {
+      this._shF = (this._shF || 0) + 1;
+      if (this._shF % 2 === 0) this.renderer.shadowMap.needsUpdate = true;
+    }
   },
 
   // אור סביבה מהשמיים (PMREM): המודלים מקבלים מילוי רך וברק עדין מכל הכיוונים, לא רק מהשמש.
@@ -289,6 +347,15 @@ const World = {
     starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
     this.stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0, fog: false }));
     this.scene.add(this.stars);
+    // שכבת כוכבים גדולים ובהירים שמנצנצים בקצב אחר: שמי הלילה נראים עמוקים ולא "נקודות באותו גודל"
+    const bg = new THREE.BufferGeometry(), bp = [];
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2, b = Math.random() * 0.55 + 0.12;
+      bp.push(Math.cos(a) * 80 * Math.cos(b), 32 + Math.random() * 45, Math.sin(a) * 80 * Math.cos(b));
+    }
+    bg.setAttribute('position', new THREE.Float32BufferAttribute(bp, 3));
+    this.bigStars = new THREE.Points(bg, new THREE.PointsMaterial({ color: 0xfff6d8, size: 1.7, transparent: true, opacity: 0, fog: false }));
+    this.scene.add(this.bigStars);
   },
 
   // חרקים מרחפים לאווירה: פרפרים ביום, גחליליות בלילה (שימוש-חוזר ב-emojiSprite)
@@ -373,18 +440,20 @@ const World = {
   },
 
   makeGroundShadow(radius = 1.6) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 128;
-    const g = c.getContext('2d');
-    const grad = g.createRadialGradient(64, 64, 4, 64, 64, 60);
-    grad.addColorStop(0, 'rgba(0,0,0,0.38)');
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
-    const tex = new THREE.CanvasTexture(c);
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(radius * 2, radius * 2),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
-    );
+    if (!this._blobTex) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const g = c.getContext('2d');
+      const grad = g.createRadialGradient(64, 64, 4, 64, 64, 60);
+      grad.addColorStop(0, 'rgba(0,0,0,0.38)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+      this._blobTex = new THREE.CanvasTexture(c);
+      this._blobTex.dispose = () => {};        // משותפת לכולם: מי שמשחרר את הצל שלו לא מוחק אותה לאחרים
+    }
+    const mat = new THREE.MeshBasicMaterial({ map: this._blobTex, transparent: true, depthWrite: false, opacity: this.BLOB_OP ?? 1 });
+    this._blobs.push(mat);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(radius * 2, radius * 2), mat);
     m.rotation.x = -Math.PI / 2;
     m.position.y = 0.05;
     return m;
@@ -403,11 +472,13 @@ const World = {
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     const m = new THREE.Mesh(
       new THREE.CircleGeometry(1, 56),
-      new THREE.MeshBasicMaterial({
-        map: tex, transparent: true, depthWrite: false,
+      // חומר מואר: הרצפה מחשיכה בלילה ומקבלת צל, כמו הדשא שסביבה (היה MeshBasic שזהר בחושך)
+      new THREE.MeshStandardMaterial({
+        map: tex, transparent: true, depthWrite: false, roughness: 1, metalness: 0,
         polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4
       })
     );
+    m.receiveShadow = true;
     m.rotation.x = -Math.PI / 2;
     m.scale.set(w / 2, d / 2, 1);
     m.position.set(x, 0.1, z);
@@ -555,32 +626,63 @@ const World = {
   _updateDayNight(dt) {
     if (!this.dayNight) return;
     this.tod = (this.tod + dt / 240) % 1;                 // מחזור מלא ~4 דקות
-    const t = this.tod;
-    const light = 0.5 + 0.5 * Math.sin(t * Math.PI * 2 - Math.PI / 2);  // 0=חצות, 1=צהריים
-    this.hemi.intensity = 0.42 + 0.33 * light;   // רצפת-לילה גבוהה — השדות נשארים קריאים
-    this._setEnvIntensity(this.ENV_DAY * (0.3 + 0.7 * light));
-    this.sunLight.intensity = 0.28 + 0.85 * light;
-    // צבע שמיים: לילה (כחול רך, לא שחור) → יום בהיר, עם נגיעת זריחה/שקיעה
-    const c = new THREE.Color(0x3a4a78).lerp(new THREE.Color(0xffffff), Math.min(1, light * 1.3));
-    const duskAmt = Math.max(0, 1 - Math.abs(light - 0.4) * 4) * 0.45;
-    c.lerp(new THREE.Color(0xff9d6e), duskAmt);
-    this.skyMesh.material.color.copy(c);
-    // צבע אור השמש: לילה כחלחל → יום חם, עם דחיפת שעת-זהב כתומה בזריחה/שקיעה
-    const sunCol = new THREE.Color(0x3b4c85).lerp(new THREE.Color(0xfff2cc), Math.min(1, light * 1.4));
-    sunCol.lerp(new THREE.Color(0xff8a4d), duskAmt * 0.85);
-    this.sunLight.color.copy(sunCol);
-    this.scene.fog.color.setHex(0x3f4f78).lerp(new THREE.Color(0xcfeaff), Math.min(1, light * 1.3));
-    // מסלול שמש/ירח
+    this._applyTime(this.tod);
+  },
+
+  // כל מה שתלוי בשעה: אור, צבעים, שמיים, ערפל, שמש וירח. t = 0..1 (0 חצות, 0.5 צהריים)
+  _applyTime(t) {
+    if (!this._tc) this._tc = {
+      nTop: new THREE.Color(0x0f1b47), dTop: new THREE.Color(0x3f93ea), kTop: new THREE.Color(0x5b78c9),
+      nHor: new THREE.Color(0x3b4a86), dHor: new THREE.Color(0xcdeaff), kHor: new THREE.Color(0xffb27a),
+      nBot: new THREE.Color(0x26375a), dBot: new THREE.Color(0xb7dca8), kBot: new THREE.Color(0xd9a37c),
+      nSun: new THREE.Color(0x5a70c0), dSun: new THREE.Color(0xfff0cf), kSun: new THREE.Color(0xff9a55),
+      nGnd: new THREE.Color(0x2e3d55), dGnd: new THREE.Color(0x8aa86a),
+      moonGlow: new THREE.Color(0x9fb4ff), sunGlow: new THREE.Color(0xfff1c2), duskGlow: new THREE.Color(0xffb070)
+    };
+    const C = this._tc;
     const a = t * Math.PI * 2 - Math.PI / 2;
-    this.sunMesh.position.set(Math.cos(a) * 42, Math.sin(a) * 38, -30);
+    const e = Math.sin(a);                                 // גובה השמש: -1 חצות, 0 אופק, 1 צהריים
+    const light = 0.5 + 0.5 * e;                           // 0=חצות, 1=צהריים
+    const day = Math.min(1, light * 1.3);
+    const dusk = Math.max(0, 1 - Math.abs(e) * 2.6);       // 1 בדיוק בזריחה/שקיעה, 0 רחוק מהן
+    const mix3 = (out, n, d, k, kAmt) => out.copy(n).lerp(d, day).lerp(k, dusk * kAmt);
+
+    // אור: שמש חזקה ביום (המודלים כבר לא מאירים את עצמם), רצפת לילה גבוהה כדי שהשדות יישארו קריאים
+    this.hemi.intensity = 0.62 + 0.38 * light;
+    mix3(this.hemi.color, C.nHor, C.dHor, C.kHor, 0.5);
+    this.hemi.groundColor.copy(C.nGnd).lerp(C.dGnd, day);
+    this._setEnvIntensity(this.ENV_DAY * (0.35 + 0.65 * light));
+    this.sunLight.intensity = 0.5 + 1.0 * light;
+    mix3(this.sunLight.color, C.nSun, C.dSun, C.kSun, 0.8);
+
+    // שמיים וערפל
+    const U = this.skyUni;
+    mix3(U.top.value, C.nTop, C.dTop, C.kTop, 0.55);
+    mix3(U.horizon.value, C.nHor, C.dHor, C.kHor, 0.9);
+    mix3(U.bottom.value, C.nBot, C.dBot, C.kBot, 0.6);
+    this.scene.fog.color.copy(U.horizon.value);
+
+    // מסלול שמש/ירח
+    this.sunMesh.position.set(Math.cos(a) * 42, e * 38, -30);
     this.sunHalo.position.copy(this.sunMesh.position);
-    this.moonMesh.position.set(Math.cos(a + Math.PI) * 42, Math.sin(a + Math.PI) * 38, -30);
+    this.moonMesh.position.set(-Math.cos(a) * 42, -e * 38, -30);
     const nightF = 1 - Math.min(1, light * 1.5);
     this.moonMesh.material.opacity = nightF;
-    // כוכבים: בהירות לילה + ריצוד עדין (טווינקל)
     this.stars.material.opacity = nightF * (0.78 + 0.16 * Math.sin((this._t || 0) * 2.5));
-    const sunUp = this.sunMesh.position.y > -2;
+    if (this.bigStars) this.bigStars.material.opacity = nightF * (0.7 + 0.3 * Math.sin((this._t || 0) * 1.7 + 1));
+    const sunUp = e > -0.05;
     this.sunMesh.visible = sunUp; this.sunHalo.visible = sunUp;
+
+    // זוהר בשמיים סביב השמש (או הירח)
+    const body = sunUp ? this.sunMesh : this.moonMesh;
+    U.sunDir.value.copy(body.position).normalize();
+    U.sunCol.value.copy(sunUp ? C.sunGlow : C.moonGlow).lerp(C.duskGlow, sunUp ? dusk : 0);
+    U.glow.value = sunUp ? 0.55 + 0.45 * dusk : 0.25;
+
+    // כיוון האור האמיתי: מהשמש ביום, מהירח בלילה. קרוב לאופק הכיוון הצידי נחלש והאור בא מאחור,
+    // כך שהמעבר שמש→ירח רציף והצללים אף פעם לא נמתחים לאינסוף.
+    const w = Math.min(1, Math.abs(e) / 0.35), ws = w * w * (3 - 2 * w);
+    this._sunDir.set(Math.cos(a) * 42 * ws * Math.sign(e || 1), Math.max(Math.abs(e), 0.5) * 38, -30).normalize();
   },
 
   _initWeather() {
@@ -662,6 +764,7 @@ const World = {
     this._updateTravel(dt);
     this.controls.update();
     this._updateDayNight(dt);
+    this._updateSunLight();
     this._applyEnvIntensity(dt);
     this._updateWeather(dt);
     Models3D.sync(dt);
@@ -723,15 +826,9 @@ const World = {
 
   setDayNight(on) {
     this.dayNight = on;
-    if (!on) {     // קיבוע ליום בהיר
-      this.tod = 0.35;
-      this.skyMesh.material.color.setHex(0xffffff);
-      this.scene.fog.color.setHex(0xcfeaff);
-      this.hemi.intensity = 0.65; this.sunLight.intensity = 1.05;
-      this._setEnvIntensity(this.ENV_DAY);
-      this.moonMesh.material.opacity = 0; this.stars.material.opacity = 0;
-      this.sunMesh.position.set(-22, 30, -30); this.sunHalo.position.copy(this.sunMesh.position);
-      this.sunMesh.visible = true; this.sunHalo.visible = true;
+    if (!on) {     // קיבוע ליום בהיר (בוקר מאוחר: שמש גבוהה, צללים קצרים)
+      this.tod = 0.42;
+      this._applyTime(this.tod);
     }
   },
 
@@ -739,6 +836,7 @@ const World = {
   _applyQuality() {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, Quality.pick(1.5, 2, 2)));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this._shadowQuality();
   },
 
   resize() {

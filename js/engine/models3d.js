@@ -106,7 +106,7 @@ async function instance(file) {
 
 // התאורה כוונה לציורים (שלא מושפעים מאור), ולכן מודלים נראים כהים לידם.
 // זוהר עדין בצבע החומר עצמו מחזיר את הבהירות בלי לשטוף את הדשא ושאר העולם.
-const GLOW = 0.32;
+const GLOW = 0.07;   // היה 0.32 ושיטח את המודלים. מאז השמש חזקה יותר, ויש צד מואר וצד מוצל
 function brighten(m) {
   if (!m || !m.emissive || m.userData._glow) return;
   m.userData._glow = true;

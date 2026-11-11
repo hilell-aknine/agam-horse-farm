@@ -89,7 +89,7 @@ class Horse3D {
         else if (m.name === 'Hair') col = HAIR[c] ?? HAIR.brown;
         // מט, כמו שאר מודלי העולם (אותו יוצר, אותו סגנון)
         const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.85, metalness: 0, name: m.name });
-        mat.emissive.copy(mat.color).multiplyScalar(0.32);   // כמו שאר המודלים (models3d.js)
+        mat.emissive.copy(mat.color).multiplyScalar(0.07);   // כמו שאר המודלים (models3d.js)
         return mat;
       });
       o.material = out.length === 1 ? out[0] : out;
