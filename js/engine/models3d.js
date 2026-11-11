@@ -5,6 +5,7 @@
 // הציור עצמו נשאר (בלתי נראה) — לכן נגיעה, גרירה במצב עיצוב, גדילת גידולים ותנועת חיות
 // ממשיכים לעבוד בדיוק כמו קודם. ציור בלי מודל נשאר ציור. מודל שלא נטען → נשאר ציור.
 import * as THREE from 'three';
+import { makeWater } from './water.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const BASE = 'assets/models/';
@@ -118,12 +119,13 @@ function brighten(m) {
 function waterDisc() {
   const g = new THREE.Group();
   const rim = new THREE.Mesh(new THREE.CircleGeometry(0.62, 40), new THREE.MeshStandardMaterial({ color: 0xd8c89a, roughness: 1 }));
-  const water = new THREE.Mesh(new THREE.CircleGeometry(0.56, 40),
-    new THREE.MeshStandardMaterial({ color: 0x4fb3e8, roughness: 0.25, metalness: 0, transparent: true, opacity: 0.92, emissive: 0x1a5f8a, emissiveIntensity: 0.4 }));
-  rim.rotation.x = water.rotation.x = -Math.PI / 2;
-  rim.position.y = 0.02; water.position.y = 0.035;
-  rim.scale.set(1.5, 1, 1); water.scale.set(1.5, 1, 1);   // אליפסה
-  rim.receiveShadow = water.receiveShadow = true;
+  rim.rotation.x = -Math.PI / 2;
+  rim.position.y = 0.02;
+  rim.scale.set(1.5, 1, 1);   // אליפסה
+  rim.receiveShadow = true;
+  const water = makeWater(4, 3);                  // אותו שיידר מים של האגם, בקטן
+  water.scale.set(0.58 * 1.5, 0.58, 1);
+  water.position.y = 0.035;
   g.add(rim, water);
   // תיבת גבולות בגובה 1 כדי שהנרמול לא ימתח את השטוח לגובה
   const probe = new THREE.Mesh(new THREE.BoxGeometry(0.01, 1, 0.01), new THREE.MeshBasicMaterial({ visible: false }));
@@ -153,7 +155,7 @@ const Models3D = {
       const root = g.scene;
       root.traverse(o => {
         if (!o.isMesh) return;
-        o.castShadow = true; o.receiveShadow = true;
+        o.castShadow = !o.userData.flat; o.receiveShadow = true;   // משטח מים שטוח לא מטיל צל
         if (o.isSkinnedMesh) o.frustumCulled = false;
         // מודלים רבים יוצאים "מתכתיים" ונראים כהים בלי השתקפויות — הופכים הכל למט
         const arr = (Array.isArray(o.material) ? o.material : [o.material]).map(m => {

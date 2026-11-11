@@ -9,7 +9,7 @@ export function buildLake(deps) {
   const rand = (min, max) => min + Math.random() * (max - min);
 
   // 1) טלאי מים גדול וכחול — שומרים הפניה כדי שנוכל לאדווה אותו בהמשך
-  const water = World.floorPatch(cx, cz, 28, 22, 0x4aa3e0);
+  const water = World.waterPatch(cx, cz, 28, 22);
 
   // ===== 2) ציון דרך: מזח עץ קטן יוצא אל תוך המים + סירה ששטה =====
   // קרשי המזח חומים. המזח יוצא מהחוף הקדמי (z גדול) פנימה אל המים.

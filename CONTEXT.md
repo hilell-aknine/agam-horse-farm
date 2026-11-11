@@ -20,6 +20,7 @@
 | API | `supabase/functions/` | שרתונים בענן: `admin-users`, `farm-email-login` |
 | Database | `supabase/sql/` | הטבלאות וחוקי ההרשאות, קובץ ממוספר לכל שינוי (נוצר בשלב האבטחה) |
 | כלים | `scripts/backup/backup.ps1` | גיבוי לילי (סעיף 7) |
+| כלים | `scripts/shots.py` | צילומי לפני/אחרי קבועים (9 זוויות עולם + 3 מסכים) ל-`_handoff/gfx/<שלב>/`. מריצים עם `py -3.13` |
 | כלים | `scripts/smoke.py` | בדיקת עשן: המשחק עולה בלי שגיאות במחשב ובטלפון |
 | כלים | `tools/` (לא ב-git), `assets-v2/` | ייצור אמנות. ספר הסגנון: `assets-v2/STYLE-BIBLE.md` |
 | מסמכים | `docs/` | מחקרים ותוכניות: `UX-PLAN.md`, `RESEARCH-FARM-GENRE.md` |
@@ -34,6 +35,9 @@
 | `main.js` | המנצח: אתחול, טעינה (מקומי/ענן), בניית העולם, `askProblem`, הדרכה, `Bedtime`, הלולאה | (נקודת כניסה) |
 | **engine/** `world.js` | סצנה, מצלמה ונסיעה (`travelTo`), אור, יום/לילה, מזג אוויר, בחירה בנגיעה, `makeBillboard`/`makeSign` | `World`, `THREE` |
 | engine/ `models3d.js` | טעינת ה-GLB והחלפת ציורים במודלים, אנימציות | `Models3D` |
+| engine/ `quality.js` | דרגות איכות low/mid/high לפי המכשיר, ירידה אוטומטית בקצב נמוך, `?q=` `?fps=1` `?seed=` `?dbg=1` | `Quality`, `PARAMS` |
+| engine/ `water.js` | שיידר מים (אגם, בריכה): אדוות, קצף בחוף, נצנוצים | `makeWater`, `WaterShared` |
+| engine/ `grass.js` | ציצות דשא ברוח, ציור אחד (InstancedMesh) | `buildGrass`, `GrassTime` |
 | engine/ `horse3d.js` | סוס תלת-ממדי (צבעים, סייח) | `Horse3D`, `loadModel`, `FOAL_SCALE` |
 | **farm/** `horses.js` | הסוסים בחווה | `Horses`, `Horse`, `COLORS`, `NAMES` |
 | farm/ `animals.js` | חיות משק, נוף ונדירות | `Animals`, `Animal`, `NAMES` |
@@ -114,6 +118,7 @@
 - בטלפון אמיתי: עדיין ידני (הלל/אגם).
 
 ## 10. יומן שינויים
+- **2026-11-11** · שדרוג גרפי שלבים 0-2 (ענף `gfx-upgrade`, לא באוויר): דרגות איכות ומד FPS; המודלים לא מאירים את עצמם והשמש האמיתית זזה עם השמיים; תיבת הצל הולכת עם המצלמה; שמיים בשיידר; `World._applyTime` מרכז כל מה שתלוי בשעה; שבילים כרצועה אחת (`World.buildPaths`), מים בשיידר (`World.waterPatch`), ציצות דשא (`World.plantGrass`), גבעות והרים צבועים לפי גובה, גדרות ב-InstancedMesh. CACHE v26. smoke עבר (32 מודולים). **לא נבדק בטלפון אמיתי.**
 - **2026-10-29** · אבטחה במסד: טבלאות + RLS לפי סימון חווה + תקרת גודל + טריגר נגד הצפה + הגבלת קצב (`001_farm_core.sql`), כולל בדיקת מחיצה שעברה. נכתבו `farm-claim` ותיקון ל-`admin-users` (לא פרוסים).
 - **2026-10-29** · מבנה היררכי: `js/` פוצל ל-engine/farm/areas/minigames/systems/net/ui, מסמכים ל-`docs/`, נוצרו `CONTEXT.md` ו-`scripts/smoke.py`. CACHE v23. נבדק ב-smoke (מחשב + טלפון): 29 מודולים, 0 שגיאות.
 - **2026-10-28** · גיבוי לילי (bundle + `backup/auto` + מסד) ו-`vercel.json` שחוסם פריסת ענפי גיבוי. שחזור ניסיון מה-bundle עבר.

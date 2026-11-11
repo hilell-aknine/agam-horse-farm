@@ -293,10 +293,17 @@ function forestDensify() {
 // שבילי עפר שמחברים את החווה לכל אזור
 function buildPaths() {
   const targets = [[0, -70], [70, 6], [-72, 0], [0, 72], [64, -64], [Track3D.center.x, Track3D.center.z]];
-  targets.forEach(([tx, tz]) => {
-    const steps = 11;
-    for (let i = 2; i < steps; i++) { World.floorPatch(tx * i / steps, tz * i / steps, 5.5, 5.5, 0xc8a878); }
-  });
+  World.buildPaths(targets);
+  // ציצות דשא: טבעת סביב החווה (מחוץ לגדר) וטבעת סביב כל אזור (מחוץ לרצפה שלו)
+  World.plantGrass([
+    { x: 0, z: 0, r0: 17, r1: 40, n: 2600 },
+    { x: 0, z: -70, r0: 3, r1: 24, n: 700 },
+    { x: 70, z: 6, r0: 17.5, r1: 28, n: 420, squash: 0.85 },
+    { x: -72, z: 0, r0: 15, r1: 27, n: 420 },
+    { x: 0, z: 72, r0: 16, r1: 27, n: 300 },
+    { x: 64, z: -64, r0: 19, r1: 29, n: 360 },
+    { x: Track3D.center.x, z: Track3D.center.z, r0: 27, r1: 36, n: 300 }
+  ]);
 }
 
 // החלת שדרוג נראה על העולם
@@ -510,12 +517,13 @@ function scatter(urls, count, minR, maxR, h, hVar, withShadow) {
 
 // --- גבולות אזורים (גיאומטריה) ---
 function lowPosts(points, color, h, wdt) {
+  // כל עמודי הגבול בציור אחד (InstancedMesh)
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
-  for (const [x, z] of points) {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(wdt, h, wdt), mat);
-    p.position.set(x, h / 2, z); p.castShadow = true;
-    World.scene.add(p);
-  }
+  const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(wdt, h, wdt), mat, points.length);
+  const m = new THREE.Matrix4();
+  points.forEach(([x, z], i) => { m.makeTranslation(x, h / 2, z); inst.setMatrixAt(i, m); });
+  inst.castShadow = true;
+  World.scene.add(inst);
 }
 function railLine(x1, z1, x2, z2, y, color, thick = 0.1) {
   const len = Math.hypot(x2 - x1, z2 - z1);

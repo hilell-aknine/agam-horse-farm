@@ -3,6 +3,8 @@ import { Quality, PARAMS } from './quality.js';   // ראשון: זרע אקרא
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Models3D } from './models3d.js';
+import { makeWater, WaterShared } from './water.js';
+import { buildGrass, GrassTime } from './grass.js';
 
 const World = {
   renderer: null, scene: null, camera: null, controls: null,
@@ -277,27 +279,25 @@ const World = {
     const railMat = new THREE.MeshStandardMaterial({ color: 0xc79a5b, roughness: 0.8 });
     const N = Math.round(28 * R / 15);   // צפיפות עמודים קבועה כשהחווה גדלה
     const group = new THREE.Group();
+    const seg = 2 * R * Math.sin(Math.PI / N) + 0.1;
+    // InstancedMesh: כל העמודים בציור אחד וכל הקורות בציור אחד (היו ~84 ציורים נפרדים)
+    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.19, 0.23, 2.2, 7), woodMat, N);
+    const rails = new THREE.InstancedMesh(new THREE.BoxGeometry(seg, 0.22, 0.16), railMat, N * 2);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     for (let i = 0; i < N; i++) {
       const a = (i / N) * Math.PI * 2;
       const x = Math.cos(a) * R, z = Math.sin(a) * R;
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.2, 0.35), woodMat);
-      post.position.set(x, 1.0, z);
-      post.castShadow = true; post.receiveShadow = true;
-      group.add(post);
+      q.identity();
+      m.compose(p.set(x, 1.0, z), q, one); posts.setMatrixAt(i, m);
       // קורה אופקית לעמוד הבא
       const a2 = ((i + 1) / N) * Math.PI * 2;
       const x2 = Math.cos(a2) * R, z2 = Math.sin(a2) * R;
-      const mx = (x + x2) / 2, mz = (z + z2) / 2;
-      const len = Math.hypot(x2 - x, z2 - z) + 0.1;
-      const ang = Math.atan2(-(z2 - z), (x2 - x)); // יישור ציר ה-X של הקורה לאורך הכיוון לעמוד הבא
-      for (const yy of [0.7, 1.5]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.22, 0.16), railMat);
-        rail.position.set(mx, yy, mz);
-        rail.rotation.y = ang;
-        rail.castShadow = true;
-        group.add(rail);
-      }
+      q.setFromAxisAngle(up, Math.atan2(-(z2 - z), (x2 - x)));   // יישור ציר ה-X של הקורה לאורך הכיוון לעמוד הבא
+      [0.7, 1.5].forEach((yy, k) => { m.compose(p.set((x + x2) / 2, yy, (z + z2) / 2), q, one); rails.setMatrixAt(i * 2 + k, m); });
     }
+    posts.castShadow = true; posts.receiveShadow = true; rails.castShadow = true;
+    posts.frustumCulled = false; rails.frustumCulled = false;   // טבעת סביב כל החווה: תמיד במסגרת
+    group.add(posts, rails);
     this.fenceGroup = group;
     this.fenceR = R;
     this.scene.add(group);
@@ -381,28 +381,72 @@ const World = {
   },
 
   _environment() {
-    // גבעות מתגלגלות מסביב (מעבר לגדר) — נותנות עומק לעולם
-    const greens = [0x86d15a, 0x77c44c, 0x6fbf48];
+    // גבעות מתגלגלות מסביב (מעבר לגדר) — נותנות עומק לעולם.
+    // כל גבעה צבועה לפי גובה (כהה למטה, בהירה ומוארת למעלה), מעט לא סימטרית, ומקבלת צל.
     const hills = [
       [-36, -30, 16, 7], [32, -36, 19, 9], [44, 8, 15, 7], [-46, 12, 18, 9],
-      [2, -48, 23, 11], [-22, 44, 16, 8], [26, 42, 17, 8], [50, -20, 16, 8], [-50, -18, 17, 9]
+      [2, -46, 20, 6],   /* הונמכה: הסתירה את היער מהמצלמה */ [-22, 44, 16, 8], [26, 42, 17, 8], [50, -20, 16, 8], [-50, -18, 17, 9]
     ];
+    // טביעת הרגל של כל גבעה על הקרקע (כמו בגרסה הקודמת: כיפה שרק ראשה מעל האדמה, אז היא צרה מהרדיוס)
+    const foot = (r, h) => r * Math.sqrt(1 - Math.pow((h - 2) / (h + 2), 2));
+    this.hills = hills.map(([x, z, r, h]) => [x, z, foot(r, h)]);
+    const hillTex = this._grassTexture(); hillTex.repeat.set(7, 5);
+    const hillMat = new THREE.MeshStandardMaterial({ vertexColors: true, map: hillTex, roughness: 1, metalness: 0 });
+    const low = new THREE.Color(0x5fae3e), high = new THREE.Color(0x9bdc66), tmp = new THREE.Color();
     hills.forEach(([x, z, r, h], i) => {
-      const mat = new THREE.MeshStandardMaterial({ color: greens[i % 3], roughness: 1 });
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(r, 22, 14), mat);
-      const sy = (h + 2) / (2 * r);
-      dome.scale.set(1, sy, 1);
-      dome.position.set(x, (h - 2) / 2, z);
+      const R0 = r; r = foot(R0, h);
+      const geo = new THREE.SphereGeometry(r, 30, 16, 0, Math.PI * 2, 0, Math.PI / 2);   // חצי כדור עליון בלבד
+      const pos = geo.attributes.position, col = [];
+      for (let v = 0; v < pos.count; v++) {
+        const px = pos.getX(v), py = pos.getY(v), pz = pos.getZ(v);
+        // בליטות עדינות: הגבעה לא כיפה מושלמת
+        const n = 1 + 0.07 * Math.sin(px * 0.45 + i) * Math.cos(pz * 0.5 + i * 2) + 0.04 * Math.sin((px + pz) * 0.9);
+        pos.setXYZ(v, px * n, py * n, pz * n);
+        const t = Math.min(1, py / r);
+        tmp.copy(low).lerp(high, Math.pow(t, 0.8)).offsetHSL((i % 3 - 1) * 0.012, 0, 0);
+        col.push(tmp.r, tmp.g, tmp.b);
+      }
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      const dome = new THREE.Mesh(geo, hillMat);
+      dome.scale.set(1, h / r, 1);
+      dome.position.set(x, -0.05, z);
+      dome.receiveShadow = true;
       this.scene.add(dome);
     });
-    // הרים רחוקים (צלליות כחלחלות שנמוגות בערפל)
-    const mtMat = new THREE.MeshStandardMaterial({ color: 0xa9cfe6, roughness: 1 });
+    // הרים רחוקים: שתי שכבות (קרובה כחלחלה, רחוקה בהירה) עם פסגות מושלגות, נמוגות בערפל
+    const mtMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true });
+    const mkMountain = (radius, height, rock, seed) => {
+      const geo = new THREE.ConeGeometry(radius, height, 9, 5);
+      const pos = geo.attributes.position, col = [];
+      const rockC = new THREE.Color(rock), snow = new THREE.Color(0xffffff);
+      for (let v = 0; v < pos.count; v++) {
+        const y = pos.getY(v), t = (y + height / 2) / height;           // 0 בסיס, 1 פסגה
+        if (t < 0.98) {                                                    // סלע מחוספס (הפסגה נשארת חדה)
+          const k = 1 + 0.16 * Math.sin(pos.getX(v) * 0.7 + seed) * Math.cos(pos.getZ(v) * 0.6 + seed * 1.7);
+          pos.setX(v, pos.getX(v) * k); pos.setZ(v, pos.getZ(v) * k);
+        }
+        tmp.copy(rockC).lerp(snow, t > 0.62 ? 1 : 0).offsetHSL(0, 0, (t - 0.3) * 0.06);
+        col.push(tmp.r, tmp.g, tmp.b);
+      }
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      return new THREE.Mesh(geo, mtMat);
+    };
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2 + 0.4;
-      const mt = new THREE.Mesh(new THREE.ConeGeometry(13 + (i % 3) * 4, 20 + (i % 4) * 6, 5), mtMat);
+      const height = 20 + (i % 4) * 6;
+      const mt = mkMountain(13 + (i % 3) * 4, height, 0xa3c2da, i * 1.3);
       // הר שנופל על מסלול הרכיבה (-42,-62) נדחק אחורה — אחרת המצלמה הרודפת נכנסת לתוכו
       const r = Math.hypot(Math.cos(a) * 100 + 42, Math.sin(a) * 100 + 62) < 50 ? 150 : 100;
-      mt.position.set(Math.cos(a) * r, 6, Math.sin(a) * r);
+      mt.position.set(Math.cos(a) * r, height / 2 - 4, Math.sin(a) * r);
+      this.scene.add(mt);
+    }
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + 0.05;
+      const height = 34 + (i % 3) * 9;
+      const mt = mkMountain(22 + (i % 4) * 5, height, 0xb9d3e8, 10 + i * 2.1);
+      mt.position.set(Math.cos(a) * 158, height / 2 - 6, Math.sin(a) * 158);
       this.scene.add(mt);
     }
     // ציפורים שמרחפות (נסחפות כמו עננים)
@@ -484,6 +528,92 @@ const World = {
     m.position.set(x, 0.1, z);
     this.scene.add(m);
     return m;
+  },
+
+  // שבילי עפר מהחווה לכל אזור: רצועה רציפה אחת לכל השבילים (ציור אחד), מתפתלת מעט, מקבלת צל.
+  // targets: [[x, z], ...]. כל שביל יוצא ממרכז החווה ונעצר לפני רצפת האזור.
+  buildPaths(targets) {
+    const S = 64, c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, S, 0);           // רוחב השביל: שוליים רכים שנמוגים לדשא
+    grad.addColorStop(0, 'rgba(206,174,124,0)'); grad.addColorStop(0.24, 'rgba(206,174,124,0.95)');
+    grad.addColorStop(0.76, 'rgba(206,174,124,0.95)'); grad.addColorStop(1, 'rgba(206,174,124,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 70; i++) {                              // חצץ: נקודות בהירות וכהות
+      g.fillStyle = Math.random() < 0.5 ? 'rgba(236,214,170,0.55)' : 'rgba(160,126,84,0.45)';
+      const x = S * 0.26 + Math.random() * S * 0.48, y = Math.random() * S, r = 0.8 + Math.random() * 1.6;
+      g.beginPath(); g.arc(x, y, r, 0, 6.3); g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = this.maxAniso || 4;
+    const pos = [], uv = [], idx = [], nor = [];
+    const N = 26, HALF = 2.7;
+    targets.forEach(([tx, tz], pi) => {
+      const len = Math.hypot(tx, tz), dx = tx / len, dz = tz / len, nx = -dz, nz = dx;
+      const base = pos.length / 3;
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, k = 0.17 + t * 0.75;                    // מקטע השביל: מהגדר ועד לפני רצפת האזור
+        const ends = Math.sin(t * Math.PI);                       // 0 בקצוות: השביל מתחדד ולא נחתך
+        const wig = Math.sin(t * Math.PI * 2.5 + pi * 1.7) * 1.1 * ends;
+        const half = HALF * (0.35 + 0.65 * Math.min(1, ends * 3));
+        const cx = tx * k + nx * wig, cz = tz * k + nz * wig;
+        pos.push(cx - nx * half, 0, cz - nz * half, cx + nx * half, 0, cz + nz * half);
+        uv.push(0, k * len / 5, 1, k * len / 5);
+        nor.push(0, 1, 0, 0, 1, 0);
+        if (i < N) { const a = base + i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      }
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    geo.setIndex(idx);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      map: tex, transparent: true, depthWrite: false, roughness: 1, metalness: 0, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4
+    }));
+    mesh.position.y = 0.09;
+    mesh.receiveShadow = true;
+    this.scene.add(mesh);
+    this.pathTargets = targets;
+    return mesh;
+  },
+
+  // משטח מים (אגם): חוף חול מתחת + מים בשיידר מעל. מחזיר את המים (אפשר לשנות להם scale כמו ל-floorPatch)
+  waterPatch(x, z, w, d) {
+    this.floorPatch(x, z, w + 4.5, d + 4.5, 0xe6d6a4);          // חוף חול
+    const m = makeWater(w, d, { animated: Quality.atLeast('mid') });
+    m.position.set(x, 0.12, z);
+    this.scene.add(m);
+    return m;
+  },
+
+  // ציצות דשא מתנדנדות סביב החווה וסביב כל אזור. zones: [{x, z, r0, r1, n}] = טבעת סביב מרכז.
+  // לא שותלים על שבילים, על גבעות או בתוך רצפות האזורים. הכמות לפי דרגת האיכות.
+  plantGrass(zones) {
+    const scale = Quality.pick(0, 0.4, 1);
+    if (!scale) return;
+    const paths = this.pathTargets || [], hills = this.hills || [];
+    const onPath = (x, z) => paths.some(([tx, tz]) => {
+      const len2 = tx * tx + tz * tz, t = Math.max(0.12, Math.min(0.95, (x * tx + z * tz) / len2));
+      return Math.hypot(x - tx * t, z - tz * t) < 4.2;
+    });
+    const onHill = (x, z) => hills.some(([hx, hz, r]) => Math.hypot(x - hx, z - hz) < r * 1.06);
+    const inZone = (x, z, self) => zones.some(o => o !== self && Math.hypot(x - o.x, z - o.z) < o.r0);
+    const pts = [];
+    for (const zn of zones) {
+      const want = Math.round(zn.n * scale);
+      for (let i = 0, tries = 0; i < want && tries < want * 6; tries++) {
+        const a = Math.random() * Math.PI * 2, r = Math.sqrt(zn.r0 * zn.r0 + Math.random() * (zn.r1 * zn.r1 - zn.r0 * zn.r0));
+        const x = zn.x + Math.cos(a) * r, z = zn.z + Math.sin(a) * r * (zn.squash ?? 1);
+        if (onPath(x, z) || onHill(x, z) || inZone(x, z, zn)) continue;
+        pts.push([x, z]); i++;
+      }
+    }
+    if (this.grassMesh) { this.scene.remove(this.grassMesh); this.grassMesh.geometry.dispose(); this.grassMesh.material.dispose(); }
+    this.grassMesh = buildGrass(pts);
+    this.scene.add(this.grassMesh);
+    this._grassZones = zones;
   },
 
   // שלט עץ עם טקסט עברי על עמוד
@@ -661,6 +791,8 @@ const World = {
     mix3(U.horizon.value, C.nHor, C.dHor, C.kHor, 0.9);
     mix3(U.bottom.value, C.nBot, C.dBot, C.kBot, 0.6);
     this.scene.fog.color.copy(U.horizon.value);
+    WaterShared.day.value = day;
+    WaterShared.tint.value.setRGB(0.34 + 0.66 * day, 0.4 + 0.6 * day, 0.58 + 0.42 * day).lerp(C.kHor, dusk * 0.25);
 
     // מסלול שמש/ירח
     this.sunMesh.position.set(Math.cos(a) * 42, e * 38, -30);
@@ -762,6 +894,7 @@ const World = {
     const dt = Math.min(raw, 0.05);
     this._t = (this._t || 0) + dt;
     this._updateTravel(dt);
+    WaterShared.time.value = GrassTime.value = this._t;
     this.controls.update();
     this._updateDayNight(dt);
     this._updateSunLight();
@@ -837,6 +970,7 @@ const World = {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, Quality.pick(1.5, 2, 2)));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this._shadowQuality();
+    if (this._grassZones) this.plantGrass(this._grassZones);
   },
 
   resize() {
