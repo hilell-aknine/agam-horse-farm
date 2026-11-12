@@ -2,6 +2,7 @@
 import { World, THREE } from './engine/world.js';
 import { Horses } from './farm/horses.js';
 import { Models3D } from './engine/models3d.js';
+import { Props } from './engine/props3d.js';
 import { Transfer3D } from './minigames/transfer3d.js';
 import { Fields } from './farm/fields.js';
 import { Animals } from './farm/animals.js';
@@ -270,7 +271,7 @@ function buildFarm(saved) {
   spawnRares();       // חיות נדירות שכבר נפתחו
   initMagicTree();    // עץ הקסם
   // אזורי העולם הפתוח (יער, אגם)
-  const areaDeps = { THREE, World, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, payout, saveAll, Game, UI, Audio, enter: enterBuilding };
+  const areaDeps = { THREE, World, Props, decor, activity: registerActivity, onUpdate: registerUpdater, Animals, askProblem, spawnAt, grantReward, payout, saveAll, Game, UI, Audio, enter: enterBuilding };
   buildForest(Object.assign({}, areaDeps, { center: { x: 0, z: -70 }, grantReward: areaReward('forest') }));
   buildLake(Object.assign({}, areaDeps, { center: { x: 70, z: 6 }, grantReward: areaReward('lake') }));
   buildVillage(Object.assign({}, areaDeps, { center: { x: -72, z: 0 }, grantReward: areaReward('village') }));

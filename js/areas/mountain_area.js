@@ -15,23 +15,10 @@ export function buildMountain(deps) {
   World.floorPatch(cx + 7, cz - 9, 7, 6, 0xf2f6ff);        // עוד טלאי שלג קטן
 
   // ===== 2) פסגה גבוהה מאחורי המערה: חרוט סלע אפור + כובע שלג לבן למעלה =====
-  // חרוט הסלע הגדול
-  const peakGeo = new THREE.ConeGeometry(9, 18, 7);
-  const peakMat = new THREE.MeshStandardMaterial({ color: 0x7d7d72, flatShading: true });
-  const peak = new THREE.Mesh(peakGeo, peakMat);
-  peak.position.set(cx, 9, cz - 14);                       // הבסיס על הקרקע, הקודקוד בגובה ~18
-  peak.castShadow = true;
+  // פסגה מחוספסת עם קו שלג ופתח מערה תלת-ממדי (props3d.js), במקום חרוט חלק ומדבקת מערה
+  const peak = deps.Props.peak({ r: 9, h: 18 });
+  peak.position.set(cx, 0, cz - 14);
   World.scene.add(peak);
-
-  // כובע שלג לבן על הקודקוד
-  const capGeo = new THREE.ConeGeometry(3.6, 6, 7);
-  const capMat = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true });
-  const cap = new THREE.Mesh(capGeo, capMat);
-  cap.position.set(cx, 16.5, cz - 14);
-  World.scene.add(cap);
-
-  // המערה הגדולה בבסיס הפסגה
-  deps.decor('assets/cave.png', cx, cz - 7, 9);
 
   // ===== 3) סלעים, עצים ושיחים צפופים — מרגיש כמו בסיס הר אמיתי =====
   // עוזר: פיזור קישוט בטבעת סביב בסיס ההר
@@ -100,8 +87,7 @@ export function buildMountain(deps) {
   }
 
   // ===== 4ב) פעילות חדשה: חקירת המערה → מציאת אוצר =====
-  const caveSprite = deps.decor('assets/cave.png', cx, cz - 7, 9);  // ספרייט לחיץ למערה
-  deps.activity(caveSprite, () => {
+  deps.Props.onTap(World, peak, () => {                             // נגיעה בפסגה או בפתח המערה
     deps.Audio.speak('נכנסים לחקור את המערה!');
     deps.askProblem('harvest', res => {
       const gain = deps.payout(25, res);
@@ -122,7 +108,7 @@ export function buildMountain(deps) {
 
   // ===== 6) אווירה חיה (onUpdate): נשר חג מעל ההר + פולס לסמני ה-✨ + סלע מרחף קטן =====
   // נשר שעף במעגל איטי מעל הפסגה
-  const eagle = World.emojiSprite('🦅', 1.6);
+  const eagle = deps.Props.bird({ body: 0x5a3d2b, belly: 0xffffff, size: 1.7 });
   eagle.position.set(cx, 16, cz);
   World.scene.add(eagle);
 
@@ -136,6 +122,8 @@ export function buildMountain(deps) {
     eagle.position.x = cx + Math.cos(t * 0.4) * er;
     eagle.position.z = cz + Math.sin(t * 0.4) * er;
     eagle.position.y = 16 + Math.sin(t * 0.8) * 0.6;
+    eagle.rotation.y = -(t * 0.4 + Math.PI / 2);
+    eagle.userData.update(t * 0.45);      // נשר דואה: נפנוף איטי
 
     // פולס עדין לסמני ה-✨: ריחוף מעלה-מטה + שינוי גודל קל
     for (const sp of sparkles) {

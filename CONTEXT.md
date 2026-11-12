@@ -38,6 +38,7 @@
 | engine/ `quality.js` | דרגות איכות low/mid/high לפי המכשיר, ירידה אוטומטית בקצב נמוך, `?q=` `?fps=1` `?seed=` `?dbg=1` | `Quality`, `PARAMS` |
 | engine/ `water.js` | שיידר מים (אגם, בריכה): אדוות, קצף בחוף, נצנוצים | `makeWater`, `WaterShared` |
 | engine/ `grass.js` | ציצות דשא ברוח, ציור אחד (InstancedMesh) | `buildGrass`, `GrassTime` |
+| engine/ `props3d.js` | אביזרים תלת-ממדיים שנבנים בקוד (גלגל ענק, קרוסלה, סירה, ציפור, בלון, מטרה, סוכרייה, פסגה עם מערה, מצוף דיג), ממוזגים למעט ציורים | `Props`, `Props.onTap` |
 | engine/ `horse3d.js` | סוס תלת-ממדי (צבעים, סייח) | `Horse3D`, `loadModel`, `FOAL_SCALE` |
 | **farm/** `horses.js` | הסוסים בחווה | `Horses`, `Horse`, `COLORS`, `NAMES` |
 | farm/ `animals.js` | חיות משק, נוף ונדירות | `Animals`, `Animal`, `NAMES` |
@@ -122,3 +123,4 @@
 - **2026-10-29** · אבטחה במסד: טבלאות + RLS לפי סימון חווה + תקרת גודל + טריגר נגד הצפה + הגבלת קצב (`001_farm_core.sql`), כולל בדיקת מחיצה שעברה. נכתבו `farm-claim` ותיקון ל-`admin-users` (לא פרוסים).
 - **2026-10-29** · מבנה היררכי: `js/` פוצל ל-engine/farm/areas/minigames/systems/net/ui, מסמכים ל-`docs/`, נוצרו `CONTEXT.md` ו-`scripts/smoke.py`. CACHE v23. נבדק ב-smoke (מחשב + טלפון): 29 מודולים, 0 שגיאות.
 - **2026-10-28** · גיבוי לילי (bundle + `backup/auto` + מסד) ו-`vercel.json` שחוסם פריסת ענפי גיבוי. שחזור ניסיון מה-bundle עבר.
+- **2026-11-12** · שלבים 0-2 עלו לאוויר (main, CACHE v26) באישור הילל. שלב 3 חלקי (ענף `gfx-upgrade`, לא באוויר): `engine/props3d.js` מחליף אימוג'י בעולם בגופים שנבנים בקוד: גלגל ענק, קרוסלה, בלונים, מטרה וסוכרייה ביריד; סירת מפרש, מצופי דיג וברווז באגם; פסגה מושלגת עם מערה ונשר בהר; ציפורים ברקע. CACHE v27. smoke עבר (33 מודולים). זמן טעינה בסקריפטי הבדיקה הוארך ל-120 שניות.

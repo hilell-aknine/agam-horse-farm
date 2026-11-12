@@ -5,7 +5,7 @@
 
 export function buildFair(deps) {
   const {
-    THREE, World, center, decor, activity, onUpdate, Animals,
+    THREE, World, center, decor, activity, onUpdate, Animals, Props,
     askProblem, spawnAt, grantReward, Game, UI, Audio, saveAll,
   } = deps;
 
@@ -26,64 +26,45 @@ export function buildFair(deps) {
   sign.position.set(C.x, 0, C.z + 15);
   World.scene.add(sign);
 
-  // 3) הלנדמרק: גלגל-ענק מסתובב — מסגרת 🎡 סטטית + תאים נעים שמקיפים אותה במאונך
-  const hubY = 6, wheelR = 4.3;
-  const wheel = World.emojiSprite('🎡', 10);                  // מסגרת הגלגל
-  wheel.position.set(C.x, hubY, C.z);
+  // 3) הלנדמרק: גלגל ענק תלת-ממדי שמסתובב באמת (props3d.js), התאים נשארים זקופים
+  const wheel = Props.ferrisWheel({ r: 4.3, hubY: 6, cabins: 8 });
+  wheel.position.set(C.x, 0, C.z - 8);
   World.scene.add(wheel);
-  activity(wheel, () => rideWheel());                         // לחיצה על הגלגל = רכיבה
-  const wheelBaseScale = wheel.scale.clone();
+  Props.onTap(World, wheel, () => rideWheel());               // לחיצה על הגלגל = רכיבה
 
-  const cabins = [];
-  const cabinEmoji = ['🚠', '🚡', '🚠', '🚡', '🚠', '🚡'];
-  for (let i = 0; i < 6; i++) {
-    const cab = World.emojiSprite(cabinEmoji[i], 1.25);
-    cab.position.set(C.x, hubY, C.z + 0.25);                  // מעט לפני המסגרת
-    World.scene.add(cab);
-    cabins.push({ s: cab, ph: (i / 6) * Math.PI * 2 });
-  }
-
-  // 4) קרוסלת סוסים — עמוד מרכזי + 4 סוסים שמסתובבים סביבו אופקית (עם קפיצת-דהירה)
-  const carX = C.x + 10, carZ = C.z + 3, carR = 2.6;
-  const carousel = World.emojiSprite('🎠', 3.6);
-  carousel.position.set(carX, 2.2, carZ);
+  // 4) קרוסלת סוסים תלת-ממדית: גג פסים, שישה סוסים שעולים ויורדים
+  const carX = C.x + 10, carZ = C.z + 3;
+  const carousel = Props.carousel({ r: 2.2, horses: 6 });
+  carousel.position.set(carX, 0, carZ);
   World.scene.add(carousel);
-  activity(carousel, () => rideCarousel());
-  const seats = [];
-  for (let i = 0; i < 4; i++) {
-    const seat = World.emojiSprite('🐴', 1.3);
-    seat.position.set(carX, 1.4, carZ);
-    World.scene.add(seat);
-    seats.push({ s: seat, ph: (i / 4) * Math.PI * 2 });
-  }
+  Props.onTap(World, carousel, () => rideCarousel());
 
   // 5) דוכן בלונים — לחיצה מפוצצת בלון וזוכה במטבעות
   const balX = C.x - 9, balZ = C.z + 2;
   const balloonStand = decor('assets/balloons.png', balX, balZ, 3.4);
-  const balMarker = World.emojiSprite('🎈', 1.4);
-  if (balMarker.center) balMarker.center.set(0.5, 0.0);
-  balMarker.position.set(balX, 3.6, balZ);
+  const balMarker = Props.balloon(0xff5d73, 1.2);
+  balMarker.position.set(balX, 3.9, balZ);
   World.scene.add(balMarker);
   activity(balloonStand, () => popBalloons(balX, balZ));
 
   // 6) דוכן קליעה למטרה — 🎯 על ספסל
   const dartX = C.x - 8, dartZ = C.z - 6;
   decor('assets/bench.png', dartX, dartZ, 1.8);
-  const target = World.emojiSprite('🎯', 2.2);
-  target.position.set(dartX, 2.3, dartZ);
+  const target = Props.dartboard();
+  target.position.set(dartX, 2.5, dartZ + 0.6);
   World.scene.add(target);
-  activity(target, () => playDarts(dartX, dartZ));
+  Props.onTap(World, target, () => playDarts(dartX, dartZ));
 
   // 7) דוכן סוכריות/צמר-גפן מתוק — 🍭
   const treatX = C.x + 8, treatZ = C.z - 6;
   decor('assets/bakery.png', treatX, treatZ, 3);
-  const candy = World.emojiSprite('🍭', 2.2);
-  candy.position.set(treatX, 2.4, treatZ);
+  const candy = Props.lollipop();
+  candy.position.set(treatX + 2.4, 2.1, treatZ + 1.2);
   World.scene.add(candy);
-  activity(candy, () => buyTreat(treatX, treatZ));
+  Props.onTap(World, candy, () => buyTreat(treatX, treatZ));
 
   // 8) קישוט: פנסים, ספסלים, מזרקה, ובלונים פזורים
-  decor('assets/fountain.png', C.x, C.z - 4, 3.2);
+  decor('assets/fountain.png', C.x, C.z + 3, 3.2);
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2;
     decor('assets/lamp_post.png', C.x + Math.cos(a) * 13, C.z + Math.sin(a) * 13, 3.4);
@@ -93,9 +74,8 @@ export function buildFair(deps) {
 
   // 9) שרשרת בלונים מרחפת מעל השלט (קשת עדינה שמתנדנדת)
   const bunting = [];
-  const buntEmoji = ['🎈', '🎈', '🎈', '🎈', '🎈'];
   for (let i = 0; i < 5; i++) {
-    const b = World.emojiSprite(buntEmoji[i], 1.1);
+    const b = Props.balloon(Props.BRIGHT[i], 0.95);
     const bx = C.x - 4 + i * 2;
     const by = 5 + Math.sin((i / 4) * Math.PI) * 1.2;        // קשת
     b.position.set(bx, by, C.z + 13);
@@ -165,29 +145,13 @@ export function buildFair(deps) {
   // 11) אנימציה חיה — גלגל מסתובב, קרוסלה מסתובבת, בלונים מתנדנדים
   if (onUpdate) {
     onUpdate((t, dt) => {
-      // גלגל-ענק: התאים מקיפים במאונך (שינוי מיקום בלבד — לא rotation)
-      const wa = t * 0.5;
-      for (const c of cabins) {
-        const a = wa + c.ph;
-        c.s.position.x = C.x + Math.cos(a) * wheelR;
-        c.s.position.y = hubY + Math.sin(a) * wheelR;
-      }
-      // נשימת-מסגרת עדינה לגלגל
-      const breathe = 1 + Math.sin(t * 0.9) * 0.015;
-      wheel.scale.set(wheelBaseScale.x * breathe, wheelBaseScale.y * breathe, 1);
-      // קרוסלה: הסוסים מסתובבים אופקית עם קפיצת-דהירה
-      const ca = t * 0.8;
-      for (const s of seats) {
-        const a = ca + s.ph;
-        s.s.position.x = carX + Math.cos(a) * carR;
-        s.s.position.z = carZ + Math.sin(a) * carR;
-        s.s.position.y = 1.4 + Math.abs(Math.sin(a * 2)) * 0.35;
-      }
+      wheel.userData.update(t);
+      carousel.userData.update(t);
       // בלונים מרחפים
       for (const b of bunting) {
         b.s.position.y = b.baseY + Math.sin(t * 1.3 + b.ph) * 0.35;
       }
-      balMarker.position.y = 3.6 + Math.sin(t * 1.6) * 0.25;
+      balMarker.position.y = 3.9 + Math.sin(t * 1.6) * 0.25;
     });
   }
 }

@@ -38,11 +38,10 @@ export function buildLake(deps) {
   }
 
   // סירה קטנה ⛵ ששטה על המים ליד קצה המזח
-  const boat = World.emojiSprite('⛵', 2.2);
-  boat.center.set(0.5, 0.0); // עיגון מרכז-תחתון
-  const boatBaseY = 0.7;
+  const boat = deps.Props.sailboat();
   const boatX = cx + 4, boatZ = cz - 2;
-  boat.position.set(boatX, boatBaseY, boatZ);
+  boat.position.set(boatX, 0.12, boatZ);
+  boat.rotation.y = 0.5;
   World.scene.add(boat);
 
   // עוזר: פיזור קישוט בטבעת סביב המים (רדיוס ~11..17, לא על המים)
@@ -104,21 +103,17 @@ export function buildLake(deps) {
     { x: cx + 1, z: cz - 5 },
   ];
   for (const s of spots) {
-    const marker = World.emojiSprite('🎣', 1.6);
-    marker.center.set(0.5, 0.0);           // עיגון מרכז-תחתון
-    const baseY = 0.6;
+    const marker = deps.Props.bobber();
+    const baseY = 0.1;
     marker.position.set(s.x, baseY, s.z);
     World.scene.add(marker);
-    deps.activity(marker, () => fish(s.x, s.z));
+    deps.Props.onTap(World, marker, () => fish(s.x, s.z));
     fishMarkers.push({ marker, baseY, phase: rand(0, Math.PI * 2) });
   }
 
   // ===== 6b) האכלת הברווזים — מרקר 🦆 ליד החוף; פתרון נכון = מטבעות =====
   const duckX = cx - 5, duckZ = cz + 6;
-  const duckMarker = World.emojiSprite('🦆', 1.8);
-  duckMarker.center.set(0.5, 0.0);
-  duckMarker.position.set(duckX, 0.6, duckZ);
-  World.scene.add(duckMarker);
+  const duckMarker = deps.decor('assets/duck.png', duckX, duckZ, 1.7, false);
   deps.activity(duckMarker, () => {
     deps.askProblem('feed', res => {
       const gain = deps.payout(10, res);
@@ -140,7 +135,7 @@ export function buildLake(deps) {
       water.scale.y = water.userData.base.y * (1 + Math.cos(t * 1.0) * 0.012);
     }
     // הסירה עולה ויורדת בעדינות עם הגלים
-    if (boat) boat.position.y = boatBaseY + Math.sin(t * 1.5) * 0.12;
+    boat.userData.update(t);
     // מרקרי הדיג מתנדנדים מעט כל אחד בקצב שלו
     for (const fm of fishMarkers) {
       fm.marker.position.y = fm.baseY + Math.sin(t * 2.0 + fm.phase) * 0.08;

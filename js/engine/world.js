@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Models3D } from './models3d.js';
 import { makeWater, WaterShared } from './water.js';
 import { buildGrass, GrassTime } from './grass.js';
+import { Props } from './props3d.js';
 
 const World = {
   renderer: null, scene: null, camera: null, controls: null,
@@ -451,8 +452,8 @@ const World = {
     }
     // ציפורים שמרחפות (נסחפות כמו עננים)
     for (let i = 0; i < 4; i++) {
-      const b = this.emojiSprite('🐦', 1.4);
-      b.center.set(0.5, 0.5);
+      const b = Props.bird({ body: [0x4a90d9, 0xf2f2f2, 0x7a5c48, 0xe2574c][i], size: 1.5 });
+      b.traverse(o => { o.castShadow = false; });
       b.position.set(-50 + Math.random() * 100, 20 + Math.random() * 12, -45 + Math.random() * 25);
       this.addCloud(b);
     }
@@ -906,6 +907,7 @@ const World = {
     for (const cl of this.clouds) {
       cl.position.x += dt * 0.5;
       if (cl.position.x > 60) cl.position.x = -60;
+      if (cl.userData.update) { cl.position.x += dt * 1.6; cl.userData.update(this._t); }   // ציפור: מהירה מענן, כנפיים מנפנפות
     }
 
     // נדנוד תפאורה ברוח

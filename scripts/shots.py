@@ -59,7 +59,7 @@ AIM = """
 """
 
 def enter(page):
-    page.goto(URL, wait_until='load')
+    page.goto(URL, wait_until='load', timeout=120000)
     page.wait_for_function('window.__World && window.__World.scene', timeout=120000)
     page.wait_for_timeout(9000)
     gate = page.query_selector('#agGuest')
@@ -101,7 +101,7 @@ with sync_playwright() as p:
         ctx = b.new_context(**p.devices['Pixel 7'])
         page = ctx.new_page()
         page.on('pageerror', lambda e: errors.append(str(e)))
-        page.goto(URL, wait_until='load')
+        page.goto(URL, wait_until='load', timeout=120000)
         page.wait_for_function('window.__World && window.__World.scene', timeout=120000)
         page.wait_for_timeout(9000)
         shot(page, 'ui-title')

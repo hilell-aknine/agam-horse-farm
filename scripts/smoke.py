@@ -28,7 +28,7 @@ def run(p, name, ctx_args):
             if r.status >= 400: missing.append(f'{r.status} {r.url}')
             elif r.url.endswith('.js'): js_ok.add(r.url[len(BASE):])
     page.on('response', on_resp)
-    page.goto(BASE, wait_until='load')
+    page.goto(BASE, wait_until='load', timeout=120000)
     page.wait_for_timeout(12000)
     gate = page.query_selector('#agGuest')   # שער "בואי נשחק" (לא תמיד מוצג, תלוי בגרסה ובשמירה)
     if gate and gate.is_visible():
