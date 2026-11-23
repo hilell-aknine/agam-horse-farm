@@ -10,7 +10,7 @@ cat.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/qKICY6xla2
 dog.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/wcWiuEqwzq
 fox.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/Bc97C66HKi
 deer.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/T6Cs7tmMHJ
-turkey.glb — Kenney (CC0) — https://poly.pizza/m/oFnmWN5dCb
+turkey.glb — built in Blender for this game (2026-11-23), replaces a roasted-turkey model
 peacock.glb — None (None) — None
 tree.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/QVOop92WmG
 oak_tree.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/9nvGuZlbpE
@@ -34,8 +34,8 @@ water_bucket.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/83obI9bNun
 feed_sack.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/VRfAODZ0Xk
 weathervane.glb — None (None) — None
 doghouse.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/YlADpCJU8U
-farm_gate.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/JfSPlkPhRD
-signpost.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/4MSsNFk5fc
+farm_gate.glb — built in Blender for this game (2026-11-23), wooden 5-bar gate
+signpost.glb — built in Blender for this game (2026-11-23), wooden arrow signpost
 fountain.glb — Isa Lousberg (CC0 1.0) — https://poly.pizza/m/WHc7dwttlk
 bench.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/jLxjFxFRpw
 lamp_post.glb — Quaternius (CC0 1.0) — https://poly.pizza/m/Bq1Qj4DAre
